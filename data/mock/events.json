@@ -1,11 +1,27 @@
 [
   {
+    "id": "90:900",
+    "name": "SaiPa kausikortit 2025-2026",
+    "start": "2025-07-31T21:00:00.000Z",
+    "status": "past",
+    "firstSeen": "2025-07-31T21:00:00.000Z",
+    "lastSeen": "2026-03-15T23:00:00.000Z"
+  },
+  {
     "id": "90:000",
     "name": "SaiPa kausikortit 2026-2027",
     "start": "2026-07-30T21:00:00.000Z",
     "status": "upcoming",
     "firstSeen": "2026-07-30T21:00:00.000Z",
     "lastSeen": "2026-10-25T12:00:00.000Z"
+  },
+  {
+    "id": "90:901",
+    "name": "SaiPa kausikortit 2027-2028",
+    "start": "2027-07-30T21:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-07-30T21:00:00.000Z",
+    "lastSeen": "2027-08-10T12:00:00.000Z"
   },
   {
     "id": "90:001",

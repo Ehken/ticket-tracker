@@ -3,17 +3,26 @@ import assert from "node:assert/strict";
 import {
   computeSeasons,
   filterBySeason,
-  partitionByTabs,
-  computeTabVisibility,
-  resolveActiveTab,
+  splitKausikortti,
+  filterBySarja,
+  computeSarjaAvailability,
+  resolveSarja,
+  extractOpponentDisplay,
+  computeOpponents,
+  resolveVastustaja,
+  filterByVastustaja,
+  filterByPelatut,
+  buildTimeline,
+  groupByMonth,
   gameTypeLabel,
+  shouldAutoExpandKausikortti,
 } from "../js/grouping.js";
 
 function ev(overrides) {
   return {
     id: "id",
-    name: "name",
-    gameType: "muu",
+    name: "SaiPa - Tappara",
+    gameType: "runkosarja",
     season: null,
     hidden: false,
     note: "",
@@ -45,7 +54,7 @@ test("filterBySeason keeps matching-season events and always keeps season=null e
   const events = [
     ev({ id: "a", season: "2026-27" }),
     ev({ id: "b", season: "2027-28" }),
-    ev({ id: "c", season: null }), // e.g. kausikortti
+    ev({ id: "c", season: null }),
   ];
   const filtered = filterBySeason(events, "2026-27");
   assert.deepEqual(
@@ -60,121 +69,161 @@ test("filterBySeason with 'kaikki' or no value returns everything", () => {
   assert.equal(filterBySeason(events, undefined).length, 2);
 });
 
-test("partitionByTabs: every event appears in exactly one bucket (disjoint partitions)", () => {
+test("splitKausikortti separates kausikortti events from the rest, preserving order", () => {
   const events = [
-    ev({ id: "kausikortti-1", gameType: "kausikortti" }),
-    ev({ id: "runkosarja-1", gameType: "runkosarja", status: "upcoming" }),
-    ev({ id: "muu-1", gameType: "muu", status: "upcoming" }),
-    ev({ id: "chl-1", gameType: "chl", status: "upcoming" }),
-    ev({ id: "harjoitusottelu-1", gameType: "harjoitusottelu", status: "upcoming" }),
-    ev({ id: "playoffs-1", gameType: "playoffs", status: "upcoming" }),
-    ev({ id: "past-runkosarja-1", gameType: "runkosarja", status: "past" }),
-    ev({ id: "past-chl-1", gameType: "chl", status: "past" }),
-    ev({ id: "past-muu-1", gameType: "muu", status: "past" }),
+    ev({ id: "a", gameType: "runkosarja" }),
+    ev({ id: "b", gameType: "kausikortti" }),
+    ev({ id: "c", gameType: "chl" }),
   ];
-
-  const partitions = partitionByTabs(events);
-  const allBucketed = [
-    ...partitions.kausikortti,
-    ...partitions.runkosarja,
-    ...partitions.chl,
-    ...partitions.harjoitusottelu,
-    ...partitions.playoffs,
-    ...partitions.pelatut,
-  ].map((e) => e.id);
-
-  const inputIds = events.map((e) => e.id);
-  assert.equal(allBucketed.length, inputIds.length, "no event should be duplicated across buckets");
-  assert.deepEqual([...allBucketed].sort(), [...inputIds].sort(), "every input event must appear exactly once");
-});
-
-test("partitionByTabs: runkosarja absorbs upcoming 'muu' events", () => {
-  const events = [ev({ id: "muu-1", gameType: "muu", status: "upcoming" })];
-  const partitions = partitionByTabs(events);
+  const { kausikortti, rest } = splitKausikortti(events);
   assert.deepEqual(
-    partitions.runkosarja.map((e) => e.id),
-    ["muu-1"]
+    kausikortti.map((e) => e.id),
+    ["b"]
   );
-  assert.equal(partitions.pelatut.length, 0);
-});
-
-test("partitionByTabs: a past event of any gameType lands only in pelatut, never its upcoming-type bucket", () => {
-  const events = [
-    ev({ id: "past-chl", gameType: "chl", status: "past" }),
-    ev({ id: "past-playoffs", gameType: "playoffs", status: "past" }),
-  ];
-  const partitions = partitionByTabs(events);
-  assert.equal(partitions.chl.length, 0);
-  assert.equal(partitions.playoffs.length, 0);
   assert.deepEqual(
-    partitions.pelatut.map((e) => e.id).sort(),
-    ["past-chl", "past-playoffs"]
+    rest.map((e) => e.id),
+    ["a", "c"]
   );
 });
 
-test("partitionByTabs excludes hidden events entirely", () => {
-  const events = [ev({ id: "hidden-1", hidden: true, gameType: "runkosarja" })];
-  const partitions = partitionByTabs(events);
-  assert.equal(partitions.runkosarja.length, 0);
+test("filterBySarja: 'kaikki'/unset passes everything through, including 'muu'", () => {
+  const events = [ev({ id: "a", gameType: "runkosarja" }), ev({ id: "b", gameType: "muu" })];
+  assert.equal(filterBySarja(events, "kaikki").length, 2);
+  assert.equal(filterBySarja(events, undefined).length, 2);
 });
 
-test("computeTabVisibility: CHL/Harjoitusottelut/Playoffs are hidden when empty, visible when not", () => {
-  const empty = computeTabVisibility({ runkosarja: [1], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  const chlTab = empty.find((t) => t.tab === "chl");
-  assert.equal(chlTab.visible, false);
-
-  const withChl = computeTabVisibility({ runkosarja: [1], chl: [1], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(withChl.find((t) => t.tab === "chl").visible, true);
+test("filterBySarja: a specific sarja value does an exact match and excludes 'muu'", () => {
+  const events = [
+    ev({ id: "a", gameType: "runkosarja" }),
+    ev({ id: "b", gameType: "muu" }),
+    ev({ id: "c", gameType: "chl" }),
+  ];
+  const filtered = filterBySarja(events, "runkosarja");
+  assert.deepEqual(
+    filtered.map((e) => e.id),
+    ["a"]
+  );
 });
 
-test("computeTabVisibility: Runkosarja hides when it alone is empty but other buckets have content", () => {
-  const tabs = computeTabVisibility({ runkosarja: [], chl: [1], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(tabs.find((t) => t.tab === "runkosarja").visible, false);
+test("computeSarjaAvailability: hasEvents reflects the kausi-filtered set, regardless of status", () => {
+  const events = [ev({ id: "a", gameType: "runkosarja", status: "past" })];
+  const availability = computeSarjaAvailability(events);
+  assert.equal(availability.find((o) => o.value === "runkosarja").hasEvents, true);
+  assert.equal(availability.find((o) => o.value === "chl").hasEvents, false);
+  assert.equal(availability.find((o) => o.value === "kaikki").hasEvents, true);
 });
 
-test("computeTabVisibility: Runkosarja shows placeholder when every bucket is empty", () => {
-  const tabs = computeTabVisibility({ runkosarja: [], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  const runkosarjaTab = tabs.find((t) => t.tab === "runkosarja");
-  assert.equal(runkosarjaTab.visible, true);
-  assert.equal(runkosarjaTab.placeholder, true);
+test("computeSarjaAvailability: a 'muu'-only set marks every specific option unavailable", () => {
+  const events = [ev({ id: "a", gameType: "muu" })];
+  const availability = computeSarjaAvailability(events);
+  for (const option of availability) {
+    if (option.value === "kaikki") continue;
+    assert.equal(option.hasEvents, false, `${option.value} should be unavailable`);
+  }
 });
 
-test("computeTabVisibility: Pelatut is always visible, disabled only while empty", () => {
-  const emptyTabs = computeTabVisibility({ runkosarja: [1], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  const emptyPelatut = emptyTabs.find((t) => t.tab === "pelatut");
-  assert.equal(emptyPelatut.visible, true);
-  assert.equal(emptyPelatut.disabled, true);
-
-  const filledTabs = computeTabVisibility({ runkosarja: [1], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [1] });
-  const filledPelatut = filledTabs.find((t) => t.tab === "pelatut");
-  assert.equal(filledPelatut.disabled, false);
+test("resolveSarja: keeps an available requested value, resets unavailable/unknown/unset to 'kaikki'", () => {
+  const availability = computeSarjaAvailability([ev({ id: "a", gameType: "runkosarja" })]);
+  assert.equal(resolveSarja("runkosarja", availability), "runkosarja");
+  assert.equal(resolveSarja("chl", availability), "kaikki"); // unavailable
+  assert.equal(resolveSarja("not-a-real-value", availability), "kaikki");
+  assert.equal(resolveSarja(undefined, availability), "kaikki");
 });
 
-test("resolveActiveTab: honors the requested tab when it's visible and enabled", () => {
-  const tabs = computeTabVisibility({ runkosarja: [1], chl: [1], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(resolveActiveTab("chl", tabs), "chl");
+test("extractOpponentDisplay parses 'SaiPa - X' variants, preserving original casing", () => {
+  assert.equal(extractOpponentDisplay("SaiPa - Tappara"), "Tappara");
+  assert.equal(extractOpponentDisplay("SaiPa-HIFK"), "HIFK");
+  assert.equal(extractOpponentDisplay("SaiPa – Dynamo Pardubice"), "Dynamo Pardubice");
 });
 
-test("resolveActiveTab: falls back to first-visible-with-content when requested tab is hidden/disabled", () => {
-  const tabs = computeTabVisibility({ runkosarja: [1], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(resolveActiveTab("chl", tabs), "runkosarja"); // chl hidden (empty) -> fallback
-  assert.equal(resolveActiveTab("pelatut", tabs), "runkosarja"); // pelatut disabled (empty) -> fallback
+test("extractOpponentDisplay returns null for names that aren't 'SaiPa - X'", () => {
+  assert.equal(extractOpponentDisplay("SaiPa kausikortit 2026-2027"), null);
 });
 
-test("resolveActiveTab: falls back to the Runkosarja placeholder when everything is empty, never Pelatut", () => {
-  const tabs = computeTabVisibility({ runkosarja: [], chl: [], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(resolveActiveTab(undefined, tabs), "runkosarja");
-  assert.equal(resolveActiveTab("pelatut", tabs), "runkosarja");
+test("computeOpponents dedupes, sorts alphabetically (fi collation), and excludes unparseable names", () => {
+  const events = [
+    ev({ id: "a", name: "SaiPa - Ässät" }),
+    ev({ id: "b", name: "SaiPa - Tappara" }),
+    ev({ id: "c", name: "SaiPa - Ässät" }), // duplicate opponent
+    ev({ id: "d", name: "SaiPa kausikortit 2026-2027" }), // unparseable
+  ];
+  // Finnish alphabetical order places Ä/Ö after Z, so "Tappara" sorts before "Ässät".
+  assert.deepEqual(computeOpponents(events), ["Tappara", "Ässät"]);
 });
 
-test("resolveActiveTab: does NOT fall back to Runkosarja when it alone is empty but another bucket has content", () => {
-  const tabs = computeTabVisibility({ runkosarja: [], chl: [1], harjoitusottelu: [], playoffs: [], pelatut: [] });
-  assert.equal(resolveActiveTab(undefined, tabs), "chl");
-  assert.notEqual(resolveActiveTab("nonexistent-tab", tabs), "runkosarja");
+test("resolveVastustaja: keeps an available requested value, resets unavailable/unset to 'kaikki'", () => {
+  const opponents = ["HIFK", "Tappara"];
+  assert.equal(resolveVastustaja("HIFK", opponents), "HIFK");
+  assert.equal(resolveVastustaja("KooKoo", opponents), "kaikki");
+  assert.equal(resolveVastustaja(undefined, opponents), "kaikki");
+});
+
+test("filterByVastustaja: 'kaikki'/unset passes through; specific value does exact opponent match", () => {
+  const events = [ev({ id: "a", name: "SaiPa - HIFK" }), ev({ id: "b", name: "SaiPa - Tappara" })];
+  assert.equal(filterByVastustaja(events, "kaikki").length, 2);
+  assert.deepEqual(
+    filterByVastustaja(events, "HIFK").map((e) => e.id),
+    ["a"]
+  );
+});
+
+test("filterByPelatut: off excludes past events, on includes everything", () => {
+  const events = [ev({ id: "a", status: "upcoming" }), ev({ id: "b", status: "past" })];
+  assert.deepEqual(
+    filterByPelatut(events, false).map((e) => e.id),
+    ["a"]
+  );
+  assert.equal(filterByPelatut(events, true).length, 2);
+});
+
+test("buildTimeline sorts chronologically ascending, mixing past and upcoming", () => {
+  const events = [
+    ev({ id: "later", start: "2026-10-01T17:00:00.000Z", status: "upcoming" }),
+    ev({ id: "earlier", start: "2026-08-01T17:00:00.000Z", status: "past" }),
+  ];
+  assert.deepEqual(
+    buildTimeline(events).map((e) => e.id),
+    ["earlier", "later"]
+  );
+});
+
+test("groupByMonth groups consecutive same-month events and labels them in Finnish", () => {
+  const events = [
+    ev({ id: "a", start: "2026-09-05T17:00:00.000Z" }),
+    ev({ id: "b", start: "2026-09-20T17:00:00.000Z" }),
+    ev({ id: "c", start: "2026-10-03T17:00:00.000Z" }),
+  ];
+  const groups = groupByMonth(events);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].label, "Syyskuu 2026");
+  assert.deepEqual(
+    groups[0].events.map((e) => e.id),
+    ["a", "b"]
+  );
+  assert.equal(groups[1].label, "Lokakuu 2026");
+  assert.deepEqual(
+    groups[1].events.map((e) => e.id),
+    ["c"]
+  );
+});
+
+test("groupByMonth: an event just after local midnight rolls into the next Helsinki month correctly", () => {
+  // 2026-09-30T22:00:00.000Z is 2026-10-01 01:00 in Helsinki (UTC+3, DST still active).
+  const events = [ev({ id: "a", start: "2026-09-30T22:00:00.000Z" })];
+  const groups = groupByMonth(events);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].label, "Lokakuu 2026");
 });
 
 test("gameTypeLabel maps 'muu' to the unclassified label and passes through known types", () => {
   assert.equal(gameTypeLabel("muu"), "(luokittelematon)");
   assert.equal(gameTypeLabel("runkosarja"), "Runkosarja");
   assert.equal(gameTypeLabel("chl"), "CHL");
+});
+
+test("shouldAutoExpandKausikortti: expanded only when it's the sole strip and there are zero games", () => {
+  assert.equal(shouldAutoExpandKausikortti(1, 0), true);
+  assert.equal(shouldAutoExpandKausikortti(1, 5), false);
+  assert.equal(shouldAutoExpandKausikortti(2, 0), false);
+  assert.equal(shouldAutoExpandKausikortti(3, 4), false);
 });

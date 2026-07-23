@@ -166,6 +166,7 @@ async function main() {
     hour = 18,
     minute = 30,
     durationHours = 2.5,
+    stopIsoOverride, // e.g. kausikortti's "stop" is end-of-season, not start+durationHours
     status,
     firstSeenDaysBefore = 45,
     nowIso, // override for events whose "current snapshot" isn't close to `start` (e.g. kausikortti)
@@ -174,7 +175,7 @@ async function main() {
     historyPoints = 10,
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
-    const stopIso = new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
+    const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
     const firstSeenIso = new Date(new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000).toISOString();
     const lastPointIso =
       status === "past" ? new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString() : nowIso ?? startIso;
@@ -218,23 +219,59 @@ async function main() {
     return { gameType, season };
   }
 
-  // --- Kausikortit (always-visible strip; no season, matches production) ---
+  // --- Kausikortit: one per season, each its own strip. Tests the multi-strip
+  // "newest season first" ordering, an archived (past) strip's frozen data,
+  // and the season selector picking up a 3rd season.
+  addEvent({
+    id: "90:900",
+    name: "SaiPa kausikortit 2025-2026",
+    gameType: "kausikortti",
+    season: "2025-26",
+    dateStr: "2025-08-01",
+    hour: 0,
+    minute: 0,
+    stopIsoOverride: "2026-03-15T22:00:00.000Z",
+    status: "past",
+    firstSeenDaysBefore: 0,
+    popularity: 0.92,
+    historyPoints: 10,
+  });
+  overrides["90-900"] = { gameType: "kausikortti", season: "2025-26" };
+
   const kausikorttiId = "90:000";
   addEvent({
     id: kausikorttiId,
     name: "SaiPa kausikortit 2026-2027",
     gameType: "kausikortti",
-    season: null,
+    season: "2026-27",
     dateStr: "2026-07-31",
     hour: 0,
     minute: 0,
+    stopIsoOverride: "2027-03-15T22:00:00.000Z",
     status: "upcoming",
     firstSeenDaysBefore: 0,
     nowIso: "2026-10-25T12:00:00.000Z", // sales opened 07-31; "now" is ~3 months into the season
     popularity: 0.55,
     historyPoints: 14,
   });
-  overrides[toDashId(kausikorttiId)] = { gameType: "kausikortti" };
+  overrides[toDashId(kausikorttiId)] = { gameType: "kausikortti", season: "2026-27" };
+
+  addEvent({
+    id: "90:901",
+    name: "SaiPa kausikortit 2027-2028",
+    gameType: "kausikortti",
+    season: "2027-28",
+    dateStr: "2027-07-31",
+    hour: 0,
+    minute: 0,
+    stopIsoOverride: "2028-03-15T22:00:00.000Z",
+    status: "upcoming",
+    firstSeenDaysBefore: 0,
+    nowIso: "2027-08-10T12:00:00.000Z", // sales just opened
+    popularity: 0.08,
+    historyPoints: 3,
+  });
+  overrides["90-901"] = { gameType: "kausikortti", season: "2027-28" };
 
   // --- All 36 real schedule.json fixtures become mock games (id range 90:001-90:036) ---
   const PAST_OPPONENTS_BY_ORDER = 4; // first 4 fixtures (chronologically earliest) are archived

@@ -1,11 +1,13 @@
-// URL query params (?kausi=, ?tab=) are the single source of truth for
-// season/tab selection state — shareable links, no localStorage.
+// URL query params (?kausi=, ?sarja=, ?vastustaja=, ?pelatut=) are the single
+// source of truth for filter state — shareable links, no localStorage.
 
 export function readUrlState() {
   const params = new URLSearchParams(window.location.search);
   return {
     kausi: params.get("kausi") ?? undefined,
-    tab: params.get("tab") ?? undefined,
+    sarja: params.get("sarja") ?? undefined,
+    vastustaja: params.get("vastustaja") ?? undefined,
+    pelatut: params.get("pelatut") === "1",
   };
 }
 

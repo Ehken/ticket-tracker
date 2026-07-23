@@ -3,15 +3,22 @@ import { mergeClassification } from "./classify.js";
 import {
   computeSeasons,
   filterBySeason,
-  partitionByTabs,
-  computeTabVisibility,
-  resolveActiveTab,
-  RUNKOSARJA_PLACEHOLDER_TEXT,
+  splitKausikortti,
+  filterBySarja,
+  computeSarjaAvailability,
+  resolveSarja,
+  computeOpponents,
+  resolveVastustaja,
+  filterByVastustaja,
+  filterByPelatut,
+  buildTimeline,
+  groupByMonth,
+  NO_GAMES_YET_TEXT,
+  shouldAutoExpandKausikortti,
 } from "./grouping.js";
 import { buildCard } from "./card.js";
-import { buildSeasonSelector } from "./seasonSelector.js";
-import { buildTabBar } from "./tabs.js";
-import { readUrlState } from "./urlState.js";
+import { buildFilterBar } from "./filterBar.js";
+import { readUrlState, writeUrlState } from "./urlState.js";
 import { formatHelsinkiTime } from "./format.js";
 
 async function attachLatest(mergedEvents) {
@@ -47,6 +54,15 @@ function renderMockBanner() {
   document.body.prepend(banner);
 }
 
+function buildEmptyStateAction(label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "empty-state__action";
+  button.textContent = label;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 async function main() {
   renderMockBanner();
 
@@ -64,6 +80,7 @@ async function main() {
 
   const withLatest = await attachLatest(visible);
   const { seasons, hasMultipleSeasons } = computeSeasons({ overrides, autoclass, schedule });
+  const { kausikortti, rest } = splitKausikortti(withLatest);
 
   function resolveKausi(requested) {
     if (requested === "kaikki") return "kaikki";
@@ -72,48 +89,136 @@ async function main() {
   }
 
   function render() {
-    const { kausi: requestedKausi, tab: requestedTab } = readUrlState();
-    const kausi = resolveKausi(requestedKausi);
-    const showSeasonBadge = kausi === "kaikki";
+    const raw = readUrlState();
+    const kausi = resolveKausi(raw.kausi);
 
-    const filtered = filterBySeason(withLatest, kausi);
-    const partitions = partitionByTabs(filtered);
-    const tabsInfo = computeTabVisibility(partitions);
-    const activeTab = resolveActiveTab(requestedTab, tabsInfo);
+    const kausikorttiForSeason = filterBySeason(kausikortti, kausi).sort((a, b) =>
+      (b.season ?? "").localeCompare(a.season ?? "")
+    );
 
+    let sarja = "kaikki";
+    let vastustaja = "kaikki";
+    const pelatut = raw.pelatut;
+    let sarjaOptions = computeSarjaAvailability([]);
+    let opponents = [];
+    let afterVastustaja = [];
+    let finalEvents = [];
+
+    if (rest.length > 0) {
+      const afterKausi = filterBySeason(rest, kausi);
+      sarjaOptions = computeSarjaAvailability(afterKausi);
+      sarja = resolveSarja(raw.sarja, sarjaOptions);
+
+      const afterSarja = filterBySarja(afterKausi, sarja);
+      opponents = computeOpponents(afterSarja);
+      vastustaja = resolveVastustaja(raw.vastustaja, opponents);
+
+      afterVastustaja = filterByVastustaja(afterSarja, vastustaja);
+      finalEvents = filterByPelatut(afterVastustaja, pelatut);
+    }
+
+    // Keep the URL consistent with what's actually shown: a raw value only
+    // ever differs from its resolved value when it was invalid/unavailable
+    // and got reset to the default — in that case, drop the stale param
+    // rather than writing the resolved default explicitly (clean URLs).
+    const corrections = {};
+    if (raw.kausi !== undefined && raw.kausi !== kausi) corrections.kausi = undefined;
+    if (raw.sarja !== undefined && raw.sarja !== sarja) corrections.sarja = undefined;
+    if (raw.vastustaja !== undefined && raw.vastustaja !== vastustaja) corrections.vastustaja = undefined;
+    if (Object.keys(corrections).length > 0) writeUrlState(corrections);
+
+    // Kausikortti strip(s) — expanded by default only when it's the sole
+    // visible content on the page (required fix: no longer always-expanded).
     const kausikorttiContainer = document.getElementById("kausikortit-cards");
     kausikorttiContainer.replaceChildren();
-    for (const event of partitions.kausikortti) {
+    const autoExpand = shouldAutoExpandKausikortti(kausikorttiForSeason.length, finalEvents.length);
+    for (const event of kausikorttiForSeason) {
       kausikorttiContainer.append(
-        buildCard(event, event.latest, { preExpanded: true, compactSummary: true, showSeasonBadge })
+        buildCard(event, event.latest, {
+          preExpanded: autoExpand,
+          compactSummary: true,
+          showSeasonBadge: kausi === "kaikki",
+        })
       );
     }
 
-    const selectorContainer = document.getElementById("season-selector-container");
-    selectorContainer.replaceChildren(
-      buildSeasonSelector({ seasons, hasMultipleSeasons, currentKausi: kausi, onChange: render })
-    );
+    const filterBarContainer = document.getElementById("filter-bar-container");
+    const timelineContainer = document.getElementById("timeline");
 
-    const tabBarContainer = document.getElementById("tab-bar-container");
-    tabBarContainer.replaceChildren(buildTabBar({ tabs: tabsInfo, activeTab, onSelect: render }));
-
-    const eventsListContainer = document.getElementById("events-list");
-    eventsListContainer.replaceChildren();
-
-    const activeTabInfo = tabsInfo.find((t) => t.tab === activeTab);
-    if (activeTabInfo?.placeholder) {
+    if (rest.length === 0) {
+      // True empty-shop state (today's real production reality): hide the
+      // filter bar entirely and show the "not on sale yet" placeholder.
+      filterBarContainer.hidden = true;
+      filterBarContainer.replaceChildren();
+      timelineContainer.replaceChildren();
       const placeholder = document.createElement("p");
       placeholder.className = "empty-state";
-      placeholder.textContent = RUNKOSARJA_PLACEHOLDER_TEXT;
-      eventsListContainer.append(placeholder);
-    } else {
-      for (const event of partitions[activeTab] ?? []) {
-        eventsListContainer.append(
-          buildCard(event, event.latest, {
-            showSeasonBadge,
-            showGameTypeLabel: activeTab === "pelatut",
+      placeholder.textContent = NO_GAMES_YET_TEXT;
+      timelineContainer.append(placeholder);
+      return;
+    }
+
+    filterBarContainer.hidden = false;
+    filterBarContainer.replaceChildren(
+      buildFilterBar({
+        seasons,
+        hasMultipleSeasons,
+        kausi,
+        sarjaOptions,
+        sarja,
+        opponents,
+        vastustaja,
+        pelatut,
+        onChange: render,
+      })
+    );
+
+    timelineContainer.replaceChildren();
+
+    if (finalEvents.length === 0) {
+      const wouldPelatutHelp = !pelatut && filterByPelatut(afterVastustaja, true).length > 0;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "empty-state";
+
+      const message = document.createElement("p");
+      message.textContent = wouldPelatutHelp
+        ? "Kaudella on vain pelattuja otteluita."
+        : "Ei otteluita valituilla suodattimilla.";
+      wrapper.append(message);
+
+      if (wouldPelatutHelp) {
+        wrapper.append(
+          buildEmptyStateAction("Näytä pelatut", () => {
+            writeUrlState({ pelatut: "1" });
+            render();
           })
         );
+      }
+
+      wrapper.append(
+        buildEmptyStateAction("Tyhjennä suodattimet", () => {
+          writeUrlState({ kausi: undefined, sarja: undefined, vastustaja: undefined, pelatut: undefined });
+          render();
+        })
+      );
+
+      timelineContainer.append(wrapper);
+    } else {
+      for (const group of groupByMonth(buildTimeline(finalEvents))) {
+        const heading = document.createElement("h3");
+        heading.className = "month-separator";
+        heading.textContent = group.label;
+        timelineContainer.append(heading);
+
+        for (const event of group.events) {
+          timelineContainer.append(
+            buildCard(event, event.latest, {
+              showSeasonBadge: kausi === "kaikki",
+              showGameTypeLabel: sarja === "kaikki",
+            })
+          );
+        }
       }
     }
   }

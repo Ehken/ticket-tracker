@@ -1,6 +1,15 @@
 {
+  "90-900": {
+    "gameType": "kausikortti",
+    "season": "2025-26"
+  },
   "90-000": {
-    "gameType": "kausikortti"
+    "gameType": "kausikortti",
+    "season": "2026-27"
+  },
+  "90-901": {
+    "gameType": "kausikortti",
+    "season": "2027-28"
   },
   "90-012": {
     "displayName": "SaiPa - HIFK (derby)"

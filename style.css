@@ -94,13 +94,19 @@ header.site-header h1 {
   padding-bottom: 0.3rem;
 }
 
-/* Season selector */
+/* Filter bar */
 
-.season-selector {
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1rem;
+  padding-bottom: 1rem;
 }
 
-.season-selector select {
+.filter-bar__field select {
   font: inherit;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--border);
@@ -109,45 +115,42 @@ header.site-header h1 {
   color: var(--fg);
 }
 
-/* Tabs */
-
-.tabs {
+.filter-bar__field--pelatut {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-}
-
-.tab {
-  font: inherit;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.9rem;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card-bg);
-  color: var(--fg);
   cursor: pointer;
 }
 
-.tab--active {
-  background: var(--sold);
-  border-color: var(--sold);
-  color: #fff;
-}
-
-.tab--disabled,
-.tab:disabled {
+.month-separator {
+  font-size: 0.95rem;
   color: var(--muted);
-  cursor: not-allowed;
-  opacity: 0.6;
+  margin: 1.5rem 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .empty-state {
   color: var(--muted);
   font-style: italic;
   padding: 1rem 0;
+}
+
+.empty-state__action {
+  font: inherit;
+  font-style: normal;
+  margin: 0.5rem 0.5rem 0 0;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.empty-state__action:hover {
+  background: var(--hover-bg);
 }
 
 /* Cards */
@@ -248,7 +251,8 @@ header.site-header h1 {
 }
 
 .card__season-badge,
-.card__game-type-label {
+.card__game-type-label,
+.card__pelattu-tag {
   font-size: 0.75rem;
   font-weight: 400;
   color: var(--muted);
@@ -257,8 +261,12 @@ header.site-header h1 {
   padding: 0.05rem 0.5rem;
 }
 
-.card__note,
-.card__frozen-note {
+.card--past {
+  opacity: 0.65;
+  filter: grayscale(40%);
+}
+
+.card__note {
   margin: 0 1rem 0.75rem;
   font-size: 0.85rem;
   color: var(--muted);

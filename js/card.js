@@ -44,6 +44,13 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
   nameSpan.textContent = mergedEvent.name;
   title.append(nameSpan, buildChevron());
 
+  if (mergedEvent.status === "past") {
+    const pelattuTag = document.createElement("span");
+    pelattuTag.className = "card__pelattu-tag";
+    pelattuTag.textContent = "Pelattu";
+    title.append(pelattuTag);
+  }
+
   if (showGameTypeLabel) {
     const typeLabel = document.createElement("span");
     typeLabel.className = "card__game-type-label";
@@ -88,7 +95,16 @@ function buildCompactHeader(mergedEvent, totals) {
   const line = document.createElement("div");
   line.className = "card__compact-line";
   const text = `Kausikortit: ${formatThousands(totals.sold)} / ${formatThousands(totals.total)} · ${formatPercent(totals.sold, totals.total)}`;
-  line.append(document.createTextNode(text), buildChevron());
+  line.append(document.createTextNode(text));
+
+  if (mergedEvent.status === "past") {
+    const pelattuTag = document.createElement("span");
+    pelattuTag.className = "card__pelattu-tag";
+    pelattuTag.textContent = "Pelattu";
+    line.append(pelattuTag);
+  }
+
+  line.append(buildChevron());
 
   header.append(line, buildFillBar(totals));
   return header;
@@ -100,7 +116,7 @@ export function buildCard(
   { preExpanded = false, compactSummary = false, showSeasonBadge = false, showGameTypeLabel = false } = {}
 ) {
   const article = document.createElement("article");
-  article.className = "card";
+  article.className = mergedEvent.status === "past" ? "card card--past" : "card";
 
   let expanded = preExpanded;
 
@@ -171,13 +187,6 @@ export function buildCard(
     note.className = "card__note";
     note.textContent = mergedEvent.note;
     article.append(note);
-  }
-
-  if (mergedEvent.status === "past") {
-    const frozenNote = document.createElement("p");
-    frozenNote.className = "card__frozen-note";
-    frozenNote.textContent = "Lopputilanne ennen ottelua";
-    article.append(frozenNote);
   }
 
   article.append(body);
