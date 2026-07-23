@@ -18,6 +18,53 @@ async function seedDataDir(index) {
   return { dataDir, eventsPath };
 }
 
+function buildMatchEventHtml({ id, name, startMs, stopMs }) {
+  return `
+    <script>
+      kit.start(app, element, {
+        node_ids: [0],
+        data: [
+          null,
+          null,
+          {
+            type: "data",
+            data: {
+              shopId: 53,
+              event: {
+                id: "${id}",
+                name: "${name}",
+                start: new Date(${startMs}),
+                stop: new Date(${stopMs})
+              },
+              map: {
+                status: {
+                  usages: { "A1-1-001": 1, seisomakatsomo: 10, invalid: 1 },
+                  capacities: { seisomakatsomo: 2138, invalid: 12, aitio_1: 156, press: 24 }
+                },
+                disabled: [],
+                url: "/seatmap.svg"
+              }
+            }
+          }
+        ]
+      });
+    </script>
+  `;
+}
+
+function httpClientFor({ listingHtml, eventUrlFragment, eventHtml }) {
+  return {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => listingHtml };
+      if (url.includes(eventUrlFragment)) return { text: async () => eventHtml };
+      if (url.includes("seatmap.svg")) return { text: async () => seatmapSvg };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+}
+
+const silentLog = { log() {}, warn() {}, error() {} };
+
 test("run() aborts and writes nothing when the listing is empty but events.json has upcoming events", async () => {
   const priorIndex = [
     {
@@ -93,4 +140,86 @@ test("run() completes end-to-end for a single healthy event using fixtures", asy
 
   const history = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "history.json"), "utf8"));
   assert.equal(history.length, 1);
+});
+
+test("run() writes an autoclass.json entry when a first-seen event matches a schedule.json fixture", async () => {
+  const { dataDir } = await seedDataDir([]);
+  await writeFile(
+    path.join(dataDir, "schedule.json"),
+    JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }], null, 2) + "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("run() never rewrites an existing autoclass.json entry on a later run, even if schedule.json changes", async () => {
+  const { dataDir } = await seedDataDir([]);
+  const scheduleJsonPath = path.join(dataDir, "schedule.json");
+  await writeFile(
+    scheduleJsonPath,
+    JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }], null, 2) + "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  // First run: "53:601" is first-seen, matches, and gets classified.
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  // Someone edits schedule.json afterward — must not affect what's already written.
+  await writeFile(
+    scheduleJsonPath,
+    JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "harjoitusottelu", season: "2027-28" }], null, 2) + "\n"
+  );
+
+  // Second run: "53:601" is now present in events.json, so it's no longer first-seen.
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-02T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
 });

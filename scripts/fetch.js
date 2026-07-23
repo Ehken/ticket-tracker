@@ -11,16 +11,21 @@ import {
   computeTotals,
   warnOnOrphanRowLevelDisabled,
 } from "./lib/sections.js";
+import { findScheduleMatch } from "./lib/schedule.js";
 import {
+  eventDirId,
   eventsIndexPath,
   latestPath,
   historyPath,
+  schedulePath,
+  autoclassPath,
   readJson,
   writeJsonIfChanged,
   upsertEventIndexEntry,
   archiveMissingEvents,
   assertListingNotSuspiciouslyEmpty,
   appendHistoryPointIfChanged,
+  setAutoclassIfAbsent,
 } from "./lib/dataStore.js";
 
 const SHOP_BASE_URL = "https://elippu.net/saipa";
@@ -40,10 +45,16 @@ export async function run({
   const presentIds = presentEvents.map((e) => e.id);
 
   let index = await readJson(eventsIndexPath(dataDir), []);
+  const schedule = await readJson(schedulePath(dataDir), []);
+  let autoclass = await readJson(autoclassPath(dataDir), {});
 
   // Must run before any writes: a suspiciously empty listing must never look
   // like "every event disappeared" and mass-archive the whole index.
   assertListingNotSuspiciouslyEmpty(index, presentIds);
+
+  // Ids known before this run's upserts — the "first seen ever" signal for
+  // auto-classification. Must be captured before the loop mutates `index`.
+  const existingIds = new Set(index.map((e) => e.id));
 
   let hadFailure = false;
 
@@ -55,6 +66,16 @@ export async function run({
       const { event, map } = parseEventPage(html);
 
       warnOnOrphanRowLevelDisabled(map.disabled, log);
+
+      if (!existingIds.has(event.id)) {
+        const match = findScheduleMatch(schedule, {
+          name: event.name,
+          startIso: event.start.toISOString(),
+        });
+        if (match) {
+          autoclass = setAutoclassIfAbsent(autoclass, eventDirId(event.id), match);
+        }
+      }
 
       const { hash, capacities } = await resolveCapacities({
         mapUrl: map.url,
@@ -122,6 +143,7 @@ export async function run({
 
   index = archiveMissingEvents(index, presentIds);
   await writeJsonIfChanged(eventsIndexPath(dataDir), index);
+  await writeJsonIfChanged(autoclassPath(dataDir), autoclass);
 
   return { hadFailure };
 }

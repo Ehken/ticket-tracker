@@ -10,6 +10,7 @@ import {
   archiveMissingEvents,
   assertListingNotSuspiciouslyEmpty,
   appendHistoryPointIfChanged,
+  setAutoclassIfAbsent,
 } from "../scripts/lib/dataStore.js";
 
 test("eventDirId replaces colons with dashes (Windows-safe)", () => {
@@ -205,4 +206,16 @@ test("appendHistoryPointIfChanged appends a point when sold changed", () => {
   });
   assert.equal(history.length, 2);
   assert.equal(history[1].sold, 1205);
+});
+
+test("setAutoclassIfAbsent inserts a new entry when the key is absent", () => {
+  const result = setAutoclassIfAbsent({}, "53-601", { gameType: "runkosarja", season: "2026-27" });
+  assert.deepEqual(result, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("setAutoclassIfAbsent never overwrites an existing entry, even with a different candidate", () => {
+  const existing = { "53-601": { gameType: "runkosarja", season: "2026-27" } };
+  const result = setAutoclassIfAbsent(existing, "53-601", { gameType: "harjoitusottelu", season: "2027-28" });
+  assert.equal(result, existing); // same reference: no-op
+  assert.deepEqual(result["53-601"], { gameType: "runkosarja", season: "2026-27" });
 });

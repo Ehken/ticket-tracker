@@ -25,6 +25,14 @@ export function capacitiesPath(dataDir, hash) {
   return path.join(dataDir, "capacities", `${hash}.json`);
 }
 
+export function schedulePath(dataDir) {
+  return path.join(dataDir, "schedule.json");
+}
+
+export function autoclassPath(dataDir) {
+  return path.join(dataDir, "autoclass.json");
+}
+
 export async function readJson(filePath, fallback) {
   try {
     const content = await readFile(filePath, "utf8");
@@ -99,4 +107,10 @@ export function appendHistoryPointIfChanged(history, { tISO, sold, soldSeated, s
   if (history.length === 0) return [point];
   if (history[history.length - 1].sold !== sold) return [...history, point];
   return history;
+}
+
+export function setAutoclassIfAbsent(autoclassMap, dashId, entry) {
+  // Write-once: an existing entry is never touched, even by a different candidate.
+  if (dashId in autoclassMap) return autoclassMap;
+  return { ...autoclassMap, [dashId]: entry };
 }

@@ -6,9 +6,9 @@ kausikorttien lipunmyynnille. Ei backendia eikä tietokantaa: GitHub Actions
 -kaupasta, tallentaa ne JSON-tiedostoina tähän repoon, ja staattinen
 frontend (GitHub Pages) lukee nämä tiedostot.
 
-Tämä repo on tällä hetkellä vaiheessa **1–2**: scraperi + parseri
-yksikkötesteineen, sekä sen ajaminen oikeaa kauppaa vasten. Frontend ja
-GitHub Actions -workflow tulevat myöhemmin.
+Tämä repo on tällä hetkellä vaiheessa **1–3**: scraperi + parseri
+yksikkötesteineen, sen ajaminen oikeaa kauppaa vasten, ja staattinen frontend.
+GitHub Actions -workflow (automaattinen ajastettu haku) tulee myöhemmin.
 
 ## Datalähde
 
@@ -44,5 +44,37 @@ data/
   events/{id}/history.json       # myynnin aikasarja per tapahtuma
 ```
 
-`data/overrides.json` (manuaalinen luokittelu/piilotus ottelutapahtumille)
-ja sen yhdistäminen frontendissä lisätään vaiheessa 3.
+## Frontend
+
+`index.html` + `style.css` + `js/*.js` muodostavat staattisen sivun, joka lukee
+`data/`-kansion JSON-tiedostot suoraan selaimessa (ei build-vaihetta). Aja
+paikallisesti esim. `npx serve .` repon juuresta ja avaa selain.
+
+## Manuaalinen luokittelu (`data/overrides.json`)
+
+Scraperi ei koskaan kirjoita tähän tiedostoon — se on olemassa vain manuaalista
+muokkausta varten. Kentät (kaikki valinnaisia):
+
+- `gameType`: `"kausikortti" | "harjoitusottelu" | "runkosarja" | "playoffs" | "muu"`
+- `season`: esim. `"2026-27"`
+- `hidden`: `true` piilottaa tapahtuman kokonaan sivulta
+- `displayName`: korvaa scrapatun nimen
+- `note`: vapaa teksti, näytetään kortissa
+
+Avaimena käytetään tapahtuman id:tä **väliviiva-muodossa** (esim. `"53-575"`,
+ei `"53:575"`), sama muoto kuin `data/events/`-kansioiden nimissä.
+
+**Muokkausvuo:** muokkaa `data/overrides.json` paikallisesti tekstieditorilla,
+committaa ja pushaa muutos normaalisti omalla git-identiteetillasi. (Ei GitHubin
+web-editoria — sen kautta tehdyt committit näkyvät aina kirjautuneen
+GitHub-tilin nimissä, ei paikallisen git-identiteetin, mikä ei ole toivottua
+tässä projektissa.)
+
+Esimerkki:
+
+```json
+{
+  "53-575": { "gameType": "kausikortti" },
+  "53-580": { "gameType": "harjoitusottelu", "season": "2026-27" }
+}
+```
