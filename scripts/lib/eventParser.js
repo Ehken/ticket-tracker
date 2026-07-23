@@ -110,6 +110,9 @@ function validateShape(inner) {
   if (typeof map.url !== "string") {
     throw new ParseError("Parsed payload is missing map.url");
   }
+  if (!map.prices || typeof map.prices !== "object") {
+    throw new ParseError("Parsed payload is missing map.prices");
+  }
 }
 
 export function parseEventPage(html) {

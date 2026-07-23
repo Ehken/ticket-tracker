@@ -42,7 +42,16 @@ function buildMatchEventHtml({ id, name, startMs, stopMs }) {
                   capacities: { seisomakatsomo: 2138, invalid: 12, aitio_1: 156, press: 24 }
                 },
                 disabled: [],
-                url: "/seatmap.svg"
+                url: "/seatmap.svg",
+                prices: {
+                  priceGroups: { A1: "7", seisomakatsomo: "8", invalid: "9" },
+                  productPrices: { "7": { "956": 852 }, "8": { "959": 405 }, "9": { "961": 405 } },
+                  products: {
+                    "956": { id: "956", name: "Kategoria 2", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" },
+                    "959": { id: "959", name: "Seisomakatsomo", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" },
+                    "961": { id: "961", name: "Pyörätuoli", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" }
+                  }
+                }
               }
             }
           }
@@ -137,6 +146,15 @@ test("run() completes end-to-end for a single healthy event using fixtures", asy
   const latest = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "latest.json"), "utf8"));
   assert.equal(latest.eventId, "53:575");
   assert.equal(latest.totals.total > 0, true);
+  assert.equal(latest.prices.priceGroups.A4, "5");
+  assert.deepEqual(latest.prices.products["959"], {
+    id: "959",
+    name: "Seisomakatsomo",
+    vat: 13.5,
+    bundle: false,
+    type: "ticket",
+    group: "Verkkomyyntipiste",
+  });
 
   const history = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "history.json"), "utf8"));
   assert.equal(history.length, 1);

@@ -3,7 +3,7 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-07-23T18:55:10.254Z",
+  "fetchedAt": "2026-07-23T19:34:38.367Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 143,
-      "available": 125,
+      "sold": 142,
+      "available": 126,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -32,8 +32,8 @@
     },
     {
       "section": "A4",
-      "sold": 174,
-      "available": 70,
+      "sold": 173,
+      "available": 71,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1014,
-      "available": 1124,
+      "sold": 1013,
+      "available": 1125,
       "hold": 0,
       "total": 2138
     },
@@ -164,9 +164,122 @@
     }
   ],
   "totals": {
-    "sold": 2555,
-    "available": 1825,
+    "sold": 2552,
+    "available": 1828,
     "hold": 596,
     "total": 4976
+  },
+  "prices": {
+    "priceGroups": {
+      "seisomakatsomo": "8",
+      "D1": "7",
+      "C1": "6",
+      "D2": "7",
+      "C2": "5",
+      "A1": "7",
+      "C3": "5",
+      "A2": "6",
+      "C4": "5",
+      "A3": "5",
+      "C5": "5",
+      "A4": "5",
+      "C6": "5",
+      "A5": "6",
+      "C7": "6",
+      "A6": "10",
+      "C8": "6",
+      "invalid": "9"
+    },
+    "productPrices": {
+      "5": {
+        "955": 1026
+      },
+      "6": {
+        "956": 852
+      },
+      "7": {
+        "956": 852,
+        "957": 577
+      },
+      "8": {
+        "959": 405,
+        "960": 179
+      },
+      "9": {
+        "961": 405,
+        "1195": 179
+      },
+      "10": {
+        "956": 852,
+        "958": 577
+      }
+    },
+    "products": {
+      "955": {
+        "id": "955",
+        "name": "Kategoria 1",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "956": {
+        "id": "956",
+        "name": "Kategoria 2",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "957": {
+        "id": "957",
+        "name": "Eläk., Opiskelija, Lapsi 7-15v",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "958": {
+        "id": "958",
+        "name": "Saimaan keltamustat RY jäsen",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "959": {
+        "id": "959",
+        "name": "Seisomakatsomo",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "960": {
+        "id": "960",
+        "name": "Junnukatsomo 7-18v",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "961": {
+        "id": "961",
+        "name": "Pyörätuoli",
+        "description": "Saattaja samalla lipulla",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "1195": {
+        "id": "1195",
+        "name": "Pyörätuoli Lapset",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      }
+    }
   }
 }

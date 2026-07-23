@@ -34,6 +34,85 @@ const WHEELCHAIR_CAPACITY = 12;
 const AITIOT_CAPACITY = 156;
 const PRESS_CAPACITY = 24;
 
+// Real map.prices shape from the live shop (product catalog + prices are
+// effectively static across events) — reused verbatim for every mock event.
+const MOCK_PRICES = {
+  priceGroups: {
+    seisomakatsomo: "8",
+    D1: "7",
+    C1: "6",
+    D2: "7",
+    C2: "5",
+    A1: "7",
+    C3: "5",
+    A2: "6",
+    C4: "5",
+    A3: "5",
+    C5: "5",
+    A4: "5",
+    C6: "5",
+    A5: "6",
+    C7: "6",
+    A6: "10",
+    C8: "6",
+    invalid: "9",
+  },
+  productPrices: {
+    "5": { "955": 1026 },
+    "6": { "956": 852 },
+    "7": { "956": 852, "957": 577 },
+    "8": { "959": 405, "960": 179 },
+    "9": { "961": 405, "1195": 179 },
+    "10": { "956": 852, "958": 577 },
+  },
+  products: {
+    "955": { id: "955", name: "Kategoria 1", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" },
+    "956": { id: "956", name: "Kategoria 2", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" },
+    "957": {
+      id: "957",
+      name: "Eläk., Opiskelija, Lapsi 7-15v",
+      vat: 13.5,
+      bundle: false,
+      type: "ticket",
+      group: "Verkkomyyntipiste",
+    },
+    "958": {
+      id: "958",
+      name: "Saimaan keltamustat RY jäsen",
+      vat: 13.5,
+      bundle: false,
+      type: "ticket",
+      group: "Verkkomyyntipiste",
+    },
+    "959": { id: "959", name: "Seisomakatsomo", vat: 13.5, bundle: false, type: "ticket", group: "Verkkomyyntipiste" },
+    "960": {
+      id: "960",
+      name: "Junnukatsomo 7-18v",
+      vat: 13.5,
+      bundle: false,
+      type: "ticket",
+      group: "Verkkomyyntipiste",
+    },
+    "961": {
+      id: "961",
+      name: "Pyörätuoli",
+      description: "Saattaja samalla lipulla",
+      vat: 13.5,
+      bundle: false,
+      type: "ticket",
+      group: "Verkkomyyntipiste",
+    },
+    "1195": {
+      id: "1195",
+      name: "Pyörätuoli Lapset",
+      vat: 13.5,
+      bundle: false,
+      type: "ticket",
+      group: "Verkkomyyntipiste",
+    },
+  },
+};
+
 // mulberry32: tiny seeded PRNG, deterministic per seed.
 function makeRng(seedStr) {
   let seed = 0;
@@ -202,6 +281,7 @@ async function main() {
       capacitiesHash: "mock-fixture",
       sections,
       totals,
+      prices: MOCK_PRICES,
     });
 
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");

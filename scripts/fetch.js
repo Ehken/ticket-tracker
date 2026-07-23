@@ -106,6 +106,7 @@ export async function run({
         capacitiesHash: hash,
         sections: rows,
         totals,
+        prices: map.prices, // persisted as-is; no calculations done on it yet
       };
 
       await writeJsonIfChanged(latestPath(dataDir, id), latest);

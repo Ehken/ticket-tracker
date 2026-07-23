@@ -40,8 +40,48 @@ test("parseEventPage extracts map.status.usages, capacities, disabled and url", 
   assert.equal(map.url, "/seatmap.svg");
 });
 
+test("parseEventPage extracts map.prices as-is (priceGroups/productPrices/products)", () => {
+  const { map } = parseEventPage(fixtureHtml);
+
+  assert.deepEqual(map.prices.priceGroups, {
+    seisomakatsomo: "8",
+    A4: "5",
+    C1: "6",
+    invalid: "9",
+  });
+  assert.deepEqual(map.prices.productPrices["8"], { "959": 405, "960": 179 });
+  assert.deepEqual(map.prices.products["959"], {
+    id: "959",
+    name: "Seisomakatsomo",
+    vat: 13.5,
+    bundle: false,
+    type: "ticket",
+    group: "Verkkomyyntipiste",
+  });
+});
+
 test("parseEventPage throws ParseError when the kit.start anchor is missing", () => {
   assert.throws(() => parseEventPage("<html><body>no payload here</body></html>"), ParseError);
+});
+
+test("parseEventPage throws ParseError when map.prices is missing", () => {
+  const brokenHtml = `
+    <script>
+      kit.start(app, element, {
+        node_ids: [0],
+        data: [null, null, { type: "data", data: {
+          shopId: 53,
+          event: { id: "53:575", name: "SaiPa kausikortit 2026-2027", start: new Date(1785531600000), stop: new Date(1785542400000) },
+          map: {
+            status: { usages: {}, capacities: {} },
+            disabled: [],
+            url: "/seatmap.svg"
+          }
+        } }]
+      });
+    </script>
+  `;
+  assert.throws(() => parseEventPage(brokenHtml), ParseError);
 });
 
 test("parseEventPage throws ParseError when the payload shape is incomplete", () => {
