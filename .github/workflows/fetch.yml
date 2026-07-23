@@ -1,5 +1,7 @@
 name: Fetch SaiPa ticket data
 
+# Re-saved to nudge GitHub's cron scheduler registration after scheduled
+# runs didn't fire following the initial push (only workflow_dispatch had run).
 "on":
   schedule:
     - cron: "0 * * * *"        # hourly baseline
