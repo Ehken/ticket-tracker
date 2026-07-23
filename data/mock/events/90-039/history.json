@@ -6,15 +6,15 @@
     "soldStanding": 0
   },
   {
-    "t": "2027-08-21T15:30:00.000Z",
-    "sold": 156,
-    "soldSeated": 135,
-    "soldStanding": 21
+    "t": "2027-08-08T13:45:00.000Z",
+    "sold": 286,
+    "soldSeated": 217,
+    "soldStanding": 69
   },
   {
-    "t": "2027-09-05T15:30:00.000Z",
-    "sold": 320,
-    "soldSeated": 277,
-    "soldStanding": 43
+    "t": "2027-08-10T12:00:00.000Z",
+    "sold": 585,
+    "soldSeated": 443,
+    "soldStanding": 142
   }
 ]

@@ -18,7 +18,8 @@ import {
 } from "./grouping.js";
 import { buildCard } from "./card.js";
 import { buildFilterBar } from "./filterBar.js";
-import { readUrlState, writeUrlState } from "./urlState.js";
+import { readUrlState, writeUrlState, IS_DASHBOARD } from "./urlState.js";
+import { renderDashboard } from "./dashboard.js";
 import { formatHelsinkiTime } from "./format.js";
 
 async function attachLatest(mergedEvents) {
@@ -86,6 +87,15 @@ async function main() {
     if (requested === "kaikki") return "kaikki";
     if (requested && seasons.includes(requested)) return requested;
     return seasons[seasons.length - 1] ?? "kaikki"; // newest season with data
+  }
+
+  if (IS_DASHBOARD) {
+    // Unreleased private preview — same data-source resolution as the
+    // normal view (incl. ?mock=1), but renders a completely separate page
+    // instead. No visible link to it from the normal UI.
+    const kausi = resolveKausi(readUrlState().kausi);
+    await renderDashboard({ kausikortti, matchEvents: rest, kausi });
+    return;
   }
 
   function render() {

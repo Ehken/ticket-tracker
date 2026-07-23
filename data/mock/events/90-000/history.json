@@ -66,13 +66,13 @@
     "soldStanding": 1102
   },
   {
-    "t": "2026-10-18T20:04:36.923Z",
-    "sold": 2532,
-    "soldSeated": 1321,
-    "soldStanding": 1211
+    "t": "2026-10-18T12:00:00.000Z",
+    "sold": 2521,
+    "soldSeated": 1315,
+    "soldStanding": 1206
   },
   {
-    "t": "2026-10-25T12:00:00.000Z",
+    "t": "2026-10-22T12:00:00.000Z",
     "sold": 2774,
     "soldSeated": 1447,
     "soldStanding": 1327

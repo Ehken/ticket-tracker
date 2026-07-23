@@ -3,148 +3,148 @@
   "name": "SaiPa - K-Espoo",
   "start": "2026-12-08T16:30:00.000Z",
   "stop": "2026-12-08T19:00:00.000Z",
-  "fetchedAt": "2026-12-08T16:30:00.000Z",
+  "fetchedAt": "2026-10-25T12:00:00.000Z",
   "capacitiesHash": "mock-fixture",
   "sections": [
     {
       "section": "A1",
-      "sold": 129,
-      "available": 42,
+      "sold": 154,
+      "available": 17,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 134,
-      "available": 134,
+      "sold": 194,
+      "available": 74,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 123,
-      "available": 123,
+      "sold": 212,
+      "available": 34,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 145,
-      "available": 99,
+      "sold": 196,
+      "available": 48,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 116,
-      "available": 131,
+      "sold": 166,
+      "available": 81,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 68,
-      "available": 52,
+      "sold": 90,
+      "available": 30,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 53,
-      "available": 55,
+      "sold": 89,
+      "available": 19,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
-      "sold": 56,
-      "available": 64,
+      "sold": 85,
+      "available": 35,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C3",
-      "sold": 90,
-      "available": 60,
+      "sold": 125,
+      "available": 25,
       "hold": 0,
       "total": 150,
       "disabled": false
     },
     {
       "section": "C4",
-      "sold": 57,
-      "available": 63,
+      "sold": 103,
+      "available": 17,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C5",
-      "sold": 52,
-      "available": 68,
+      "sold": 100,
+      "available": 20,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C6",
-      "sold": 78,
-      "available": 35,
+      "sold": 98,
+      "available": 15,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 71,
-      "available": 23,
+      "sold": 85,
+      "available": 9,
       "hold": 0,
       "total": 94,
       "disabled": false
     },
     {
       "section": "C8",
-      "sold": 75,
-      "available": 30,
+      "sold": 88,
+      "available": 17,
       "hold": 0,
       "total": 105,
       "disabled": false
     },
     {
       "section": "D1",
-      "sold": 100,
-      "available": 105,
+      "sold": 143,
+      "available": 62,
       "hold": 0,
       "total": 205,
       "disabled": false
     },
     {
       "section": "D2",
-      "sold": 115,
-      "available": 100,
+      "sold": 176,
+      "available": 39,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1184,
-      "available": 954,
+      "sold": 1776,
+      "available": 362,
       "hold": 0,
       "total": 2138
     },
     {
       "section": "invalid",
-      "sold": 6,
-      "available": 6,
+      "sold": 8,
+      "available": 4,
       "hold": 0,
       "total": 12
     },
@@ -164,8 +164,8 @@
     }
   ],
   "totals": {
-    "sold": 2652,
-    "available": 2144,
+    "sold": 3888,
+    "available": 908,
     "hold": 180,
     "total": 4976
   },

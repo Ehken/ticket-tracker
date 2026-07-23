@@ -1,39 +1,39 @@
 {
   "eventId": "90:003",
   "name": "SaiPa - Dynamo Pardubice",
-  "start": "2026-09-10T15:30:00.000Z",
-  "stop": "2026-09-10T18:00:00.000Z",
-  "fetchedAt": "2026-09-10T19:00:00.000Z",
+  "start": "2026-09-10T16:30:00.000Z",
+  "stop": "2026-09-10T19:00:00.000Z",
+  "fetchedAt": "2026-09-10T20:00:00.000Z",
   "capacitiesHash": "mock-fixture",
   "sections": [
     {
       "section": "A1",
-      "sold": 160,
-      "available": 11,
+      "sold": 167,
+      "available": 4,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 265,
-      "available": 3,
+      "sold": 267,
+      "available": 1,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 244,
-      "available": 2,
+      "sold": 245,
+      "available": 1,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 211,
-      "available": 33,
+      "sold": 228,
+      "available": 16,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -48,22 +48,46 @@
     },
     {
       "section": "A6",
-      "sold": 101,
-      "available": 19,
+      "sold": 109,
+      "available": 11,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 91,
-      "available": 17,
+      "sold": 102,
+      "available": 6,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
+      "sold": 116,
+      "available": 4,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C3",
+      "sold": 138,
+      "available": 12,
+      "hold": 0,
+      "total": 150,
+      "disabled": false
+    },
+    {
+      "section": "C4",
+      "sold": 114,
+      "available": 6,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C5",
       "sold": 112,
       "available": 8,
       "hold": 0,
@@ -71,41 +95,17 @@
       "disabled": false
     },
     {
-      "section": "C3",
-      "sold": 120,
-      "available": 30,
-      "hold": 0,
-      "total": 150,
-      "disabled": false
-    },
-    {
-      "section": "C4",
-      "sold": 97,
-      "available": 23,
-      "hold": 0,
-      "total": 120,
-      "disabled": false
-    },
-    {
-      "section": "C5",
-      "sold": 94,
-      "available": 26,
-      "hold": 0,
-      "total": 120,
-      "disabled": false
-    },
-    {
       "section": "C6",
-      "sold": 107,
-      "available": 6,
+      "sold": 110,
+      "available": 3,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 93,
-      "available": 1,
+      "sold": 94,
+      "available": 0,
       "hold": 0,
       "total": 94,
       "disabled": false
@@ -120,24 +120,24 @@
     },
     {
       "section": "D1",
-      "sold": 193,
-      "available": 12,
+      "sold": 198,
+      "available": 7,
       "hold": 0,
       "total": 205,
       "disabled": false
     },
     {
       "section": "D2",
-      "sold": 190,
-      "available": 25,
+      "sold": 205,
+      "available": 10,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 2117,
-      "available": 21,
+      "sold": 2130,
+      "available": 8,
       "hold": 0,
       "total": 2138
     },
@@ -164,8 +164,8 @@
     }
   ],
   "totals": {
-    "sold": 4556,
-    "available": 240,
+    "sold": 4696,
+    "available": 100,
     "hold": 180,
     "total": 4976
   },

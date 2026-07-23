@@ -1,93 +1,69 @@
 {
   "eventId": "90:001",
   "name": "SaiPa - Jukurit",
-  "start": "2026-08-27T15:30:00.000Z",
-  "stop": "2026-08-27T18:00:00.000Z",
-  "fetchedAt": "2026-08-27T19:00:00.000Z",
+  "start": "2026-08-27T14:00:00.000Z",
+  "stop": "2026-08-27T16:30:00.000Z",
+  "fetchedAt": "2026-08-27T17:30:00.000Z",
   "capacitiesHash": "mock-fixture",
   "sections": [
     {
       "section": "A1",
-      "sold": 169,
-      "available": 2,
+      "sold": 170,
+      "available": 1,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 256,
-      "available": 12,
+      "sold": 262,
+      "available": 6,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 219,
-      "available": 27,
+      "sold": 238,
+      "available": 8,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 208,
-      "available": 36,
+      "sold": 226,
+      "available": 18,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 178,
-      "available": 69,
+      "sold": 204,
+      "available": 43,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 104,
-      "available": 16,
+      "sold": 111,
+      "available": 9,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 94,
-      "available": 14,
+      "sold": 103,
+      "available": 5,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
-      "sold": 83,
-      "available": 37,
-      "hold": 0,
-      "total": 120,
-      "disabled": false
-    },
-    {
-      "section": "C3",
-      "sold": 146,
-      "available": 4,
-      "hold": 0,
-      "total": 150,
-      "disabled": false
-    },
-    {
-      "section": "C4",
-      "sold": 110,
-      "available": 10,
-      "hold": 0,
-      "total": 120,
-      "disabled": false
-    },
-    {
-      "section": "C5",
       "sold": 100,
       "available": 20,
       "hold": 0,
@@ -95,56 +71,80 @@
       "disabled": false
     },
     {
+      "section": "C3",
+      "sold": 148,
+      "available": 2,
+      "hold": 0,
+      "total": 150,
+      "disabled": false
+    },
+    {
+      "section": "C4",
+      "sold": 117,
+      "available": 3,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C5",
+      "sold": 114,
+      "available": 6,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
       "section": "C6",
-      "sold": 89,
-      "available": 24,
+      "sold": 103,
+      "available": 10,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 88,
-      "available": 6,
+      "sold": 92,
+      "available": 2,
       "hold": 0,
       "total": 94,
       "disabled": false
     },
     {
       "section": "C8",
-      "sold": 97,
-      "available": 8,
+      "sold": 101,
+      "available": 4,
       "hold": 0,
       "total": 105,
       "disabled": false
     },
     {
       "section": "D1",
-      "sold": 188,
-      "available": 17,
+      "sold": 195,
+      "available": 10,
       "hold": 0,
       "total": 205,
       "disabled": false
     },
     {
       "section": "D2",
-      "sold": 147,
-      "available": 68,
+      "sold": 189,
+      "available": 26,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1724,
-      "available": 414,
+      "sold": 1981,
+      "available": 157,
       "hold": 0,
       "total": 2138
     },
     {
       "section": "invalid",
-      "sold": 9,
-      "available": 3,
+      "sold": 10,
+      "available": 2,
       "hold": 0,
       "total": 12
     },
@@ -164,8 +164,8 @@
     }
   ],
   "totals": {
-    "sold": 4009,
-    "available": 787,
+    "sold": 4464,
+    "available": 332,
     "hold": 180,
     "total": 4976
   },

@@ -34,6 +34,15 @@ const WHEELCHAIR_CAPACITY = 12;
 const AITIOT_CAPACITY = 156;
 const PRESS_CAPACITY = 24;
 
+// Shared "as of" reference instants, one per season — each season's own
+// kausikortti event is generated as of this same moment, and every match
+// event within that season shares it too (when the guard below allows it),
+// so a single dashboard render has a coherent "today" to compute 24h/7d
+// deltas and sellout velocity against, instead of every event carrying its
+// own disconnected "now".
+const SEASON_2026_27_NOW = "2026-10-25T12:00:00.000Z";
+const SEASON_2027_28_NOW = "2027-08-10T12:00:00.000Z";
+
 // Real map.prices shape from the live shop (product catalog + prices are
 // effectively static across events) — reused verbatim for every mock event.
 const MOCK_PRICES = {
@@ -145,13 +154,31 @@ function helsinkiLocalToUtcIso(dateStr, hour, minute) {
   return utc.toISOString();
 }
 
-function buildSections(rng, popularity, disabledSections) {
+// Season-ticket holders occupy specific seats for every game that season, so
+// a match event's sold count is baselineSold + some fraction of the
+// remaining ("irtolippu") capacity — never an independent fraction of the
+// section's raw total, or most mock games would show zero irtolippu demand
+// once the dashboard subtracts the baseline back out.
+function soldWithBaseline(rng, popularity, total, baselineSold, spread, fixedFraction) {
+  const nonBaselineCapacity = Math.max(0, total - baselineSold);
+  const fraction = fixedFraction ?? clamp(popularity + (rng() - 0.5) * spread, 0.02, 0.99);
+  return baselineSold + Math.round(nonBaselineCapacity * fraction);
+}
+
+function buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides = {}) {
+  const baseline = baselineBySection ?? new Map();
   const sections = [];
 
   for (const [section, total] of Object.entries(SEATED_CAPACITIES)) {
     const disabled = disabledSections.includes(section);
-    const fill = clamp(popularity + (rng() - 0.5) * 0.35, 0.02, 0.99);
-    const sold = Math.round(total * fill);
+    const sold = soldWithBaseline(
+      rng,
+      popularity,
+      total,
+      baseline.get(section) ?? 0,
+      0.35,
+      sectionFractionOverrides[section]
+    );
     sections.push({
       section,
       sold,
@@ -162,8 +189,7 @@ function buildSections(rng, popularity, disabledSections) {
     });
   }
 
-  const standingFill = clamp(popularity + (rng() - 0.5) * 0.3, 0.02, 0.99);
-  const standingSold = Math.round(STANDING_CAPACITY * standingFill);
+  const standingSold = soldWithBaseline(rng, popularity, STANDING_CAPACITY, baseline.get("seisomakatsomo") ?? 0, 0.3);
   sections.push({
     section: "seisomakatsomo",
     sold: standingSold,
@@ -172,8 +198,7 @@ function buildSections(rng, popularity, disabledSections) {
     total: STANDING_CAPACITY,
   });
 
-  const wheelchairFill = clamp(popularity + (rng() - 0.5) * 0.3, 0, 1);
-  const wheelchairSold = Math.round(WHEELCHAIR_CAPACITY * wheelchairFill);
+  const wheelchairSold = soldWithBaseline(rng, popularity, WHEELCHAIR_CAPACITY, baseline.get("invalid") ?? 0, 0.3);
   sections.push({
     section: "invalid",
     sold: wheelchairSold,
@@ -200,27 +225,53 @@ function computeTotals(sections) {
   );
 }
 
-function buildHistory(rng, { finalSold, finalStanding, firstSeenIso, lastPointIso, pointCount }) {
+function buildHistory(rng, { finalSold, finalStanding, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
+  const spanDays = (endTime - startTime) / 86400000;
+
+  const progresses = [];
+  for (let i = 0; i < pointCount; i++) progresses.push(i / (pointCount - 1));
+
+  // Splice in denser points close to "now" (the tracked window's end) so
+  // 24h/7d deltas have real data to compute on — only for events with
+  // enough tracked history for these offsets to fall inside their range.
+  const recentProgressSet = new Set();
+  if (spanDays >= 7) {
+    for (const offsetDays of [7, 3, 1, 0.25]) {
+      const progress = 1 - offsetDays / spanDays;
+      if (progress > 0 && progress < 1) {
+        progresses.push(progress);
+        recentProgressSet.add(progress);
+      }
+    }
+  }
+
+  const uniqueSortedProgresses = [...new Set(progresses)].sort((a, b) => a - b);
+  uniqueSortedProgresses[uniqueSortedProgresses.length - 1] = 1; // guarantee an exact final point
+
   const points = [];
   let prevSold = 0;
-
-  for (let i = 0; i < pointCount; i++) {
-    const progress = i / (pointCount - 1);
+  for (let i = 0; i < uniqueSortedProgresses.length; i++) {
+    const progress = uniqueSortedProgresses[i];
     const t = startTime + (endTime - startTime) * progress;
-    let sold = Math.round(finalSold * progress * (0.85 + rng() * 0.3));
-    sold = clamp(sold, prevSold, finalSold);
-    if (i === pointCount - 1) sold = finalSold;
-    prevSold = sold;
+    const isLast = i === uniqueSortedProgresses.length - 1;
+
+    let sold;
+    if (pinRecentToFinal && (recentProgressSet.has(progress) || isLast)) {
+      // Sales have plateaued over the recent window — a deliberately "flat"
+      // mock game, so top-movers/sellout-estimate have a real zero-velocity
+      // case to exclude, not just synthetic unit-test fixtures.
+      sold = finalSold;
+    } else {
+      sold = clamp(Math.round(finalSold * progress * (0.85 + rng() * 0.3)), prevSold, finalSold);
+    }
+    if (isLast) sold = finalSold;
+    prevSold = Math.max(prevSold, sold);
+
     const standingShare = finalSold > 0 ? finalStanding / finalSold : 0;
     const soldStanding = Math.round(sold * standingShare);
-    points.push({
-      t: new Date(t).toISOString(),
-      sold,
-      soldSeated: sold - soldStanding,
-      soldStanding,
-    });
+    points.push({ t: new Date(t).toISOString(), sold, soldSeated: sold - soldStanding, soldStanding });
   }
 
   // Same "only append when sold changed" rule as production's real history.json.
@@ -235,6 +286,7 @@ async function main() {
   const historyById = new Map();
   const overrides = {};
   const autoclass = {};
+  const baselineBySeason = new Map();
 
   function addEvent({
     id,
@@ -248,19 +300,29 @@ async function main() {
     stopIsoOverride, // e.g. kausikortti's "stop" is end-of-season, not start+durationHours
     status,
     firstSeenDaysBefore = 45,
-    nowIso, // override for events whose "current snapshot" isn't close to `start` (e.g. kausikortti)
+    nowIso, // shared per-season "as of" instant (SEASON_2026_27_NOW etc.) — ignored if the event hasn't gone on sale yet as of that instant
     popularity,
     disabledSections = [],
     historyPoints = 10,
+    sectionFractionOverrides,
+    pinRecentToFinal,
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
     const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
     const firstSeenIso = new Date(new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000).toISOString();
-    const lastPointIso =
-      status === "past" ? new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString() : nowIso ?? startIso;
+
+    let lastPointIso;
+    if (status === "past") {
+      lastPointIso = new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString();
+    } else if (nowIso && new Date(nowIso).getTime() > new Date(firstSeenIso).getTime()) {
+      lastPointIso = nowIso;
+    } else {
+      lastPointIso = nowIso ?? startIso;
+    }
 
     const rng = makeRng(id);
-    const sections = buildSections(rng, popularity, disabledSections);
+    const baselineBySection = gameType === "kausikortti" ? null : baselineBySeason.get(season);
+    const sections = buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides);
     const totals = computeTotals(sections);
 
     events.push({
@@ -293,15 +355,23 @@ async function main() {
         firstSeenIso,
         lastPointIso,
         pointCount: historyPoints,
+        pinRecentToFinal,
       })
     );
+
+    if (gameType === "kausikortti") {
+      const sectionBaseline = new Map(sections.map((s) => [s.section, s.sold]));
+      baselineBySeason.set(season, sectionBaseline);
+    }
 
     return { gameType, season };
   }
 
   // --- Kausikortit: one per season, each its own strip. Tests the multi-strip
   // "newest season first" ordering, an archived (past) strip's frozen data,
-  // and the season selector picking up a 3rd season.
+  // and the season selector picking up a 3rd season. Also: the season each
+  // kausikortti is generated "as of" (nowIso) becomes that season's shared
+  // baseline AND the shared "now" reference for its match events below.
   addEvent({
     id: "90:900",
     name: "SaiPa kausikortit 2025-2026",
@@ -330,7 +400,7 @@ async function main() {
     stopIsoOverride: "2027-03-15T22:00:00.000Z",
     status: "upcoming",
     firstSeenDaysBefore: 0,
-    nowIso: "2026-10-25T12:00:00.000Z", // sales opened 07-31; "now" is ~3 months into the season
+    nowIso: SEASON_2026_27_NOW, // sales opened 07-31; "now" is ~3 months into the season
     popularity: 0.55,
     historyPoints: 14,
   });
@@ -347,7 +417,7 @@ async function main() {
     stopIsoOverride: "2028-03-15T22:00:00.000Z",
     status: "upcoming",
     firstSeenDaysBefore: 0,
-    nowIso: "2027-08-10T12:00:00.000Z", // sales just opened
+    nowIso: SEASON_2027_28_NOW, // sales just opened
     popularity: 0.08,
     historyPoints: 3,
   });
@@ -355,12 +425,34 @@ async function main() {
 
   // --- All 36 real schedule.json fixtures become mock games (id range 90:001-90:036) ---
   const PAST_OPPONENTS_BY_ORDER = 4; // first 4 fixtures (chronologically earliest) are archived
+  const START_TIMES = [
+    [17, 0],
+    [18, 30],
+    [19, 30],
+  ];
+  // Two hand-picked games (both close enough to SEASON_2026_27_NOW to carry
+  // dense recent history) exercise scenarios the generic popularity formula
+  // wouldn't reliably reach on its own.
+  const NEAR_SELLOUT_INDEX = 8; // 2026-10-08 vs JYP
+  const FLAT_VELOCITY_INDEX = 14; // 2026-11-13 vs Ilves
+
   schedule.forEach((fixture, index) => {
     const num = String(index + 1).padStart(3, "0");
     const id = `90:${num}`;
     const isPast = index < PAST_OPPONENTS_BY_ORDER;
-    const popularity = isPast ? 0.85 + (index % 3) * 0.05 : 0.15 + ((index * 37) % 60) / 100;
+    const [hour, minute] = START_TIMES[index % START_TIMES.length];
     const disabledSections = !isPast && index % 6 === 0 ? ["C7", "C2"] : [];
+
+    let popularity = isPast ? 0.85 + (index % 3) * 0.05 : 0.15 + ((index * 37) % 60) / 100;
+    let sectionFractionOverrides;
+    let pinRecentToFinal;
+
+    if (index === NEAR_SELLOUT_INDEX) {
+      popularity = 0.9; // overall irtolippu fill % well above the Kiirehdi threshold
+      sectionFractionOverrides = { C4: 0.97 }; // premium section individually near sold out
+    } else if (index === FLAT_VELOCITY_INDEX) {
+      pinRecentToFinal = true; // sales have plateaued — a real zero-velocity case
+    }
 
     addEvent({
       id,
@@ -368,10 +460,15 @@ async function main() {
       gameType: fixture.gameType,
       season: fixture.season,
       dateStr: fixture.date,
+      hour,
+      minute,
       status: isPast ? "past" : "upcoming",
+      nowIso: isPast ? undefined : SEASON_2026_27_NOW,
       popularity,
       disabledSections,
       historyPoints: isPast ? 12 : 8,
+      sectionFractionOverrides,
+      pinRecentToFinal,
     });
 
     autoclass[toDashId(id)] = { gameType: fixture.gameType, season: fixture.season };
@@ -423,6 +520,7 @@ async function main() {
     dateStr: "2027-09-05",
     status: "upcoming",
     firstSeenDaysBefore: 30,
+    nowIso: SEASON_2027_28_NOW,
     popularity: 0.08,
     historyPoints: 3,
   });
@@ -436,6 +534,7 @@ async function main() {
     dateStr: "2027-09-16",
     status: "upcoming",
     firstSeenDaysBefore: 25,
+    nowIso: SEASON_2027_28_NOW,
     popularity: 0.05,
     historyPoints: 2,
   });
@@ -449,6 +548,7 @@ async function main() {
     dateStr: "2027-08-20",
     status: "upcoming",
     firstSeenDaysBefore: 15,
+    nowIso: SEASON_2027_28_NOW,
     popularity: 0.03,
     historyPoints: 2,
   });

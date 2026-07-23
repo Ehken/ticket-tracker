@@ -59,3 +59,40 @@ export function buildChart(canvas, historyPoints) {
 export function destroyChart(chartInstance) {
   chartInstance?.destroy();
 }
+
+// Small, axis-free line — a genuinely different rendering from buildChart's
+// full card chart, not a config toggle: no markers, no axes/gridlines/
+// legend/tooltip. Sizing is controlled by the canvas's CSS (fixed height).
+export function buildSparkline(canvas, historyPoints) {
+  const data = historyPoints.map((point) => ({ x: point.t, y: point.sold }));
+
+  return new Chart(canvas, {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          data,
+          borderColor: "#1a5d1a",
+          backgroundColor: "rgba(26, 93, 26, 0.1)",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.15,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: { type: "time", display: false },
+        y: { display: false, beginAtZero: true },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+      },
+    },
+  });
+}
