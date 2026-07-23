@@ -1,0 +1,64 @@
+name: Fetch SaiPa ticket data
+
+"on":
+  schedule:
+    - cron: "0 * * * *"        # hourly baseline
+    - cron: "*/10 11-19 * * *" # game-day intensive mode candidate window (UTC 11-19
+                                # comfortably brackets 15-21 Europe/Helsinki across both
+                                # DST offsets; the actual gating is done in Node below).
+                                # Note: GitHub's cron scheduler can run several minutes
+                                # late under load — this design tolerates that.
+  workflow_dispatch: {}
+
+concurrency:
+  group: fetch-and-commit
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Game-day window check (only gates the 10-min cron)
+        id: gate
+        if: github.event_name == 'schedule' && github.event.schedule == '*/10 11-19 * * *'
+        run: |
+          result=$(node scripts/checkGameWindow.js)
+          if [ "$result" = "proceed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+          # This step always exits 0 regardless of $result — being outside the
+          # game-day window is a normal, intentional no-op, never a failure.
+
+      - name: Fetch ticket data
+        id: fetch
+        if: steps.gate.outputs.proceed != 'false'
+        run: node scripts/fetch.js
+        continue-on-error: true # so a per-event failure still lets the commit step
+        # below preserve whatever other events DID succeed
+
+      - name: Commit and push data changes
+        if: steps.gate.outputs.proceed != 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update ticket data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Fail the run if fetch.js reported a failure
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1
