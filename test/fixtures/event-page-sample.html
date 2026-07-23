@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8" />
+  <title>SaiPa kausikortit 2026-2027 | elippu.net</title>
+</head>
+<body>
+  <div id="svelte"></div>
+  <script>
+    kit.start(app, element, {
+      node_ids: [0, 1, 2],
+      data: [
+        null,
+        null,
+        {
+          type: "data",
+          data: {
+            shopId: 53,
+            event: {
+              id: "53:575",
+              name: "SaiPa kausikortit 2026-2027",
+              start: new Date(1785531600000),
+              stop: new Date(1785542400000)
+            },
+            map: {
+              status: {
+                usages: {
+                  "A4-6-085": 1,
+                  "A4-1-001": 1,
+                  "C1-2-010": 1,
+                  "C1-2-011": 1,
+                  seisomakatsomo: 50,
+                  invalid: 3
+                },
+                capacities: {
+                  seisomakatsomo: 2138,
+                  invalid: 12,
+                  aitio_1: 16,
+                  aitio_2: 16,
+                  aitio_3: 18,
+                  aitio_4: 18,
+                  aitio_5: 18,
+                  aitio_6: 18,
+                  aitio_7: 18,
+                  aitio_8: 18,
+                  aitio_9: 16,
+                  press: 24
+                }
+              },
+              disabled: ["D2-1", "D2-2", "C7", "C8", "C2", "D2"],
+              url: "/seatmap.svg"
+            }
+          }
+        }
+      ],
+      form: null
+    });
+  </script>
+</body>
+</html>

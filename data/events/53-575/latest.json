@@ -1,0 +1,172 @@
+{
+  "eventId": "53:575",
+  "name": "SaiPa kausikortit 2026-2027",
+  "start": "2026-07-31T21:00:00.000Z",
+  "stop": "2027-03-15T22:00:00.000Z",
+  "fetchedAt": "2026-07-23T11:25:36.000Z",
+  "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
+  "sections": [
+    {
+      "section": "A1",
+      "sold": 42,
+      "available": 129,
+      "hold": 0,
+      "total": 171,
+      "disabled": false
+    },
+    {
+      "section": "A2",
+      "sold": 142,
+      "available": 126,
+      "hold": 0,
+      "total": 268,
+      "disabled": false
+    },
+    {
+      "section": "A3",
+      "sold": 174,
+      "available": 72,
+      "hold": 0,
+      "total": 246,
+      "disabled": false
+    },
+    {
+      "section": "A4",
+      "sold": 173,
+      "available": 71,
+      "hold": 0,
+      "total": 244,
+      "disabled": false
+    },
+    {
+      "section": "A5",
+      "sold": 189,
+      "available": 58,
+      "hold": 0,
+      "total": 247,
+      "disabled": false
+    },
+    {
+      "section": "A6",
+      "sold": 99,
+      "available": 21,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C1",
+      "sold": 90,
+      "available": 18,
+      "hold": 0,
+      "total": 108,
+      "disabled": false
+    },
+    {
+      "section": "C2",
+      "sold": 4,
+      "available": 0,
+      "hold": 116,
+      "total": 120,
+      "disabled": true
+    },
+    {
+      "section": "C3",
+      "sold": 120,
+      "available": 30,
+      "hold": 0,
+      "total": 150,
+      "disabled": false
+    },
+    {
+      "section": "C4",
+      "sold": 113,
+      "available": 7,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C5",
+      "sold": 110,
+      "available": 10,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C6",
+      "sold": 78,
+      "available": 35,
+      "hold": 0,
+      "total": 113,
+      "disabled": false
+    },
+    {
+      "section": "C7",
+      "sold": 56,
+      "available": 0,
+      "hold": 38,
+      "total": 94,
+      "disabled": true
+    },
+    {
+      "section": "C8",
+      "sold": 55,
+      "available": 0,
+      "hold": 50,
+      "total": 105,
+      "disabled": true
+    },
+    {
+      "section": "D1",
+      "sold": 86,
+      "available": 119,
+      "hold": 0,
+      "total": 205,
+      "disabled": false
+    },
+    {
+      "section": "D2",
+      "sold": 3,
+      "available": 0,
+      "hold": 212,
+      "total": 215,
+      "disabled": true
+    },
+    {
+      "section": "seisomakatsomo",
+      "sold": 1013,
+      "available": 1125,
+      "hold": 0,
+      "total": 2138
+    },
+    {
+      "section": "invalid",
+      "sold": 5,
+      "available": 7,
+      "hold": 0,
+      "total": 12
+    },
+    {
+      "section": "press",
+      "sold": 0,
+      "available": 0,
+      "hold": 24,
+      "total": 24
+    },
+    {
+      "section": "aitiot",
+      "sold": 0,
+      "available": 0,
+      "hold": 156,
+      "total": 156
+    }
+  ],
+  "totals": {
+    "sold": 2552,
+    "available": 1828,
+    "hold": 596,
+    "total": 4976
+  }
+}

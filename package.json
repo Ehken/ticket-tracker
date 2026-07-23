@@ -1,0 +1,14 @@
+{
+  "name": "saipa-lipputilanne",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scraper + static site tracking SaiPa ticket sales from elippu.net/saipa",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "fetch": "node scripts/fetch.js"
+  }
+}
