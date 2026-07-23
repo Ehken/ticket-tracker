@@ -1,0 +1,50 @@
+[
+  {
+    "t": "2026-08-24T15:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2026-08-31T01:47:08.571Z",
+    "sold": 397,
+    "soldSeated": 226,
+    "soldStanding": 171
+  },
+  {
+    "t": "2026-09-06T12:04:17.142Z",
+    "sold": 980,
+    "soldSeated": 558,
+    "soldStanding": 422
+  },
+  {
+    "t": "2026-09-12T22:21:25.714Z",
+    "sold": 1259,
+    "soldSeated": 717,
+    "soldStanding": 542
+  },
+  {
+    "t": "2026-09-19T08:38:34.285Z",
+    "sold": 1825,
+    "soldSeated": 1040,
+    "soldStanding": 785
+  },
+  {
+    "t": "2026-09-25T18:55:42.857Z",
+    "sold": 2330,
+    "soldSeated": 1327,
+    "soldStanding": 1003
+  },
+  {
+    "t": "2026-10-02T05:12:51.428Z",
+    "sold": 2858,
+    "soldSeated": 1628,
+    "soldStanding": 1230
+  },
+  {
+    "t": "2026-10-08T15:30:00.000Z",
+    "sold": 3151,
+    "soldSeated": 1795,
+    "soldStanding": 1356
+  }
+]

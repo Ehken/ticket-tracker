@@ -1,0 +1,346 @@
+[
+  {
+    "id": "90:000",
+    "name": "SaiPa kausikortit 2026-2027",
+    "start": "2026-07-30T21:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-07-30T21:00:00.000Z",
+    "lastSeen": "2026-10-25T12:00:00.000Z"
+  },
+  {
+    "id": "90:001",
+    "name": "SaiPa - Jukurit",
+    "start": "2026-08-27T15:30:00.000Z",
+    "status": "past",
+    "firstSeen": "2026-07-13T15:30:00.000Z",
+    "lastSeen": "2026-08-27T19:00:00.000Z"
+  },
+  {
+    "id": "90:002",
+    "name": "SaiPa - Tappara",
+    "start": "2026-09-01T15:30:00.000Z",
+    "status": "past",
+    "firstSeen": "2026-07-18T15:30:00.000Z",
+    "lastSeen": "2026-09-01T19:00:00.000Z"
+  },
+  {
+    "id": "90:003",
+    "name": "SaiPa - Dynamo Pardubice",
+    "start": "2026-09-10T15:30:00.000Z",
+    "status": "past",
+    "firstSeen": "2026-07-27T15:30:00.000Z",
+    "lastSeen": "2026-09-10T19:00:00.000Z"
+  },
+  {
+    "id": "90:004",
+    "name": "SaiPa - HK Nitra",
+    "start": "2026-09-12T15:30:00.000Z",
+    "status": "past",
+    "firstSeen": "2026-07-29T15:30:00.000Z",
+    "lastSeen": "2026-09-12T19:00:00.000Z"
+  },
+  {
+    "id": "90:005",
+    "name": "SaiPa - K-Espoo",
+    "start": "2026-09-15T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-01T15:30:00.000Z",
+    "lastSeen": "2026-09-15T15:30:00.000Z"
+  },
+  {
+    "id": "90:006",
+    "name": "SaiPa - KooKoo",
+    "start": "2026-09-19T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-05T15:30:00.000Z",
+    "lastSeen": "2026-09-19T15:30:00.000Z"
+  },
+  {
+    "id": "90:007",
+    "name": "SaiPa - Ässät",
+    "start": "2026-09-23T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-09T15:30:00.000Z",
+    "lastSeen": "2026-09-23T15:30:00.000Z"
+  },
+  {
+    "id": "90:008",
+    "name": "SaiPa - Jokerit",
+    "start": "2026-10-03T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-19T15:30:00.000Z",
+    "lastSeen": "2026-10-03T15:30:00.000Z"
+  },
+  {
+    "id": "90:009",
+    "name": "SaiPa - JYP",
+    "start": "2026-10-08T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-24T15:30:00.000Z",
+    "lastSeen": "2026-10-08T15:30:00.000Z"
+  },
+  {
+    "id": "90:010",
+    "name": "SaiPa - HC Plzeň",
+    "start": "2026-10-14T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-30T15:30:00.000Z",
+    "lastSeen": "2026-10-14T15:30:00.000Z"
+  },
+  {
+    "id": "90:011",
+    "name": "SaiPa - HPK",
+    "start": "2026-10-15T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-31T15:30:00.000Z",
+    "lastSeen": "2026-10-15T15:30:00.000Z"
+  },
+  {
+    "id": "90:012",
+    "name": "SaiPa - HIFK",
+    "start": "2026-10-17T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-09-02T15:30:00.000Z",
+    "lastSeen": "2026-10-17T15:30:00.000Z"
+  },
+  {
+    "id": "90:013",
+    "name": "SaiPa - Kärpät",
+    "start": "2026-10-20T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-09-05T15:30:00.000Z",
+    "lastSeen": "2026-10-20T15:30:00.000Z"
+  },
+  {
+    "id": "90:014",
+    "name": "SaiPa - JYP",
+    "start": "2026-10-30T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-09-15T15:30:00.000Z",
+    "lastSeen": "2026-10-30T15:30:00.000Z"
+  },
+  {
+    "id": "90:015",
+    "name": "SaiPa - Ilves",
+    "start": "2026-11-13T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-09-29T16:30:00.000Z",
+    "lastSeen": "2026-11-13T16:30:00.000Z"
+  },
+  {
+    "id": "90:016",
+    "name": "SaiPa - TPS",
+    "start": "2026-11-20T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-06T16:30:00.000Z",
+    "lastSeen": "2026-11-20T16:30:00.000Z"
+  },
+  {
+    "id": "90:017",
+    "name": "SaiPa - Lukko",
+    "start": "2026-11-24T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-10T16:30:00.000Z",
+    "lastSeen": "2026-11-24T16:30:00.000Z"
+  },
+  {
+    "id": "90:018",
+    "name": "SaiPa - Jokerit",
+    "start": "2026-11-28T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-14T16:30:00.000Z",
+    "lastSeen": "2026-11-28T16:30:00.000Z"
+  },
+  {
+    "id": "90:019",
+    "name": "SaiPa - Jukurit",
+    "start": "2026-12-05T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-21T16:30:00.000Z",
+    "lastSeen": "2026-12-05T16:30:00.000Z"
+  },
+  {
+    "id": "90:020",
+    "name": "SaiPa - K-Espoo",
+    "start": "2026-12-08T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-24T16:30:00.000Z",
+    "lastSeen": "2026-12-08T16:30:00.000Z"
+  },
+  {
+    "id": "90:021",
+    "name": "SaiPa - KalPa",
+    "start": "2026-12-11T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-10-27T16:30:00.000Z",
+    "lastSeen": "2026-12-11T16:30:00.000Z"
+  },
+  {
+    "id": "90:022",
+    "name": "SaiPa - HPK",
+    "start": "2026-12-18T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-11-03T16:30:00.000Z",
+    "lastSeen": "2026-12-18T16:30:00.000Z"
+  },
+  {
+    "id": "90:023",
+    "name": "SaiPa - Pelicans",
+    "start": "2026-12-28T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-11-13T16:30:00.000Z",
+    "lastSeen": "2026-12-28T16:30:00.000Z"
+  },
+  {
+    "id": "90:024",
+    "name": "SaiPa - Lukko",
+    "start": "2026-12-30T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-11-15T16:30:00.000Z",
+    "lastSeen": "2026-12-30T16:30:00.000Z"
+  },
+  {
+    "id": "90:025",
+    "name": "SaiPa - KalPa",
+    "start": "2027-01-05T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-11-21T16:30:00.000Z",
+    "lastSeen": "2027-01-05T16:30:00.000Z"
+  },
+  {
+    "id": "90:026",
+    "name": "SaiPa - Ilves",
+    "start": "2027-01-14T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-11-30T16:30:00.000Z",
+    "lastSeen": "2027-01-14T16:30:00.000Z"
+  },
+  {
+    "id": "90:027",
+    "name": "SaiPa - Kärpät",
+    "start": "2027-01-16T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-12-02T16:30:00.000Z",
+    "lastSeen": "2027-01-16T16:30:00.000Z"
+  },
+  {
+    "id": "90:028",
+    "name": "SaiPa - HIFK",
+    "start": "2027-01-29T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-12-15T16:30:00.000Z",
+    "lastSeen": "2027-01-29T16:30:00.000Z"
+  },
+  {
+    "id": "90:029",
+    "name": "SaiPa - Sport",
+    "start": "2027-02-05T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-12-22T16:30:00.000Z",
+    "lastSeen": "2027-02-05T16:30:00.000Z"
+  },
+  {
+    "id": "90:030",
+    "name": "SaiPa - Sport",
+    "start": "2027-02-06T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-12-23T16:30:00.000Z",
+    "lastSeen": "2027-02-06T16:30:00.000Z"
+  },
+  {
+    "id": "90:031",
+    "name": "SaiPa - KooKoo",
+    "start": "2027-02-19T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-01-05T16:30:00.000Z",
+    "lastSeen": "2027-02-19T16:30:00.000Z"
+  },
+  {
+    "id": "90:032",
+    "name": "SaiPa - Ässät",
+    "start": "2027-02-23T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-01-09T16:30:00.000Z",
+    "lastSeen": "2027-02-23T16:30:00.000Z"
+  },
+  {
+    "id": "90:033",
+    "name": "SaiPa - Tappara",
+    "start": "2027-02-27T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-01-13T16:30:00.000Z",
+    "lastSeen": "2027-02-27T16:30:00.000Z"
+  },
+  {
+    "id": "90:034",
+    "name": "SaiPa - Pelicans",
+    "start": "2027-03-09T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-01-23T16:30:00.000Z",
+    "lastSeen": "2027-03-09T16:30:00.000Z"
+  },
+  {
+    "id": "90:035",
+    "name": "SaiPa - TPS",
+    "start": "2027-03-13T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-01-27T16:30:00.000Z",
+    "lastSeen": "2027-03-13T16:30:00.000Z"
+  },
+  {
+    "id": "90:036",
+    "name": "SaiPa - Jukurit",
+    "start": "2027-03-20T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-02-03T16:30:00.000Z",
+    "lastSeen": "2027-03-20T16:30:00.000Z"
+  },
+  {
+    "id": "90:037",
+    "name": "SaiPa - Tappara",
+    "start": "2027-04-05T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-03-26T15:30:00.000Z",
+    "lastSeen": "2027-04-05T15:30:00.000Z"
+  },
+  {
+    "id": "90:038",
+    "name": "SaiPa - Ilves",
+    "start": "2027-04-08T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-04-01T15:30:00.000Z",
+    "lastSeen": "2027-04-08T15:30:00.000Z"
+  },
+  {
+    "id": "90:039",
+    "name": "SaiPa - HIFK",
+    "start": "2027-09-05T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-08-06T15:30:00.000Z",
+    "lastSeen": "2027-09-05T15:30:00.000Z"
+  },
+  {
+    "id": "90:040",
+    "name": "SaiPa - Frölunda",
+    "start": "2027-09-16T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-08-22T15:30:00.000Z",
+    "lastSeen": "2027-09-16T15:30:00.000Z"
+  },
+  {
+    "id": "90:041",
+    "name": "SaiPa - Jukurit",
+    "start": "2027-08-20T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-08-05T15:30:00.000Z",
+    "lastSeen": "2027-08-20T15:30:00.000Z"
+  },
+  {
+    "id": "90:042",
+    "name": "SaiPa - Yllätysvastustaja",
+    "start": "2026-12-15T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-12-10T16:30:00.000Z",
+    "lastSeen": "2026-12-15T16:30:00.000Z"
+  }
+]

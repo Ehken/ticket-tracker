@@ -1,0 +1,20 @@
+[
+  {
+    "t": "2026-12-10T16:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2026-12-13T04:30:00.000Z",
+    "sold": 552,
+    "soldSeated": 228,
+    "soldStanding": 324
+  },
+  {
+    "t": "2026-12-15T16:30:00.000Z",
+    "sold": 1272,
+    "soldSeated": 525,
+    "soldStanding": 747
+  }
+]

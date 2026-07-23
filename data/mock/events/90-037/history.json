@@ -1,0 +1,32 @@
+[
+  {
+    "t": "2027-03-26T15:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2027-03-29T03:30:00.000Z",
+    "sold": 394,
+    "soldSeated": 238,
+    "soldStanding": 156
+  },
+  {
+    "t": "2027-03-31T15:30:00.000Z",
+    "sold": 829,
+    "soldSeated": 500,
+    "soldStanding": 329
+  },
+  {
+    "t": "2027-04-03T03:30:00.000Z",
+    "sold": 1347,
+    "soldSeated": 813,
+    "soldStanding": 534
+  },
+  {
+    "t": "2027-04-05T15:30:00.000Z",
+    "sold": 1719,
+    "soldSeated": 1037,
+    "soldStanding": 682
+  }
+]

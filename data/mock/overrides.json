@@ -1,0 +1,14 @@
+{
+  "90-000": {
+    "gameType": "kausikortti"
+  },
+  "90-012": {
+    "displayName": "SaiPa - HIFK (derby)"
+  },
+  "90-018": {
+    "note": "Ottelu saattaa siirtyä TV-aikataulun vuoksi."
+  },
+  "90-025": {
+    "hidden": true
+  }
+}

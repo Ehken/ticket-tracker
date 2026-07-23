@@ -1,0 +1,44 @@
+[
+  {
+    "t": "2027-01-09T16:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2027-01-16T02:47:08.571Z",
+    "sold": 177,
+    "soldSeated": 96,
+    "soldStanding": 81
+  },
+  {
+    "t": "2027-01-22T13:04:17.142Z",
+    "sold": 296,
+    "soldSeated": 161,
+    "soldStanding": 135
+  },
+  {
+    "t": "2027-01-28T23:21:25.714Z",
+    "sold": 569,
+    "soldSeated": 309,
+    "soldStanding": 260
+  },
+  {
+    "t": "2027-02-04T09:38:34.285Z",
+    "sold": 738,
+    "soldSeated": 401,
+    "soldStanding": 337
+  },
+  {
+    "t": "2027-02-17T06:12:51.428Z",
+    "sold": 1110,
+    "soldSeated": 603,
+    "soldStanding": 507
+  },
+  {
+    "t": "2027-02-23T16:30:00.000Z",
+    "sold": 1156,
+    "soldSeated": 628,
+    "soldStanding": 528
+  }
+]

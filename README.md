@@ -50,6 +50,26 @@ data/
 `data/`-kansion JSON-tiedostot suoraan selaimessa (ei build-vaihetta). Aja
 paikallisesti esim. `npx serve .` repon juuresta ja avaa selain.
 
+## Testidata / suunnittelutila (`?mock=1`)
+
+Sivu tukee pysyvää suunnittelu- ja testitilaa: `.../?mock=1` lataa oikean
+`data/`-kansion sijaan `data/mock/`-kansion, joka sisältää generoidun,
+realistisen näköisen testiaineiston (kaikki `data/schedule.json`:n 36
+ottelua, muutama pelattu ottelu realistisilla täyttöprosenteilla, kaksi
+kautta kausivalitsinta varten, moniosaiset myyntikäyrät, sekä yksi
+luokittelematon ottelu). Tuotantokäyttäytyminen ei muutu millään tavalla —
+testidata ei koskaan sekoitu oikeaan dataan.
+
+Generoi/päivitä testiaineisto:
+
+```bash
+npm run generate-mock
+```
+
+`scripts/generateMockData.js` käyttää siementä satunnaislukugeneraattoria,
+joten sama komento tuottaa saman lopputuloksen uudelleen ajettuna (ellei
+generointilogiikkaa tai `data/schedule.json`:ää muuteta).
+
 ## Manuaalinen luokittelu (`data/overrides.json`)
 
 Scraperi ei koskaan kirjoita tähän tiedostoon — se on olemassa vain manuaalista

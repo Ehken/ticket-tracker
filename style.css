@@ -43,6 +43,16 @@ body {
   line-height: 1.4;
 }
 
+.mock-banner {
+  margin: -1rem -1rem 1rem;
+  padding: 0.5rem 1rem;
+  background: #7a1fa2;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 header.site-header {
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.75rem;

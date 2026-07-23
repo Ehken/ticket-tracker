@@ -1,0 +1,14 @@
+[
+  {
+    "t": "2027-08-05T15:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2027-08-20T15:30:00.000Z",
+    "sold": 294,
+    "soldSeated": 251,
+    "soldStanding": 43
+  }
+]

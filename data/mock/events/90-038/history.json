@@ -1,0 +1,26 @@
+[
+  {
+    "t": "2027-04-01T15:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0
+  },
+  {
+    "t": "2027-04-03T23:30:00.000Z",
+    "sold": 585,
+    "soldSeated": 284,
+    "soldStanding": 301
+  },
+  {
+    "t": "2027-04-06T07:30:00.000Z",
+    "sold": 1115,
+    "soldSeated": 542,
+    "soldStanding": 573
+  },
+  {
+    "t": "2027-04-08T15:30:00.000Z",
+    "sold": 1533,
+    "soldSeated": 745,
+    "soldStanding": 788
+  }
+]

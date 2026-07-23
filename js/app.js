@@ -1,4 +1,4 @@
-import { getEventsIndex, getOverrides, getAutoclass, getSchedule, getLatest } from "./fetchData.js";
+import { getEventsIndex, getOverrides, getAutoclass, getSchedule, getLatest, IS_MOCK } from "./fetchData.js";
 import { mergeClassification } from "./classify.js";
 import {
   computeSeasons,
@@ -39,7 +39,17 @@ function renderUpdatedAt(events) {
   el.textContent = `Päivitetty ${formatHelsinkiTime(latestSeen)}`;
 }
 
+function renderMockBanner() {
+  if (!IS_MOCK) return;
+  const banner = document.createElement("p");
+  banner.className = "mock-banner";
+  banner.textContent = "TESTIDATA-TILA (?mock=1) — ei oikeaa myyntidataa";
+  document.body.prepend(banner);
+}
+
 async function main() {
+  renderMockBanner();
+
   const [eventsIndex, overrides, autoclass, schedule] = await Promise.all([
     getEventsIndex(),
     getOverrides(),

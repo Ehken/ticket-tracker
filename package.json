@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "fetch": "node scripts/fetch.js"
+    "fetch": "node scripts/fetch.js",
+    "generate-mock": "node scripts/generateMockData.js"
   }
 }
