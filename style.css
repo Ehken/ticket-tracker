@@ -11,14 +11,15 @@
   --hover-bg: rgba(0, 0, 0, 0.035);
   --text-secondary: #5a5a5a;
   /* Seat map only — deliberately independent of --sold/--available/--hold,
-     which stay reserved for the table's fill-bar (3-state sold/available/
-     hold). The map is 4-state: two sold shades (one hue), a chromatic
-     "vapaa" blue, a distinct aitio purple, and the one neutral gray. */
-  --seat-kausikortti: #14532d;
-  --seat-irtolippu: #7ccf7f;
+     which stay reserved for the table's fill-bar. SaiPa-themed: black
+     (kausikortti) and SaiPa yellow (irtolippu) are both "sold", pale sand
+     is the unlit/vapaa state (sales visually light the arena up), aitio
+     purple is its own separate channel, ei-myynnissä is the one neutral. */
+  --seat-kausikortti: #1a1a1a;
+  --seat-irtolippu: #ffd400;
   --seat-aitio-myyty: #7b4fb5;
-  --seat-vapaa: #b8d4ee;
-  --seat-ei-myynnissa: #a3a3a3;
+  --seat-vapaa: #f3ead1;
+  --seat-ei-myynnissa: rgba(163, 163, 163, 0.55);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,10 +35,10 @@
     --accent: #e57373;
     --hover-bg: rgba(255, 255, 255, 0.05);
     --text-secondary: #a0a0a0;
-    --seat-kausikortti: #2e7d32;
-    --seat-irtolippu: #a5d6a7;
+    --seat-kausikortti: #1a1a1a;
+    --seat-irtolippu: #ffdb4d;
     --seat-aitio-myyty: #a78bdb;
-    --seat-vapaa: #3f5875;
+    --seat-vapaa: #4a4636;
     --seat-ei-myynnissa: #55585d;
   }
 }
@@ -592,6 +593,18 @@ header.site-header h1 {
 
 .seatmap-svg .seat.ei-myynnissa {
   fill: var(--seat-ei-myynnissa);
+  r: 2.4px; /* smaller, not just a different color — separates by shape too */
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Kausikortti/myyty seats are near-black in both themes; against a dark
+     background they'd otherwise vanish, so dark mode gets a faint light
+     stroke to keep them readable as individual dots. */
+  .seatmap-svg .seat.kausikortti,
+  .seatmap-svg .seat.myyty {
+    stroke: rgba(255, 255, 255, 0.55);
+    stroke-width: 1px;
+  }
 }
 
 .seatmap-svg #seisomakatsomo,
@@ -678,6 +691,13 @@ header.site-header h1 {
   background: var(--seat-kausikortti);
 }
 
+@media (prefers-color-scheme: dark) {
+  .seatmap-legend__swatch--kausikortti,
+  .seatmap-legend__swatch--myyty {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
+  }
+}
+
 .seatmap-legend__swatch--irtolippu {
   background: var(--seat-irtolippu);
 }
@@ -688,6 +708,10 @@ header.site-header h1 {
 
 .seatmap-legend__swatch--ei-myynnissa {
   background: var(--seat-ei-myynnissa);
+  /* Mirrors the smaller r="2.4" (vs. the normal r="4") seat dots on the
+     map itself — ei-myynnissä separates by shape, not just color. */
+  width: 0.54rem;
+  height: 0.54rem;
 }
 
 .seatmap-legend__swatch--aitio-myyty {

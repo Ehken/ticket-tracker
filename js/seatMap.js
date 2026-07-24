@@ -27,6 +27,9 @@ const TAP_MOVEMENT_THRESHOLD = 6; // px in screen space, disambiguates tap from 
 const WHEEL_ZOOM_FACTOR = 0.001;
 const MAX_ZOOM = 4;
 
+const SEAT_RADIUS = "4";
+const SEAT_RADIUS_EI_MYYNNISSA = "2.4"; // smaller, not just a different color — separates by shape too
+
 // Attribute-selector lookup, not getElementById: an SVG root's own
 // getElementById support is inconsistent, and if two cards' seat maps are
 // open at once they'd share colliding ids in one live document.
@@ -147,7 +150,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   infoRow.className = "seatmap-info-row";
   infoRow.textContent = INFO_ROW_PLACEHOLDER;
 
-  const legend = buildLegend({
+  const legend = buildLegend(mapContainer, {
     hasBaseline: baseline.soldSet !== null,
     hasAitioOccupancy: (seats.soldAitiot ?? []).length > 0,
   });
@@ -200,16 +203,21 @@ function colorSeats(svg, mergedEvent, latest, seats, baseline) {
   let matchedSoldCount = 0;
   for (const el of svg.querySelectorAll(".seat")) {
     const id = el.id;
-    // The persisted SVG has no inline r — this attribute is the baseline
-    // (CSS `r` in style.css is Safari 16+ only; without the attribute,
-    // older engines render every seat at r=0, i.e. invisible).
-    el.setAttribute("r", "4");
-
     if (soldSet.has(id)) matchedSoldCount++;
     const state = classifySeat(id, { soldSet, baselineSet: baseline.soldSet, disabledSectionSet });
+
+    // The persisted SVG has no inline r — this attribute is the baseline
+    // (CSS `r` in style.css is Safari 16+ only; without the attribute,
+    // older engines render every seat at r=0, i.e. invisible). Ei-myynnissä
+    // seats render smaller so that state separates by shape, not just color.
+    el.setAttribute("r", state === SEAT_STATE.EI_MYYNNISSA ? SEAT_RADIUS_EI_MYYNNISSA : SEAT_RADIUS);
+
     if (state !== SEAT_STATE.VAPAA) el.classList.add(state); // vapaa is the CSS default; skip the no-op write
   }
 
+  // Assumes every sold id genuinely present in the SVG is a .seat element —
+  // true for real seat ids (the only thing soldSeatIds ever contains), so
+  // this walk-and-diff correctly stands in for the old per-id existence check.
   const missingCount = soldSet.size - matchedSoldCount;
   if (missingCount > 0) {
     console.warn(
@@ -273,7 +281,7 @@ function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
 
 let legendInfoIdCounter = 0;
 
-function buildLegend({ hasBaseline, hasAitioOccupancy }) {
+function buildLegend(mapContainer, { hasBaseline, hasAitioOccupancy }) {
   const legend = document.createElement("div");
   legend.className = "seatmap-legend";
 
@@ -315,10 +323,18 @@ function buildLegend({ hasBaseline, hasAitioOccupancy }) {
 
   for (const entry of entries) legend.append(buildLegendItem(entry, togglePopover));
 
+  // Scoped to the legend, so Escape only closes a popover while focus is
+  // inside it (e.g. right after clicking the ⓘ button) — pressing Escape
+  // with focus elsewhere on the page won't reach this listener at all.
   legend.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeOpenPopover();
   });
-  document.addEventListener("click", (event) => {
+  // Scoped to this card's own map container (bubbling), not `document` —
+  // a document-level listener here would never be removed and would
+  // accumulate one permanent global listener per card ever expanded.
+  // Clicks on the map itself (tapping a section) also count as "outside
+  // the legend" and correctly close an open popover.
+  mapContainer.addEventListener("click", (event) => {
     if (openPopover && !legend.contains(event.target)) closeOpenPopover();
   });
 
@@ -434,6 +450,10 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
   // finger is left entirely to the browser's native vertical scroll
   // (touch-action: pan-y on the container).
   function isZoomedIn() {
+    // A coarser epsilon than viewBoxesEqual's (1e-6): this only needs to
+    // reject the same-frame floating-point jitter a single applyViewBox
+    // round-trip can introduce, not detect "is this wheel tick a no-op"
+    // (which does need 1e-6, to not treat a genuine tiny zoom as settled).
     return currentViewBox.width < bounds.original.width - 0.01;
   }
 
