@@ -58,5 +58,11 @@
     "sold": 2555,
     "soldSeated": 1537,
     "soldStanding": 1013
+  },
+  {
+    "t": "2026-07-24T18:08:00.603Z",
+    "sold": 2553,
+    "soldSeated": 1534,
+    "soldStanding": 1014
   }
 ]
