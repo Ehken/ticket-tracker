@@ -1,14 +1,8 @@
 import { formatThousands, formatPercent } from "./format.js";
-
-const LABELS = {
-  seisomakatsomo: "Seisomakatsomo",
-  invalid: "Pyörätuolipaikat",
-  aitiot: "Aitiot",
-  press: "Lehdistö",
-};
+import { sectionLabel as translateSectionLabel } from "./sectionLabels.js";
 
 function sectionLabel(row) {
-  const base = LABELS[row.section] ?? row.section;
+  const base = translateSectionLabel(row.section);
   return row.disabled ? `${base} (suljettu)` : base;
 }
 

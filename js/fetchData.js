@@ -44,3 +44,20 @@ export function getLatest(id) {
 export function getHistory(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/history.json`, { fallbackOn404: [] });
 }
+
+export function getSeats(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seats.json`, { fallbackOn404: null });
+}
+
+const svgCache = new Map();
+
+export async function getCapacitiesSvg(hash) {
+  if (svgCache.has(hash)) return svgCache.get(hash);
+  const res = await fetch(`${DATA_ROOT}/capacities/${hash}.svg`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch capacities svg ${hash}: HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  svgCache.set(hash, text);
+  return text;
+}

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   countSoldPerSection,
   extractAggregateSold,
+  extractAitioSold,
   isSectionDisabled,
   warnOnOrphanRowLevelDisabled,
   buildSectionTable,
@@ -100,6 +101,37 @@ test("buildSectionTable: aitiot (merged) and press are always fully held", () =>
     { section: "press", sold: 0, available: 0, hold: 24, total: 24 },
     { section: "aitiot", sold: 0, available: 0, hold: 50, total: 50 },
   ]);
+});
+
+test("buildSectionTable: aitiot row reflects aitioSold when boxes are occupied through another channel", () => {
+  const rows = buildSectionTable({
+    soldCounts: {},
+    capacities: { aitio_1: 16, aitio_2: 16, aitio_3: 18, press: 24 },
+    disabled: [],
+    standingSold: 0,
+    wheelchairSold: 0,
+    aitioSold: 16,
+  });
+  assert.deepEqual(rows, [
+    { section: "press", sold: 0, available: 0, hold: 24, total: 24 },
+    { section: "aitiot", sold: 16, available: 0, hold: 34, total: 50 },
+  ]);
+});
+
+test("extractAitioSold sums occupant counts for aitio_N keys with usage > 0, sorted IDs", () => {
+  const usages = {
+    aitio_2: 4,
+    aitio_5: 6,
+    aitio_9: 0, // present but zero occupancy — not "sold"
+    seisomakatsomo: 50,
+    "A1-1-001": 1,
+  };
+  assert.deepEqual(extractAitioSold(usages), { sold: 10, soldAitioIds: ["aitio_2", "aitio_5"] });
+});
+
+test("extractAitioSold returns zero/empty when usages has no aitio_N keys (today's real-world case)", () => {
+  const usages = { seisomakatsomo: 50, invalid: 3, "A1-1-001": 1 };
+  assert.deepEqual(extractAitioSold(usages), { sold: 0, soldAitioIds: [] });
 });
 
 test("extractSoldSeatIds returns only individual seat-ID keys, sorted alphabetically", () => {

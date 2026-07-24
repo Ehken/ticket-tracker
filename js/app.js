@@ -148,6 +148,7 @@ async function main() {
           preExpanded: autoExpand,
           compactSummary: true,
           showSeasonBadge: kausi === "kaikki",
+          kausikorttiEvents: kausikortti,
         })
       );
     }
@@ -226,6 +227,7 @@ async function main() {
             buildCard(event, event.latest, {
               showSeasonBadge: kausi === "kaikki",
               showGameTypeLabel: sarja === "kaikki",
+              kausikorttiEvents: kausikortti,
             })
           );
         }
