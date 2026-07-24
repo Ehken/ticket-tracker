@@ -10,7 +10,15 @@
   --accent: #c0392b;
   --hover-bg: rgba(0, 0, 0, 0.035);
   --text-secondary: #5a5a5a;
-  --irtolippu: #2f6fed;
+  /* Seat map only — deliberately independent of --sold/--available/--hold,
+     which stay reserved for the table's fill-bar (3-state sold/available/
+     hold). The map is 4-state: two sold shades (one hue), a chromatic
+     "vapaa" blue, a distinct aitio purple, and the one neutral gray. */
+  --seat-kausikortti: #14532d;
+  --seat-irtolippu: #7ccf7f;
+  --seat-aitio-myyty: #7b4fb5;
+  --seat-vapaa: #b8d4ee;
+  --seat-ei-myynnissa: #a3a3a3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,7 +34,11 @@
     --accent: #e57373;
     --hover-bg: rgba(255, 255, 255, 0.05);
     --text-secondary: #a0a0a0;
-    --irtolippu: #7aa2f7;
+    --seat-kausikortti: #2e7d32;
+    --seat-irtolippu: #a5d6a7;
+    --seat-aitio-myyty: #a78bdb;
+    --seat-vapaa: #3f5875;
+    --seat-ei-myynnissa: #55585d;
   }
 }
 
@@ -388,10 +400,6 @@ header.site-header h1 {
     padding: 0.3rem 0.45rem;
   }
 
-  .seatmap-svg-container {
-    aspect-ratio: 4 / 3;
-  }
-
   .seatmap-legend {
     font-size: 0.78rem;
     gap: 0.4rem 0.7rem;
@@ -539,51 +547,65 @@ header.site-header h1 {
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
-  touch-action: none;
+  /* Native vertical scroll stays available at min zoom; pinch-zoom and our
+     own drag-pan (only once zoomed in) are handled entirely in JS. */
+  touch-action: pan-y;
+}
+
+@media (max-width: 480px) {
+  /* Must come after the base rule above: same specificity, so source order
+     (not just the media query matching) decides which one wins. */
+  .seatmap-svg-container {
+    aspect-ratio: 4 / 3;
+  }
 }
 
 .seatmap-svg {
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;
+  /* Native vertical scroll stays available at min zoom; pinch-zoom and our
+     own drag-pan (only once zoomed in) are handled entirely in JS. */
+  touch-action: pan-y;
 }
 
-/* Circles have no inline r/fill in the persisted SVG — both come from here. */
+/* Circles have no inline r/fill in the persisted SVG — the r ATTRIBUTE is
+   set from JS (seatMap.js) as the baseline (CSS `r` below is Safari 16+
+   progressive enhancement only; older engines need the attribute). */
 .seatmap-svg .seat {
   r: 4px;
-  fill: var(--available); /* default: vapaa */
+  fill: var(--seat-vapaa); /* default: vapaa */
 }
 
 .seatmap-svg .seat.kausikortti,
 .seatmap-svg .seat.myyty {
-  fill: var(--sold);
+  fill: var(--seat-kausikortti);
 }
 
 .seatmap-svg .seat.irtolippu {
-  fill: var(--irtolippu);
+  fill: var(--seat-irtolippu);
 }
 
 .seatmap-svg .seat.vapaa {
-  fill: var(--available);
+  fill: var(--seat-vapaa);
 }
 
 .seatmap-svg .seat.ei-myynnissa {
-  fill: var(--hold);
+  fill: var(--seat-ei-myynnissa);
 }
 
 .seatmap-svg #seisomakatsomo,
 .seatmap-svg #invalid {
-  fill: var(--available);
+  fill: var(--seat-vapaa);
 }
 
 .seatmap-svg [id^="aitio_"],
 .seatmap-svg #press {
-  fill: var(--hold);
+  fill: var(--seat-ei-myynnissa);
 }
 
 .seatmap-svg [id^="aitio_"].aitio-myyty {
-  fill: var(--irtolippu);
+  fill: var(--seat-aitio-myyty);
 }
 
 .seatmap-svg .section--selected {
@@ -653,23 +675,23 @@ header.site-header h1 {
 
 .seatmap-legend__swatch--kausikortti,
 .seatmap-legend__swatch--myyty {
-  background: var(--sold);
+  background: var(--seat-kausikortti);
 }
 
 .seatmap-legend__swatch--irtolippu {
-  background: var(--irtolippu);
+  background: var(--seat-irtolippu);
 }
 
 .seatmap-legend__swatch--vapaa {
-  background: var(--available);
+  background: var(--seat-vapaa);
 }
 
 .seatmap-legend__swatch--ei-myynnissa {
-  background: var(--hold);
+  background: var(--seat-ei-myynnissa);
 }
 
 .seatmap-legend__swatch--aitio-myyty {
-  background: var(--irtolippu);
+  background: var(--seat-aitio-myyty);
   border-radius: 3px;
 }
 

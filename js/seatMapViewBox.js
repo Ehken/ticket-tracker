@@ -52,3 +52,28 @@ export function computeZoomedViewBox(viewBox, focalPoint, scaleFactor, bounds) {
 export function computePannedViewBox(viewBox, dx, dy, bounds) {
   return clampPosition({ x: viewBox.x + dx, y: viewBox.y + dy, width: viewBox.width, height: viewBox.height }, bounds);
 }
+
+// True when two viewBoxes describe the same view (within floating-point
+// noise) — used to detect "this wheel tick was clamped to a no-op" so the
+// caller can skip preventDefault and let the page scroll/zoom natively
+// instead of silently swallowing the event for nothing.
+export function viewBoxesEqual(a, b, epsilon = 1e-6) {
+  return (
+    Math.abs(a.x - b.x) < epsilon &&
+    Math.abs(a.y - b.y) < epsilon &&
+    Math.abs(a.width - b.width) < epsilon &&
+    Math.abs(a.height - b.height) < epsilon
+  );
+}
+
+// Wheel deltaY units vary by browser/device: Chrome typically reports
+// pixels (deltaMode 0) with ~100/tick, Firefox with a physical mouse wheel
+// typically reports lines (deltaMode 1) with ~3/tick — applying the same
+// scale factor to both makes Firefox zoom roughly 30x slower than Chrome
+// per tick. Normalizing to an equivalent pixel delta first keeps the feel
+// consistent across browsers.
+const DELTA_MODE_PIXELS_PER_UNIT = { 0: 1, 1: 16, 2: 800 }; // pixel, line, page
+
+export function normalizeWheelDeltaY(deltaY, deltaMode) {
+  return deltaY * (DELTA_MODE_PIXELS_PER_UNIT[deltaMode] ?? 1);
+}

@@ -1,6 +1,15 @@
 const AITIO_PREFIX = "aitio_";
 const AGGREGATE_SECTIONS = new Set(["seisomakatsomo", "invalid", "press", "aitiot"]);
 
+function aitioNumber(id) {
+  return Number(id.slice(AITIO_PREFIX.length));
+}
+
+// Numeric, not lexical: "aitio_10" must sort after "aitio_2", not before it.
+export function compareAitioIds(a, b) {
+  return aitioNumber(a) - aitioNumber(b);
+}
+
 export function countSoldPerSection(usages) {
   const counts = {};
   for (const key of Object.keys(usages)) {
@@ -60,7 +69,7 @@ export function extractAitioSold(usages) {
   const soldAitioIds = Object.entries(usages)
     .filter(([key, value]) => key.startsWith(AITIO_PREFIX) && value > 0)
     .map(([key]) => key)
-    .sort();
+    .sort(compareAitioIds);
   const sold = soldAitioIds.reduce((sum, key) => sum + usages[key], 0);
   return { sold, soldAitioIds };
 }
@@ -125,7 +134,7 @@ export function buildSectionTable({ soldCounts, capacities, disabled, standingSo
       section: "aitiot",
       sold: aitioSold,
       available: 0, // never publicly purchasable, even when occupied via another channel
-      hold: aitiotTotal - aitioSold,
+      hold: Math.max(0, aitiotTotal - aitioSold), // guard against aitioSold exceeding capacity in bad upstream data
       total: aitiotTotal,
     });
   }

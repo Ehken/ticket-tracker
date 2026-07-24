@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeZoomedViewBox, computePannedViewBox, parseViewBox, serializeViewBox } from "../js/seatMapViewBox.js";
+import {
+  computeZoomedViewBox,
+  computePannedViewBox,
+  parseViewBox,
+  serializeViewBox,
+  viewBoxesEqual,
+  normalizeWheelDeltaY,
+} from "../js/seatMapViewBox.js";
 
 const ORIGINAL = { x: 0, y: 0, width: 1780, height: 1261 };
 const BOUNDS = { original: ORIGINAL, maxZoom: 4 };
@@ -73,4 +80,37 @@ test("computePannedViewBox at full zoom-out has zero room to pan (x/y pinned to 
   const panned = computePannedViewBox(ORIGINAL, 100, 100, BOUNDS);
   assert.equal(panned.x, 0);
   assert.equal(panned.y, 0);
+});
+
+test("viewBoxesEqual is true for identical viewBoxes and false for a real difference", () => {
+  assert.equal(viewBoxesEqual(ORIGINAL, { ...ORIGINAL }), true);
+  assert.equal(viewBoxesEqual(ORIGINAL, { ...ORIGINAL, width: 1000 }), false);
+});
+
+test("viewBoxesEqual tolerates floating-point noise within its epsilon", () => {
+  assert.equal(viewBoxesEqual(ORIGINAL, { ...ORIGINAL, x: ORIGINAL.x + 1e-9 }), true);
+});
+
+test("viewBoxesEqual detects a wheel tick that was fully clamped to a no-op", () => {
+  // Already at max zoom-in — a further zoom-in request clamps to the same viewBox.
+  const maxZoomedIn = { x: 667.5, y: 472.875, width: 445, height: 315.25 };
+  const noop = computeZoomedViewBox(maxZoomedIn, { x: 890, y: 630.5 }, 0.5, BOUNDS);
+  assert.equal(viewBoxesEqual(noop, maxZoomedIn), true);
+});
+
+test("normalizeWheelDeltaY passes pixel-mode (deltaMode 0) deltas through unchanged", () => {
+  assert.equal(normalizeWheelDeltaY(100, 0), 100);
+});
+
+test("normalizeWheelDeltaY scales line-mode (deltaMode 1) deltas up so Firefox zooms at the same rate as Chrome", () => {
+  const chromePixelDelta = 100;
+  const firefoxLineDelta = 3; // a typical single-notch line-mode delta
+  const normalized = normalizeWheelDeltaY(firefoxLineDelta, 1);
+  assert.ok(normalized > firefoxLineDelta);
+  // Should land in the same rough order of magnitude as Chrome's own pixel delta.
+  assert.ok(Math.abs(normalized - chromePixelDelta) < chromePixelDelta);
+});
+
+test("normalizeWheelDeltaY scales page-mode (deltaMode 2) deltas up substantially", () => {
+  assert.equal(normalizeWheelDeltaY(1, 2), 800);
 });

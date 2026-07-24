@@ -8,7 +8,16 @@ import { buildFillBar } from "./sectionTable.js";
 import { formatThousands, formatPercent } from "./format.js";
 import { irtoliput } from "./dashboardBaseline.js";
 import { SEAT_STATE, AITIO_STATE, buildDisabledSectionSet, classifySeat, classifyAitio } from "./seatMapClassify.js";
-import { parseViewBox, serializeViewBox, computeZoomedViewBox, computePannedViewBox } from "./seatMapViewBox.js";
+import {
+  parseViewBox,
+  serializeViewBox,
+  computeZoomedViewBox,
+  computePannedViewBox,
+  viewBoxesEqual,
+  normalizeWheelDeltaY,
+} from "./seatMapViewBox.js";
+
+const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
 
 const EI_MYYNNISSA_INFO =
   "Ei myynnissä: paikat on varattu esim. vieraskannattajille, ryhmille tai muuhun käyttöön. SaiPa voi vapauttaa niitä myyntiin lähempänä ottelua.";
@@ -88,7 +97,12 @@ async function resolveBaseline(mergedEvent, seats, kausikorttiEvents) {
 
   if (mergedEvent.gameType === "kausikortti") return NO_BASELINE; // self is the baseline
 
-  const kausikorttiEvent = kausikorttiEvents.find((k) => k.season === mergedEvent.season);
+  // Require a truthy season on both sides — otherwise two events that are
+  // both simply unclassified (season null/undefined) would spuriously
+  // "match" each other as a season baseline pair.
+  const kausikorttiEvent = mergedEvent.season
+    ? kausikorttiEvents.find((k) => k.season === mergedEvent.season)
+    : undefined;
   if (!kausikorttiEvent) return NO_BASELINE; // not tracked yet — normal case, no warning
 
   let baselineSeats;
@@ -131,7 +145,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
 
   const infoRow = document.createElement("div");
   infoRow.className = "seatmap-info-row";
-  infoRow.textContent = "Kosketa katsomoa nähdäksesi tarkat luvut.";
+  infoRow.textContent = INFO_ROW_PLACEHOLDER;
 
   const legend = buildLegend({
     hasBaseline: baseline.soldSet !== null,
@@ -177,30 +191,30 @@ function colorSeats(svg, mergedEvent, latest, seats, baseline) {
   const disabledSectionSet = buildDisabledSectionSet(latest.sections);
   const soldSet = new Set(seats.soldSeatIds);
 
-  let missingCount = 0;
-  for (const seatId of seats.soldSeatIds) {
-    const el = findById(svg, seatId);
-    if (!el) {
-      missingCount++;
-      continue;
-    }
-    const state = classifySeat(seatId, { soldSet, baselineSet: baseline.soldSet, disabledSectionSet });
-    el.classList.add(state);
+  // One walk over the seats actually present in the SVG (not one
+  // querySelector per sold seat id, which was effectively O(sold count ×
+  // DOM size)). classifySeat already checks disabled-section status first,
+  // so a single classification per seat replaces the earlier two-pass
+  // approach (color sold seats, then re-walk disabled sections to force
+  // ei-myynnissa) entirely.
+  let matchedSoldCount = 0;
+  for (const el of svg.querySelectorAll(".seat")) {
+    const id = el.id;
+    // The persisted SVG has no inline r — this attribute is the baseline
+    // (CSS `r` in style.css is Safari 16+ only; without the attribute,
+    // older engines render every seat at r=0, i.e. invisible).
+    el.setAttribute("r", "4");
+
+    if (soldSet.has(id)) matchedSoldCount++;
+    const state = classifySeat(id, { soldSet, baselineSet: baseline.soldSet, disabledSectionSet });
+    if (state !== SEAT_STATE.VAPAA) el.classList.add(state); // vapaa is the CSS default; skip the no-op write
   }
+
+  const missingCount = soldSet.size - matchedSoldCount;
   if (missingCount > 0) {
     console.warn(
       `[seatmap] ${mergedEvent.id}: ${missingCount} sold seat ID(s) from seats.json were not found in the SVG (svgHash=${seats.svgHash}).`
     );
-  }
-
-  // Small subset (usually 0-2 sections) — force ei-myynnissa on their own
-  // seats regardless of sold status, added last so it visually wins.
-  for (const section of disabledSectionSet) {
-    const sectionEl = findById(svg, section);
-    if (!sectionEl) continue;
-    for (const seatEl of sectionEl.querySelectorAll(".seat")) {
-      seatEl.classList.add(SEAT_STATE.EI_MYYNNISSA);
-    }
   }
 }
 
@@ -257,6 +271,8 @@ function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
   text.before(bg);
 }
 
+let legendInfoIdCounter = 0;
+
 function buildLegend({ hasBaseline, hasAitioOccupancy }) {
   const legend = document.createElement("div");
   legend.className = "seatmap-legend";
@@ -276,11 +292,40 @@ function buildLegend({ hasBaseline, hasAitioOccupancy }) {
     entries.push({ cls: AITIO_STATE.MYYTY, label: "Myyty (muu kanava)", info: AITIO_INFO });
   }
 
-  for (const entry of entries) legend.append(buildLegendItem(entry));
+  // Shared across every info toggle in this legend: only one popover open
+  // at a time, closable via outside click or Escape.
+  let openPopover = null; // { button, popover } | null
+
+  function closeOpenPopover() {
+    if (!openPopover) return;
+    openPopover.button.setAttribute("aria-expanded", "false");
+    openPopover.popover.hidden = true;
+    openPopover = null;
+  }
+
+  function togglePopover(button, popover) {
+    const wasOpen = openPopover?.button === button;
+    closeOpenPopover();
+    if (!wasOpen) {
+      button.setAttribute("aria-expanded", "true");
+      popover.hidden = false;
+      openPopover = { button, popover };
+    }
+  }
+
+  for (const entry of entries) legend.append(buildLegendItem(entry, togglePopover));
+
+  legend.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeOpenPopover();
+  });
+  document.addEventListener("click", (event) => {
+    if (openPopover && !legend.contains(event.target)) closeOpenPopover();
+  });
+
   return legend;
 }
 
-function buildLegendItem({ cls, label, info }) {
+function buildLegendItem({ cls, label, info }, togglePopover) {
   const item = document.createElement("div");
   item.className = "seatmap-legend__item";
 
@@ -293,22 +338,24 @@ function buildLegendItem({ cls, label, info }) {
   item.append(text);
 
   if (info) {
+    const popoverId = `seatmap-legend-info-${++legendInfoIdCounter}`;
+
     const infoButton = document.createElement("button");
     infoButton.type = "button";
     infoButton.className = "seatmap-legend__info-toggle";
     infoButton.textContent = "ⓘ";
     infoButton.setAttribute("aria-expanded", "false");
+    infoButton.setAttribute("aria-controls", popoverId);
 
     const popover = document.createElement("p");
+    popover.id = popoverId;
     popover.className = "seatmap-legend__info-popover";
     popover.textContent = info;
     popover.hidden = true;
 
     infoButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const expanded = infoButton.getAttribute("aria-expanded") === "true";
-      infoButton.setAttribute("aria-expanded", String(!expanded));
-      popover.hidden = expanded;
+      event.stopPropagation(); // defensive: keep this click from reaching unrelated document-level listeners
+      togglePopover(infoButton, popover);
     });
 
     item.append(infoButton, popover);
@@ -354,29 +401,59 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
     svg.setAttribute("viewBox", serializeViewBox(vb));
   }
 
+  // Capture can throw (e.g. NotFoundError if the pointer was already
+  // released by the time this runs) — a failure here shouldn't abort the
+  // rest of gesture-state setup, just fall back to less robust tracking
+  // for that pointer if it strays outside the element's bounds.
+  function tryCapturePointer(pointerId) {
+    try {
+      svg.setPointerCapture(pointerId);
+    } catch {
+      // ignore
+    }
+  }
+
+  // getScreenCTM (not a linear rect-based mapping) is required here: the
+  // container can letterbox the SVG (mobile forces aspect-ratio: 4/3,
+  // desktop clamps max-height) since preserveAspectRatio defaults to
+  // "xMidYMid meet" — a rect-based mapping assumes the rendered box fills
+  // the element exactly and drifts off-finger whenever it doesn't.
+  function svgPointFromClient(referenceCtm, clientX, clientY) {
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    return pt.matrixTransform(referenceCtm.inverse());
+  }
+
   function clientToSvgPoint(clientX, clientY) {
-    const rect = svg.getBoundingClientRect();
-    const relX = (clientX - rect.left) / rect.width;
-    const relY = (clientY - rect.top) / rect.height;
-    return {
-      x: currentViewBox.x + relX * currentViewBox.width,
-      y: currentViewBox.y + relY * currentViewBox.height,
-    };
+    return svgPointFromClient(svg.getScreenCTM(), clientX, clientY);
+  }
+
+  // Only zoomed in beyond the original (fully-zoomed-out) view engages our
+  // own single-finger drag-pan / pointer capture — at min zoom, a single
+  // finger is left entirely to the browser's native vertical scroll
+  // (touch-action: pan-y on the container).
+  function isZoomedIn() {
+    return currentViewBox.width < bounds.original.width - 0.01;
   }
 
   svg.addEventListener(
     "wheel",
     (event) => {
-      event.preventDefault();
       const focal = clientToSvgPoint(event.clientX, event.clientY);
-      const scaleFactor = 1 + event.deltaY * WHEEL_ZOOM_FACTOR;
-      applyViewBox(computeZoomedViewBox(currentViewBox, focal, scaleFactor, bounds));
+      const deltaY = normalizeWheelDeltaY(event.deltaY, event.deltaMode);
+      const scaleFactor = 1 + deltaY * WHEEL_ZOOM_FACTOR;
+      const nextViewBox = computeZoomedViewBox(currentViewBox, focal, scaleFactor, bounds);
+      if (viewBoxesEqual(nextViewBox, currentViewBox)) return; // clamped no-op — let the page scroll instead
+      event.preventDefault();
+      applyViewBox(nextViewBox);
     },
     { passive: false }
   );
 
   const activePointers = new Map(); // pointerId -> {x, y}
-  let dragStart = null; // {x, y, viewBox} for single-pointer pan
+  let dragStart = null; // {x, y, viewBox, ctm} for single-pointer pan — only set when zoomed in
+  let downStart = null; // {x, y} for the primary pointer — always set, tap-vs-scroll measurement
   let pinchStart = null; // {distance, viewBox, midpoint} for two-pointer pinch
   let downPointerId = null;
   let totalMovement = 0;
@@ -387,14 +464,29 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
 
   svg.addEventListener("pointerdown", (event) => {
     activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    svg.setPointerCapture(event.pointerId);
 
     if (activePointers.size === 1) {
       downPointerId = event.pointerId;
       totalMovement = 0;
-      dragStart = { x: event.clientX, y: event.clientY, viewBox: currentViewBox };
+      downStart = { x: event.clientX, y: event.clientY };
+      if (isZoomedIn()) {
+        tryCapturePointer(event.pointerId);
+        // Freeze the CTM for the whole gesture — pointermove recomputes the
+        // *total* delta from this start point on every event (not an
+        // incremental step), so it must be measured against a fixed
+        // reference, not the live CTM, which shifts mid-drag as soon as the
+        // first pointermove calls applyViewBox.
+        dragStart = { x: event.clientX, y: event.clientY, viewBox: currentViewBox, ctm: svg.getScreenCTM() };
+      } else {
+        dragStart = null; // at min zoom, defer to native scroll for this finger
+      }
       pinchStart = null;
     } else if (activePointers.size === 2) {
+      // Capture both fingers here — the first one may not have been
+      // captured yet if the pinch started from min zoom (pointerdown for a
+      // single finger only captures when already zoomed in). Re-capturing
+      // an already-captured pointer is a harmless no-op.
+      for (const id of activePointers.keys()) tryCapturePointer(id);
       dragStart = null;
       const [p1, p2] = [...activePointers.values()];
       pinchStart = {
@@ -419,11 +511,18 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
       return;
     }
 
+    // Tracked independently of whether we're actively panning, so a genuine
+    // scroll swipe at min zoom (dragStart null, native scroll handling it)
+    // still correctly fails the tap-movement-threshold check on release.
+    if (event.pointerId === downPointerId && downStart) {
+      totalMovement = Math.hypot(event.clientX - downStart.x, event.clientY - downStart.y);
+    }
+
     if (dragStart && event.pointerId === downPointerId) {
-      const rect = svg.getBoundingClientRect();
-      const dx = ((event.clientX - dragStart.x) / rect.width) * dragStart.viewBox.width;
-      const dy = ((event.clientY - dragStart.y) / rect.height) * dragStart.viewBox.height;
-      totalMovement = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
+      const startPt = svgPointFromClient(dragStart.ctm, dragStart.x, dragStart.y);
+      const curPt = svgPointFromClient(dragStart.ctm, event.clientX, event.clientY);
+      const dx = curPt.x - startPt.x;
+      const dy = curPt.y - startPt.y;
       applyViewBox(computePannedViewBox(dragStart.viewBox, -dx, -dy, bounds));
     }
   });
@@ -447,10 +546,29 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
   function endPointer(event) {
     const wasTap =
       activePointers.size === 1 && event.pointerId === downPointerId && totalMovement < TAP_MOVEMENT_THRESHOLD;
+    const wasPinching = pinchStart !== null;
 
     activePointers.delete(event.pointerId);
-    if (activePointers.size < 2) pinchStart = null;
-    if (event.pointerId === downPointerId) dragStart = null;
+
+    if (wasPinching && activePointers.size === 1) {
+      // Two-finger pinch dropped to one — reseat pan from the surviving
+      // pointer so it continues seamlessly instead of requiring a full
+      // lift-and-repress to resume.
+      pinchStart = null;
+      const [survivorId, survivorPos] = [...activePointers.entries()][0];
+      downPointerId = survivorId;
+      downStart = { x: survivorPos.x, y: survivorPos.y };
+      totalMovement = 0;
+      dragStart = isZoomedIn()
+        ? { x: survivorPos.x, y: survivorPos.y, viewBox: currentViewBox, ctm: svg.getScreenCTM() }
+        : null;
+    } else {
+      if (activePointers.size < 2) pinchStart = null;
+      if (event.pointerId === downPointerId) {
+        dragStart = null;
+        downStart = null;
+      }
+    }
 
     if (wasTap) handleTap(event.clientX, event.clientY);
   }
@@ -458,5 +576,12 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
   svg.addEventListener("pointerup", endPointer);
   svg.addEventListener("pointercancel", endPointer);
 
-  resetButton.addEventListener("click", () => applyViewBox(originalViewBox));
+  resetButton.addEventListener("click", () => {
+    applyViewBox(originalViewBox);
+    if (selectedEl) {
+      selectedEl.classList.remove("section--selected");
+      selectedEl = null;
+    }
+    infoRow.textContent = INFO_ROW_PLACEHOLDER;
+  });
 }

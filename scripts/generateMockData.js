@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { parseSeatmapSeatIds } from "./lib/seatmap.js";
+import { compareAitioIds } from "./lib/sections.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -231,7 +232,7 @@ function buildSections(rng, popularity, disabledSections, baselineBySection, sec
     section: "aitiot",
     sold: aitioSold,
     available: 0,
-    hold: AITIOT_CAPACITY - aitioSold,
+    hold: Math.max(0, AITIOT_CAPACITY - aitioSold),
     total: AITIOT_CAPACITY,
   });
 
@@ -439,7 +440,7 @@ async function main() {
       fetchedAt: lastPointIso,
       svgHash: "mock-fixture",
       soldSeatIds,
-      soldAitiot: [...soldAitioIds].sort(),
+      soldAitiot: [...soldAitioIds].sort(compareAitioIds),
     });
 
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");
