@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { parseSeatmapSvg, sha1Hex } from "../scripts/lib/seatmap.js";
+import { parseSeatmapSvg, parseSeatmapSeatIds, sha1Hex, resolveCapacities } from "../scripts/lib/seatmap.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureSvg = readFileSync(path.join(__dirname, "fixtures", "seatmap-sample.svg"), "utf8");
@@ -43,6 +45,25 @@ test("parseSeatmapSvg returns an empty object for an SVG with no seat circles", 
   assert.deepEqual(parseSeatmapSvg("<svg></svg>"), {});
 });
 
+test("parseSeatmapSeatIds groups actual seat IDs by section, matching the verified per-section counts", () => {
+  const bySection = parseSeatmapSeatIds(fixtureSvg);
+  for (const [section, count] of Object.entries(VERIFIED_CAPACITIES)) {
+    assert.equal(bySection[section].length, count, `section ${section}`);
+  }
+});
+
+test("parseSeatmapSeatIds returns each section's real seat IDs (SECTION-ROW-SEAT), not just counts", () => {
+  const bySection = parseSeatmapSeatIds(fixtureSvg);
+  assert.ok(bySection.A1.includes("A1-1-001"));
+  for (const seatId of bySection.A1) {
+    assert.match(seatId, /^A1-\d+-\d+$/);
+  }
+});
+
+test("parseSeatmapSeatIds returns an empty object for an SVG with no seat circles", () => {
+  assert.deepEqual(parseSeatmapSeatIds("<svg></svg>"), {});
+});
+
 test("sha1Hex is deterministic and content-sensitive", () => {
   const a = sha1Hex("hello");
   const b = sha1Hex("hello");
@@ -50,4 +71,47 @@ test("sha1Hex is deterministic and content-sensitive", () => {
   assert.equal(a, b);
   assert.notEqual(a, c);
   assert.match(a, /^[0-9a-f]{40}$/);
+});
+
+test("resolveCapacities persists the raw SVG alongside the capacities JSON, content-addressed by hash", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "seatmap-test-"));
+  const httpClient = { fetchWithRetry: async () => ({ text: async () => fixtureSvg }) };
+
+  const { hash, capacities } = await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+  });
+
+  assert.deepEqual(capacities, VERIFIED_CAPACITIES);
+
+  const svgPath = path.join(dataDir, "capacities", `${hash}.svg`);
+  const persisted = await readFile(svgPath, "utf8");
+  assert.equal(persisted, fixtureSvg);
+});
+
+test("resolveCapacities never overwrites an already-persisted SVG for the same hash", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "seatmap-test-"));
+  const httpClient = { fetchWithRetry: async () => ({ text: async () => fixtureSvg }) };
+
+  const { hash } = await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+  });
+  const svgPath = path.join(dataDir, "capacities", `${hash}.svg`);
+
+  // Tamper with the persisted file, then fetch again — a real re-fetch of an
+  // unchanged map must never touch the already-written file.
+  await writeFile(svgPath, "TAMPERED");
+  await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+  });
+
+  assert.equal(await readFile(svgPath, "utf8"), "TAMPERED");
 });

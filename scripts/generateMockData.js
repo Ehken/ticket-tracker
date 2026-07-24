@@ -6,6 +6,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { parseSeatmapSeatIds } from "./lib/seatmap.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -278,15 +279,63 @@ function buildHistory(rng, { finalSold, finalStanding, firstSeenIso, lastPointIs
   return points.filter((p, i) => i === 0 || p.sold !== points[i - 1].sold);
 }
 
+// Deterministic seeded pick of `count` items from `pool`, sorted in the
+// output for stable diffs. Uses the event's own rng, so re-running the
+// generator with unchanged inputs reproduces the same seat assignments.
+export function pickSeats(rng, pool, count) {
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, count).sort();
+}
+
+// A match event's seat set must be a SUPERSET of its season's kausikortti
+// seat set, per section — season-ticket holders sit in the same seats every
+// game. `baselineSeatsBySection` is null/undefined for kausikortti events
+// themselves (they define the baseline rather than build on one).
+export function assignSeatIds(rng, seatPoolBySection, sections, baselineSeatsBySection) {
+  const bySection = {};
+
+  for (const row of sections) {
+    const pool = seatPoolBySection[row.section];
+    if (!pool) continue; // aggregate row (seisomakatsomo/invalid/press/aitiot) — no individual seat IDs
+
+    const baselineIds = baselineSeatsBySection?.[row.section] ?? [];
+    const baselineSet = new Set(baselineIds);
+    const additionalPool = pool.filter((id) => !baselineSet.has(id));
+    const additionalCount = Math.max(0, row.sold - baselineIds.length);
+
+    bySection[row.section] = [...baselineIds, ...pickSeats(rng, additionalPool, additionalCount)];
+  }
+
+  return bySection;
+}
+
 async function main() {
   const schedule = JSON.parse(await readFile(path.join(repoRoot, "data", "schedule.json"), "utf8"));
+
+  // Real, currently-active kausikortti event's seatmap — its actual seat IDs
+  // (e.g. "A1-1-001") are reused for every mock event's seats.json, so mock
+  // seat IDs look like the real arena rather than synthetic placeholders.
+  const realLatest = JSON.parse(
+    await readFile(path.join(repoRoot, "data", "events", "53-575", "latest.json"), "utf8")
+  );
+  const realSvg = await readFile(
+    path.join(repoRoot, "data", "capacities", `${realLatest.capacitiesHash}.svg`),
+    "utf8"
+  );
+  const seatPoolBySection = parseSeatmapSeatIds(realSvg);
 
   const events = [];
   const latestById = new Map();
   const historyById = new Map();
+  const seatsById = new Map();
   const overrides = {};
   const autoclass = {};
   const baselineBySeason = new Map();
+  const baselineSeatsBySeason = new Map();
 
   function addEvent({
     id,
@@ -325,6 +374,10 @@ async function main() {
     const sections = buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides);
     const totals = computeTotals(sections);
 
+    const baselineSeatsBySection = gameType === "kausikortti" ? null : baselineSeatsBySeason.get(season);
+    const seatsBySection = assignSeatIds(rng, seatPoolBySection, sections, baselineSeatsBySection);
+    const soldSeatIds = Object.values(seatsBySection).flat().sort();
+
     events.push({
       id,
       name,
@@ -346,6 +399,12 @@ async function main() {
       prices: MOCK_PRICES,
     });
 
+    seatsById.set(id, {
+      fetchedAt: lastPointIso,
+      svgHash: "mock-fixture",
+      soldSeatIds,
+    });
+
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");
     historyById.set(
       id,
@@ -362,6 +421,7 @@ async function main() {
     if (gameType === "kausikortti") {
       const sectionBaseline = new Map(sections.map((s) => [s.section, s.sold]));
       baselineBySeason.set(season, sectionBaseline);
+      baselineSeatsBySeason.set(season, seatsBySection);
     }
 
     return { gameType, season };
@@ -580,9 +640,12 @@ async function main() {
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, "latest.json"), JSON.stringify(latestById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "history.json"), JSON.stringify(historyById.get(event.id), null, 2) + "\n");
+    await writeFile(path.join(dir, "seats.json"), JSON.stringify(seatsById.get(event.id), null, 2) + "\n");
   }
 
   console.log(`Generated ${events.length} mock events under ${path.relative(repoRoot, mockDir)}/`);
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

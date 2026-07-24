@@ -7,6 +7,8 @@ import {
   warnOnOrphanRowLevelDisabled,
   buildSectionTable,
   computeTotals,
+  extractSoldSeatIds,
+  warnOnSeatCountMismatch,
 } from "../scripts/lib/sections.js";
 
 test("countSoldPerSection counts keys by section prefix, ignoring aggregate keys", () => {
@@ -98,6 +100,62 @@ test("buildSectionTable: aitiot (merged) and press are always fully held", () =>
     { section: "press", sold: 0, available: 0, hold: 24, total: 24 },
     { section: "aitiot", sold: 0, available: 0, hold: 50, total: 50 },
   ]);
+});
+
+test("extractSoldSeatIds returns only individual seat-ID keys, sorted alphabetically", () => {
+  const usages = {
+    "A4-6-085": 1,
+    "A4-1-001": 1,
+    "C1-2-010": 1,
+    seisomakatsomo: 50,
+    invalid: 3,
+    aitio_1: 2,
+  };
+  assert.deepEqual(extractSoldSeatIds(usages), ["A4-1-001", "A4-6-085", "C1-2-010"]);
+});
+
+test("extractSoldSeatIds returns an empty array when usages has only aggregate keys", () => {
+  assert.deepEqual(extractSoldSeatIds({ seisomakatsomo: 50, invalid: 3, aitio_1: 2, press: 0 }), []);
+});
+
+test("warnOnSeatCountMismatch is silent when seat-ID counts agree with each section's sold count", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+  const soldSeatIds = ["A4-1-001", "A4-6-085", "C1-2-010"];
+  const sections = [
+    { section: "A4", sold: 2, available: 242, hold: 0, total: 244 },
+    { section: "C1", sold: 1, available: 107, hold: 0, total: 108 },
+    { section: "seisomakatsomo", sold: 50, available: 2088, hold: 0, total: 2138 },
+  ];
+  warnOnSeatCountMismatch(soldSeatIds, sections, logger);
+  assert.equal(warnings.length, 0);
+});
+
+test("warnOnSeatCountMismatch warns per section when seat-ID count disagrees with the computed sold count", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+  const soldSeatIds = ["A4-1-001"]; // only 1 seat ID, but the section row claims 2 sold
+  const sections = [{ section: "A4", sold: 2, available: 242, hold: 0, total: 244 }];
+  warnOnSeatCountMismatch(soldSeatIds, sections, logger);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /A4/);
+  assert.match(warnings[0], /\(1\)/);
+  assert.match(warnings[0], /\(2\)/);
+});
+
+test("warnOnSeatCountMismatch never checks aggregate sections (seisomakatsomo/invalid/press/aitiot)", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+  // No seat IDs at all, yet every aggregate row has a nonzero sold count —
+  // must not warn, since aggregate usage keys have no individual seat IDs.
+  const sections = [
+    { section: "seisomakatsomo", sold: 50, available: 2088, hold: 0, total: 2138 },
+    { section: "invalid", sold: 3, available: 9, hold: 0, total: 12 },
+    { section: "press", sold: 0, available: 0, hold: 24, total: 24 },
+    { section: "aitiot", sold: 0, available: 0, hold: 156, total: 156 },
+  ];
+  warnOnSeatCountMismatch([], sections, logger);
+  assert.equal(warnings.length, 0);
 });
 
 test("computeTotals reproduces the spec's reference arena totals (2552/1828/596/4976)", () => {

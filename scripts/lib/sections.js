@@ -1,4 +1,5 @@
 const AITIO_PREFIX = "aitio_";
+const AGGREGATE_SECTIONS = new Set(["seisomakatsomo", "invalid", "press", "aitiot"]);
 
 export function countSoldPerSection(usages) {
   const counts = {};
@@ -9,6 +10,38 @@ export function countSoldPerSection(usages) {
     counts[section] = (counts[section] ?? 0) + 1;
   }
   return counts;
+}
+
+// The individual seat-ID keys from usages (pattern SECTION-ROW-SEAT), sorted
+// alphabetically for deterministic output and good git delta compression.
+// Aggregate keys (seisomakatsomo, invalid, aitio_N) have no seat IDs and are
+// excluded — same "has a dash" rule as countSoldPerSection.
+export function extractSoldSeatIds(usages) {
+  return Object.keys(usages)
+    .filter((key) => key.indexOf("-") !== -1)
+    .sort();
+}
+
+// Sanity check only — logs a warning, never throws. Confirms the seat IDs
+// extracted from usages agree with the sold count already computed per
+// section, catching any future drift between the two derivations without
+// risking a run failure over it.
+export function warnOnSeatCountMismatch(soldSeatIds, sections, logger = console) {
+  const countBySection = {};
+  for (const seatId of soldSeatIds) {
+    const section = seatId.slice(0, seatId.indexOf("-"));
+    countBySection[section] = (countBySection[section] ?? 0) + 1;
+  }
+
+  for (const row of sections) {
+    if (AGGREGATE_SECTIONS.has(row.section)) continue;
+    const seatIdCount = countBySection[row.section] ?? 0;
+    if (seatIdCount !== row.sold) {
+      logger.warn(
+        `[seats] section ${row.section}: soldSeatIds count (${seatIdCount}) does not match section's sold count (${row.sold})`
+      );
+    }
+  }
 }
 
 export function extractAggregateSold(usages) {

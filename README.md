@@ -16,7 +16,12 @@ Data haetaan elippu.net:n julkisilta kauppasivuilta — ei yksityistä rajapinta
 Jokaisen tapahtuman myyntitiedot ovat upotettuna sivun HTML:ään
 (`kit.start(...)`-kutsun sisällä), ja parseri (`scripts/lib/eventParser.js`)
 purkaa ne. Katsomon paikkamäärät luetaan tapahtuman omasta `seatmap.svg`-kartasta
-ja välimuistitetaan sisällön tiivisteen (SHA-1) mukaan `data/capacities/`-kansioon.
+ja välimuistitetaan sisällön tiivisteen (SHA-1) mukaan `data/capacities/`-kansioon
+— sekä paikkamäärät (`.json`) että itse SVG-kartta (`.svg`) tallennetaan tällä
+tiivisteellä nimettynä, eikä kumpaakaan kirjoiteta uudelleen jos tiedosto on jo
+olemassa. Jokaisesta hausta tallennetaan myös tapahtuman myydyt yksittäiset
+paikka-ID:t (`data/events/{id}/seats.json`), tulevaa paikkakarttaominaisuutta
+varten — ei vielä käytössä frontendissä.
 
 ## Ajaminen paikallisesti
 
@@ -39,9 +44,11 @@ tyytyväinen tuloksiin.
 ```
 data/
   capacities/{svg-hash}.json     # paikkamäärät per katsomonumero, versioitu SVG:n tiivisteellä
+  capacities/{svg-hash}.svg      # sama kartta raakana SVG:nä, tulevaa paikkakarttaominaisuutta varten
   events.json                    # indeksi kaikista nähdyistä tapahtumista + tila (upcoming/past)
   events/{id}/latest.json        # tuorein tilannekuva per tapahtuma
   events/{id}/history.json       # myynnin aikasarja per tapahtuma
+  events/{id}/seats.json         # tämänhetkiset myydyt paikka-ID:t (ei historiaa, ylikirjoitetaan joka haulla)
 ```
 
 ## Frontend

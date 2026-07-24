@@ -21,6 +21,10 @@ export function historyPath(dataDir, id) {
   return path.join(eventDir(dataDir, id), "history.json");
 }
 
+export function seatsPath(dataDir, id) {
+  return path.join(eventDir(dataDir, id), "seats.json");
+}
+
 export function capacitiesPath(dataDir, hash) {
   return path.join(dataDir, "capacities", `${hash}.json`);
 }

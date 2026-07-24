@@ -158,6 +158,14 @@ test("run() completes end-to-end for a single healthy event using fixtures", asy
 
   const history = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "history.json"), "utf8"));
   assert.equal(history.length, 1);
+
+  const seats = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "seats.json"), "utf8"));
+  assert.equal(seats.fetchedAt, "2026-07-23T18:00:00.000Z");
+  assert.equal(seats.svgHash, latest.capacitiesHash);
+  assert.deepEqual(seats.soldSeatIds, ["A4-1-001", "A4-6-085", "C1-2-010", "C1-2-011"]);
+
+  const svgPath = path.join(dataDir, "capacities", `${latest.capacitiesHash}.svg`);
+  assert.equal(await readFile(svgPath, "utf8"), seatmapSvg);
 });
 
 test("run() writes an autoclass.json entry when a first-seen event matches a schedule.json fixture", async () => {

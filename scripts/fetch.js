@@ -10,6 +10,8 @@ import {
   buildSectionTable,
   computeTotals,
   warnOnOrphanRowLevelDisabled,
+  extractSoldSeatIds,
+  warnOnSeatCountMismatch,
 } from "./lib/sections.js";
 import { findScheduleMatch } from "./lib/schedule.js";
 import {
@@ -17,6 +19,7 @@ import {
   eventsIndexPath,
   latestPath,
   historyPath,
+  seatsPath,
   schedulePath,
   autoclassPath,
   readJson,
@@ -96,6 +99,14 @@ export async function run({
         wheelchairSold: wheelchair,
       });
       const totals = computeTotals(rows);
+
+      const soldSeatIds = extractSoldSeatIds(map.status.usages);
+      warnOnSeatCountMismatch(soldSeatIds, rows, log);
+      await writeJsonIfChanged(seatsPath(dataDir, id), {
+        fetchedAt: nowISO,
+        svgHash: hash,
+        soldSeatIds,
+      });
 
       const latest = {
         eventId: event.id,
