@@ -14,7 +14,12 @@
      which stay reserved for the table's fill-bar. SaiPa-themed: black
      (kausikortti) and SaiPa yellow (irtolippu) are both "sold", pale sand
      is the unlit/vapaa state (sales visually light the arena up), aitio
-     purple is its own separate channel, ei-myynnissä is the one neutral. */
+     purple is its own separate channel, ei-myynnissä is the one neutral.
+     One set of values for both color schemes — the map's own surface
+     (.seatmap-svg-container below) is deliberately always-light, like the
+     rink graphic already baked into the SVG, so these never need a
+     dark-mode variant and near-black kausikortti dots never need a
+     readability workaround. */
   --seat-kausikortti: #1a1a1a;
   --seat-irtolippu: #ffd400;
   --seat-aitio-myyty: #7b4fb5;
@@ -35,11 +40,6 @@
     --accent: #e57373;
     --hover-bg: rgba(255, 255, 255, 0.05);
     --text-secondary: #a0a0a0;
-    --seat-kausikortti: #1a1a1a;
-    --seat-irtolippu: #ffdb4d;
-    --seat-aitio-myyty: #a78bdb;
-    --seat-vapaa: #4a4636;
-    --seat-ei-myynnissa: #55585d;
   }
 }
 
@@ -546,8 +546,14 @@ header.site-header h1 {
   max-height: 70vh;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
+  border-radius: 6px; /* matches .card */
+  /* Always light, in both color schemes — the map is a paper-like
+     document (consistent with the rink graphic, which is already baked
+     into the SVG as white), not a themed page surface. A dark background
+     here inverted the seat palette's visual weight: black kausikortti
+     dots read as holes rather than "sold", making a full arena look
+     empty. Deliberately not var(--bg)/var(--card-bg). */
+  background: #fdfcfa;
   /* Native vertical scroll stays available at min zoom; pinch-zoom and our
      own drag-pan (only once zoomed in) are handled entirely in JS. */
   touch-action: pan-y;
@@ -594,17 +600,6 @@ header.site-header h1 {
 .seatmap-svg .seat.ei-myynnissa {
   fill: var(--seat-ei-myynnissa);
   r: 2.4px; /* smaller, not just a different color — separates by shape too */
-}
-
-@media (prefers-color-scheme: dark) {
-  /* Kausikortti/myyty seats are near-black in both themes; against a dark
-     background they'd otherwise vanish, so dark mode gets a faint light
-     stroke to keep them readable as individual dots. */
-  .seatmap-svg .seat.kausikortti,
-  .seatmap-svg .seat.myyty {
-    stroke: rgba(255, 255, 255, 0.55);
-    stroke-width: 1px;
-  }
 }
 
 .seatmap-svg #seisomakatsomo,
@@ -684,18 +679,16 @@ header.site-header h1 {
   border-radius: 50%;
   display: inline-block;
   flex: 0 0 auto;
+  /* The legend sits on the page's own (theme-following) surface, not the
+     map's always-light one — a subtle border keeps every chip's edge
+     defined regardless of how close its fill sits to the current page
+     background (e.g. near-black kausikortti against a dark page). */
+  border: 1px solid var(--border);
 }
 
 .seatmap-legend__swatch--kausikortti,
 .seatmap-legend__swatch--myyty {
   background: var(--seat-kausikortti);
-}
-
-@media (prefers-color-scheme: dark) {
-  .seatmap-legend__swatch--kausikortti,
-  .seatmap-legend__swatch--myyty {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
-  }
 }
 
 .seatmap-legend__swatch--irtolippu {
