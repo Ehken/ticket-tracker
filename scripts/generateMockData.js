@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { parseSeatmapSeatIds } from "./lib/seatmap.js";
+import { compareAitioIds } from "./lib/sections.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -32,8 +33,24 @@ const SEATED_CAPACITIES = {
 };
 const STANDING_CAPACITY = 2138;
 const WHEELCHAIR_CAPACITY = 12;
-const AITIOT_CAPACITY = 156;
 const PRESS_CAPACITY = 24;
+
+// Per-box capacities (real verified values) — boxes have no per-seat
+// granularity, just a binary occupied/not-occupied state per box (see
+// `soldAitioIds`), so this per-box breakdown exists purely to compute a
+// sensible aggregate "aitiot" sold figure when a box is marked occupied.
+const AITIO_CAPACITIES = {
+  aitio_1: 16,
+  aitio_2: 16,
+  aitio_3: 18,
+  aitio_4: 18,
+  aitio_5: 18,
+  aitio_6: 18,
+  aitio_7: 18,
+  aitio_8: 18,
+  aitio_9: 16,
+};
+const AITIOT_CAPACITY = Object.values(AITIO_CAPACITIES).reduce((sum, n) => sum + n, 0);
 
 // Shared "as of" reference instants, one per season — each season's own
 // kausikortti event is generated as of this same moment, and every match
@@ -166,7 +183,7 @@ function soldWithBaseline(rng, popularity, total, baselineSold, spread, fixedFra
   return baselineSold + Math.round(nonBaselineCapacity * fraction);
 }
 
-function buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides = {}) {
+function buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides = {}, soldAitioIds = []) {
   const baseline = baselineBySection ?? new Map();
   const sections = [];
 
@@ -209,7 +226,15 @@ function buildSections(rng, popularity, disabledSections, baselineBySection, sec
   });
 
   sections.push({ section: "press", sold: 0, available: 0, hold: PRESS_CAPACITY, total: PRESS_CAPACITY });
-  sections.push({ section: "aitiot", sold: 0, available: 0, hold: AITIOT_CAPACITY, total: AITIOT_CAPACITY });
+
+  const aitioSold = soldAitioIds.reduce((sum, id) => sum + (AITIO_CAPACITIES[id] ?? 0), 0);
+  sections.push({
+    section: "aitiot",
+    sold: aitioSold,
+    available: 0,
+    hold: Math.max(0, AITIOT_CAPACITY - aitioSold),
+    total: AITIOT_CAPACITY,
+  });
 
   return sections;
 }
@@ -326,6 +351,10 @@ async function main() {
     path.join(repoRoot, "data", "capacities", `${realLatest.capacitiesHash}.svg`),
     "utf8"
   );
+  const realCapacitiesJson = await readFile(
+    path.join(repoRoot, "data", "capacities", `${realLatest.capacitiesHash}.json`),
+    "utf8"
+  );
   const seatPoolBySection = parseSeatmapSeatIds(realSvg);
 
   const events = [];
@@ -355,6 +384,7 @@ async function main() {
     historyPoints = 10,
     sectionFractionOverrides,
     pinRecentToFinal,
+    soldAitioIds = [],
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
     const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
@@ -371,7 +401,14 @@ async function main() {
 
     const rng = makeRng(id);
     const baselineBySection = gameType === "kausikortti" ? null : baselineBySeason.get(season);
-    const sections = buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides);
+    const sections = buildSections(
+      rng,
+      popularity,
+      disabledSections,
+      baselineBySection,
+      sectionFractionOverrides,
+      soldAitioIds
+    );
     const totals = computeTotals(sections);
 
     const baselineSeatsBySection = gameType === "kausikortti" ? null : baselineSeatsBySeason.get(season);
@@ -403,6 +440,7 @@ async function main() {
       fetchedAt: lastPointIso,
       svgHash: "mock-fixture",
       soldSeatIds,
+      soldAitiot: [...soldAitioIds].sort(compareAitioIds),
     });
 
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");
@@ -495,6 +533,12 @@ async function main() {
   // wouldn't reliably reach on its own.
   const NEAR_SELLOUT_INDEX = 8; // 2026-10-08 vs JYP
   const FLAT_VELOCITY_INDEX = 14; // 2026-11-13 vs Ilves
+  // Two more hand-picked games demo aitiot sold through another channel —
+  // a real (if speculative) scraper capability, not yet observed live.
+  const AITIO_OCCUPANCY = {
+    5: ["aitio_2"],
+    20: ["aitio_5", "aitio_7"],
+  };
 
   schedule.forEach((fixture, index) => {
     const num = String(index + 1).padStart(3, "0");
@@ -529,6 +573,7 @@ async function main() {
       historyPoints: isPast ? 12 : 8,
       sectionFractionOverrides,
       pinRecentToFinal,
+      soldAitioIds: AITIO_OCCUPANCY[index] ?? [],
     });
 
     autoclass[toDashId(id)] = { gameType: fixture.gameType, season: fixture.season };
@@ -634,6 +679,14 @@ async function main() {
   await writeFile(path.join(mockDir, "events.json"), JSON.stringify(events, null, 2) + "\n");
   await writeFile(path.join(mockDir, "overrides.json"), JSON.stringify(overrides, null, 2) + "\n");
   await writeFile(path.join(mockDir, "autoclass.json"), JSON.stringify(autoclass, null, 2) + "\n");
+
+  // Every mock event shares capacitiesHash/svgHash "mock-fixture" — without
+  // these files, ?mock=1's seat-map fetch 404s for every event. Copy the
+  // real, already-loaded files verbatim rather than regenerating.
+  const mockCapacitiesDir = path.join(mockDir, "capacities");
+  await mkdir(mockCapacitiesDir, { recursive: true });
+  await writeFile(path.join(mockCapacitiesDir, "mock-fixture.svg"), realSvg);
+  await writeFile(path.join(mockCapacitiesDir, "mock-fixture.json"), realCapacitiesJson);
 
   for (const event of events) {
     const dir = path.join(mockDir, "events", toDashId(event.id));

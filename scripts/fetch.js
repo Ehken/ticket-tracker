@@ -7,6 +7,7 @@ import { resolveCapacities } from "./lib/seatmap.js";
 import {
   countSoldPerSection,
   extractAggregateSold,
+  extractAitioSold,
   buildSectionTable,
   computeTotals,
   warnOnOrphanRowLevelDisabled,
@@ -90,6 +91,7 @@ export async function run({
       const mergedCapacities = { ...capacities, ...map.status.capacities };
       const soldCounts = countSoldPerSection(map.status.usages);
       const { standing, wheelchair } = extractAggregateSold(map.status.usages);
+      const { sold: aitioSold, soldAitioIds } = extractAitioSold(map.status.usages);
 
       const rows = buildSectionTable({
         soldCounts,
@@ -97,6 +99,7 @@ export async function run({
         disabled: map.disabled,
         standingSold: standing,
         wheelchairSold: wheelchair,
+        aitioSold,
       });
       const totals = computeTotals(rows);
 
@@ -106,6 +109,7 @@ export async function run({
         fetchedAt: nowISO,
         svgHash: hash,
         soldSeatIds,
+        soldAitiot: soldAitioIds,
       });
 
       const latest = {

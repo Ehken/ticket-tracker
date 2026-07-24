@@ -1,6 +1,15 @@
 const AITIO_PREFIX = "aitio_";
 const AGGREGATE_SECTIONS = new Set(["seisomakatsomo", "invalid", "press", "aitiot"]);
 
+function aitioNumber(id) {
+  return Number(id.slice(AITIO_PREFIX.length));
+}
+
+// Numeric, not lexical: "aitio_10" must sort after "aitio_2", not before it.
+export function compareAitioIds(a, b) {
+  return aitioNumber(a) - aitioNumber(b);
+}
+
 export function countSoldPerSection(usages) {
   const counts = {};
   for (const key of Object.keys(usages)) {
@@ -51,6 +60,20 @@ export function extractAggregateSold(usages) {
   };
 }
 
+// Boxes (aitio_1..aitio_9) may be sold through channels other than the
+// public shop flow — if the shop's own usages payload ever reports an
+// occupant count per box, extract it. Today's real data has never shown
+// aitio_N keys in usages, so this is purely additive: with none present,
+// `sold` is 0 and `soldAitioIds` is empty, same as before this existed.
+export function extractAitioSold(usages) {
+  const soldAitioIds = Object.entries(usages)
+    .filter(([key, value]) => key.startsWith(AITIO_PREFIX) && value > 0)
+    .map(([key]) => key)
+    .sort(compareAitioIds);
+  const sold = soldAitioIds.reduce((sum, key) => sum + usages[key], 0);
+  return { sold, soldAitioIds };
+}
+
 export function isSectionDisabled(sectionId, disabledList) {
   return disabledList.includes(sectionId);
 }
@@ -70,7 +93,7 @@ export function warnOnOrphanRowLevelDisabled(disabledList, logger = console) {
   }
 }
 
-export function buildSectionTable({ soldCounts, capacities, disabled, standingSold, wheelchairSold }) {
+export function buildSectionTable({ soldCounts, capacities, disabled, standingSold, wheelchairSold, aitioSold = 0 }) {
   const rows = [];
   let aitiotTotal = 0;
 
@@ -107,7 +130,13 @@ export function buildSectionTable({ soldCounts, capacities, disabled, standingSo
   }
 
   if (aitiotTotal > 0) {
-    rows.push({ section: "aitiot", sold: 0, available: 0, hold: aitiotTotal, total: aitiotTotal });
+    rows.push({
+      section: "aitiot",
+      sold: aitioSold,
+      available: 0, // never publicly purchasable, even when occupied via another channel
+      hold: Math.max(0, aitiotTotal - aitioSold), // guard against aitioSold exceeding capacity in bad upstream data
+      total: aitiotTotal,
+    });
   }
 
   return rows;

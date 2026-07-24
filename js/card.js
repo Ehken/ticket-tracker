@@ -3,6 +3,7 @@ import { buildSectionTable, buildFillBar } from "./sectionTable.js";
 import { buildChart } from "./chart.js";
 import { getHistory } from "./fetchData.js";
 import { gameTypeLabel } from "./grouping.js";
+import { buildSeatMapToggle } from "./seatMap.js";
 
 function buildStat(label, value) {
   const span = document.createElement("span");
@@ -113,7 +114,13 @@ function buildCompactHeader(mergedEvent, totals) {
 export function buildCard(
   mergedEvent,
   latest,
-  { preExpanded = false, compactSummary = false, showSeasonBadge = false, showGameTypeLabel = false } = {}
+  {
+    preExpanded = false,
+    compactSummary = false,
+    showSeasonBadge = false,
+    showGameTypeLabel = false,
+    kausikorttiEvents = [],
+  } = {}
 ) {
   const article = document.createElement("article");
   article.className = mergedEvent.status === "past" ? "card card--past" : "card";
@@ -161,6 +168,8 @@ export function buildCard(
       chartWrapper.replaceWith(errorEl);
       console.error(`Failed to load history for ${mergedEvent.id}:`, err);
     }
+
+    body.append(buildSeatMapToggle(mergedEvent, latest, { kausikorttiEvents }));
   }
 
   async function setExpanded(next) {

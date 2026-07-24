@@ -44,3 +44,23 @@ export function getLatest(id) {
 export function getHistory(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/history.json`, { fallbackOn404: [] });
 }
+
+export function getSeats(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seats.json`, { fallbackOn404: null });
+}
+
+const svgCache = new Map();
+
+export async function getCapacitiesSvg(hash) {
+  if (svgCache.has(hash)) return svgCache.get(hash);
+  // Content-hash-addressed and immutable — default HTTP caching is correct
+  // here (unlike the JSON endpoints above, which are live/mutable and need
+  // no-store) and helps across page reloads, on top of the in-memory cache.
+  const res = await fetch(`${DATA_ROOT}/capacities/${hash}.svg`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch capacities svg ${hash}: HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  svgCache.set(hash, text);
+  return text;
+}

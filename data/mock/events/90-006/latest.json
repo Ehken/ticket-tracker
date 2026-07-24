@@ -157,16 +157,16 @@
     },
     {
       "section": "aitiot",
-      "sold": 0,
+      "sold": 16,
       "available": 0,
-      "hold": 156,
+      "hold": 140,
       "total": 156
     }
   ],
   "totals": {
-    "sold": 3126,
+    "sold": 3142,
     "available": 1670,
-    "hold": 180,
+    "hold": 164,
     "total": 4976
   },
   "prices": {

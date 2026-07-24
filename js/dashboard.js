@@ -21,6 +21,7 @@ import {
 } from "./dashboardTiming.js";
 import { buildSparkline } from "./chart.js";
 import { formatThousands, formatHelsinkiDate } from "./format.js";
+import { sectionLabel } from "./sectionLabels.js";
 
 function formatFraction(frac) {
   if (frac === null || frac === undefined) return "–";
@@ -289,7 +290,7 @@ function buildSection6(matchInScope, baselineIndex) {
 
   for (const row of rank) {
     const tags = PREMIUM_SECTIONS.includes(row.section) ? ["premium"] : [];
-    panel.append(buildRankRow({ label: row.section, value: formatFraction(row.avgIrtolippuFillPct), tags }));
+    panel.append(buildRankRow({ label: sectionLabel(row.section), value: formatFraction(row.avgIrtolippuFillPct), tags }));
   }
 
   return panel;
