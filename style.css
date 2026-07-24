@@ -617,7 +617,9 @@ header.site-header h1 {
 }
 
 .seatmap-svg .section--selected {
-  stroke: var(--accent);
+  /* Fixed, not var(--accent) — drawn on the map's always-light surface,
+     which doesn't follow the page theme. */
+  stroke: #c0392b;
   stroke-width: 2;
 }
 
@@ -633,14 +635,18 @@ header.site-header h1 {
 }
 
 .seatmap-overlay-bg {
-  fill: var(--card-bg);
-  opacity: 0.85;
+  /* Fixed, not var(--card-bg) — drawn on the map's always-light surface,
+     which doesn't follow the page theme (a dark-mode pill here would sit
+     as a dark patch on light paper). Alpha carried in the fill itself, not
+     a separate opacity (that would compound and wash it out further). */
+  fill: rgba(255, 255, 255, 0.85);
 }
 
 .seatmap-overlay-text {
   font-size: 36px;
   font-weight: 700;
-  fill: var(--fg);
+  /* Fixed, not var(--fg) — same reasoning as .seatmap-overlay-bg above. */
+  fill: #1a1a1a;
 }
 
 .seatmap-reset-button {
