@@ -16,6 +16,7 @@ import {
   viewBoxesEqual,
   normalizeWheelDeltaY,
 } from "./seatMapViewBox.js";
+import { computeStackedFillZones } from "./seatMapStackedFill.js";
 
 const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
 
@@ -155,7 +156,11 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
     hasAitioOccupancy: (seats.soldAitiot ?? []).length > 0,
   });
 
-  mapContainer.replaceChildren(legend, svgWrapper, resetButton, infoRow);
+  const cta = buildCta(mergedEvent, latest);
+  const children = [legend, svgWrapper, resetButton];
+  if (cta) children.push(cta);
+  children.push(infoRow);
+  mapContainer.replaceChildren(...children);
 
   // The container is already visible (see buildSeatMapToggle) so getBBox()
   // below reflects real layout, not a display:none zero-box.
@@ -163,10 +168,188 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   colorSeats(svg, mergedEvent, latest, seats, baseline);
   colorAitioBoxes(svg, seats);
   findById(svg, "press")?.classList.add("ei-myynnissa");
+  applyStackedFill(svg, latest, baseline, "seisomakatsomo");
+  applyStackedFill(svg, latest, baseline, "invalid");
+  const seisomaShapeEl = findById(svg, "seisomakatsomo");
+  if (seisomaShapeEl) {
+    hideBakedNameLabel(svg, seisomaShapeEl, "seisomakatsomo");
+    addStandingAreaLabel(svg, seisomaShapeEl, "seisomakatsomo");
+  }
   addAggregateOverlay(svg, latest, "seisomakatsomo", legend);
   addAggregateOverlay(svg, latest, "invalid", legend);
 
   attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton });
+}
+
+// Renders a vertical, hard-stop gradient onto an aggregate shape
+// (seisomakatsomo/invalid) reflecting its real kausikortti/irtolippu/vapaa
+// (or myyty/vapaa, with no baseline) composition — same data source as the
+// numeric "sold / total" overlay and the tap-to-inspect info row's
+// irtoliput() split, just visualized instead of only shown as numbers.
+let stackedFillIdCounter = 0;
+
+function applyStackedFill(svg, latest, baseline, sectionKey) {
+  const row = latest.sections.find((r) => r.section === sectionKey);
+  const shapeEl = findById(svg, sectionKey);
+  if (!row || !shapeEl) return; // no usable region — addAggregateOverlay's own fallback already covers "no numbers"
+
+  const baselineSold = baseline.sectionSold?.get(sectionKey) ?? null;
+  const zones = computeStackedFillZones({ sold: row.sold, total: row.total, kausikorttiSold: baselineSold });
+
+  const svgNs = "http://www.w3.org/2000/svg";
+  const gradientId = `seatmap-stacked-fill-${++stackedFillIdCounter}`;
+  const gradient = document.createElementNS(svgNs, "linearGradient");
+  gradient.setAttribute("id", gradientId);
+  gradient.setAttribute("gradientUnits", "objectBoundingBox");
+  // Bottom (offset 0%) -> top (offset 100%) in the shape's own bounding box —
+  // vertical regardless of the shape's own rotation/tilt (the standing area
+  // is a wedge, not a rectangle, so this is an approximation of share by
+  // visual height; the numeric overlay carries the exact figures).
+  gradient.setAttribute("x1", "0");
+  gradient.setAttribute("y1", "1");
+  gradient.setAttribute("x2", "0");
+  gradient.setAttribute("y2", "0");
+
+  for (const zone of zones) {
+    // Two stops at the same offset per zone boundary = a hard cut, no
+    // blending — matches the section table's fill-bar convention.
+    for (const offset of [zone.start, zone.end]) {
+      const stop = document.createElementNS(svgNs, "stop");
+      stop.setAttribute("offset", `${offset}%`);
+      stop.setAttribute("class", `seatmap-standing-stop--${zone.state}`);
+      gradient.append(stop);
+    }
+  }
+
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS(svgNs, "defs");
+    svg.prepend(defs);
+  }
+  defs.append(gradient);
+
+  // Inline style (not setAttribute) so it beats the existing
+  // ".seatmap-svg #seisomakatsomo, .seatmap-svg #invalid { fill: var(--seat-vapaa); }"
+  // CSS rule, which is left in place as a harmless fallback for the
+  // shape-not-found case above.
+  shapeEl.style.fill = `url(#${gradientId})`;
+}
+
+function isFullyContained(inner, outer) {
+  return (
+    inner.x >= outer.x - 0.5 &&
+    inner.y >= outer.y - 0.5 &&
+    inner.x + inner.width <= outer.x + outer.width + 0.5 &&
+    inner.y + inner.height <= outer.y + outer.height + 0.5
+  );
+}
+
+// The persisted SVG has no <text> elements — every section name (incl. the
+// standing area's "SEISOMA KATSOMO") is baked in as an outlined
+// <path fill="black">, with no id/class of its own, so it can't be targeted
+// by a static CSS selector. Identified here by geometry instead: the only
+// bare (no id, no class), solid-black path whose bbox sits fully inside the
+// target shape's own bbox. Scoped per-section (only ever called for
+// "seisomakatsomo"), so this can never touch any other section's own baked
+// name label. If more than 2 paths match, the wedge's large bbox has likely
+// swept up an unrelated bare decoration path (e.g. part of an icon) — warn
+// rather than silently mis-hiding something.
+function hideBakedNameLabel(svg, shapeEl, sectionKey) {
+  const bbox = shapeEl.getBBox();
+  const matches = [];
+  for (const el of svg.querySelectorAll("path")) {
+    if (el.id || el.getAttribute("class") || el.getAttribute("fill") !== "black") continue;
+    const b = el.getBBox();
+    if (b.width === 0 || b.height === 0) continue;
+    if (isFullyContained(b, bbox)) matches.push(el);
+  }
+
+  if (matches.length === 0) return; // nothing found — our own label text still renders on top with its own bg rect
+
+  if (matches.length > 2) {
+    console.warn(
+      `[seatmap] ${sectionKey}: ${matches.length} candidate name-label paths matched (expected ≤2) — hiding all, but this may be over-matching.`
+    );
+  }
+  matches.forEach((el) => el.classList.add("seatmap-baked-label--hidden"));
+}
+
+// Replaces the hidden baked-in name with our own text, positioned at the
+// original label's own bbox center (same position/orientation — the
+// original path carries no transform, i.e. it isn't rotated). Split on the
+// first space into two stacked lines, matching the two-line baked original
+// ("SEISOMA" / "KATSOMO"); text-transform: uppercase (CSS) renders it as
+// "KAUKAAN PÄÄTY" while the string itself still comes from sectionLabel(),
+// not a new hardcoded name. A background rect keeps it readable over all
+// three stacked-fill zones, same fixed-light-value convention as the
+// numeric overlay (this is drawn on the map's always-light surface, so it
+// doesn't follow the page theme).
+function addStandingAreaLabel(svg, shapeEl, sectionKey) {
+  const bbox = shapeEl.getBBox();
+  const label = sectionLabel(sectionKey);
+  const [firstWord, ...rest] = label.split(" ");
+  const secondWord = rest.join(" ");
+
+  const svgNs = "http://www.w3.org/2000/svg";
+  const cx = bbox.x + bbox.width / 2;
+  const cy = bbox.y + bbox.height / 2;
+  const lineOffset = 15;
+
+  const text = document.createElementNS(svgNs, "text");
+  text.setAttribute("class", "seatmap-standing-label-text");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("pointer-events", "none");
+
+  const line1 = document.createElementNS(svgNs, "tspan");
+  line1.setAttribute("x", String(cx));
+  line1.setAttribute("y", String(cy - lineOffset));
+  line1.textContent = firstWord;
+
+  const line2 = document.createElementNS(svgNs, "tspan");
+  line2.setAttribute("x", String(cx));
+  line2.setAttribute("y", String(cy + lineOffset));
+  line2.textContent = secondWord;
+
+  text.append(line1, line2);
+  svg.append(text);
+
+  const textBBox = text.getBBox();
+  const pad = 4;
+  const bg = document.createElementNS(svgNs, "rect");
+  bg.setAttribute("class", "seatmap-standing-label-bg");
+  bg.setAttribute("x", String(textBBox.x - pad));
+  bg.setAttribute("y", String(textBBox.y - pad));
+  bg.setAttribute("width", String(textBBox.width + pad * 2));
+  bg.setAttribute("height", String(textBBox.height + pad * 2));
+  bg.setAttribute("rx", "3");
+  bg.setAttribute("pointer-events", "none");
+  text.before(bg);
+}
+
+const CTA_LINK_TEXT = "Osta liput";
+
+// Kausikortti events have their own sales flow (season-ticket renewal, not
+// the public elippu.net shop), and there's nothing to promote once a match
+// is sold out — so this only ever renders for a match event with real
+// availability left.
+function buildCta(mergedEvent, latest) {
+  if (mergedEvent.gameType === "kausikortti") return null;
+  const available = latest.totals.available;
+  if (available <= 0) return null;
+
+  const cta = document.createElement("p");
+  cta.className = "seatmap-cta";
+  cta.append(`Auta tekemään Kisapuistosta keltamusta — vapaita paikkoja ${formatThousands(available)} `);
+
+  const link = document.createElement("a");
+  link.className = "seatmap-cta__link";
+  link.href = `https://elippu.net/saipa/${mergedEvent.id}`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = CTA_LINK_TEXT;
+  cta.append(link);
+
+  return cta;
 }
 
 // Seated sections are sparse individual circles with real gaps between

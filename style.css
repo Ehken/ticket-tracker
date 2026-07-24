@@ -649,6 +649,42 @@ header.site-header h1 {
   fill: #1a1a1a;
 }
 
+/* Stacked-fill gradient stops for seisomakatsomo/invalid — color lives here
+   (not inline in seatMap.js), same convention as the seat/aitio fill
+   classes above. "myyty" is the 2-zone (no-baseline) fallback state. */
+.seatmap-standing-stop--kausikortti {
+  stop-color: var(--seat-kausikortti);
+}
+
+.seatmap-standing-stop--irtolippu {
+  stop-color: var(--seat-irtolippu);
+}
+
+.seatmap-standing-stop--vapaa {
+  stop-color: var(--seat-vapaa);
+}
+
+.seatmap-standing-stop--myyty {
+  stop-color: var(--seat-kausikortti);
+}
+
+.seatmap-baked-label--hidden {
+  display: none;
+}
+
+.seatmap-standing-label-bg {
+  /* Same fixed-light-surface reasoning as .seatmap-overlay-bg above. */
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.seatmap-standing-label-text {
+  font-size: 26px;
+  font-weight: 700;
+  text-transform: uppercase; /* renders sectionLabel()'s "Kaukaan pääty" as "KAUKAAN PÄÄTY" */
+  /* Fixed, not var(--fg) — same reasoning as .seatmap-overlay-text above. */
+  fill: #1a1a1a;
+}
+
 .seatmap-reset-button {
   font: inherit;
   margin-top: 0.5rem;
@@ -750,6 +786,17 @@ header.site-header h1 {
   font-size: 0.8rem;
   font-style: normal;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seatmap-cta {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+
+.seatmap-cta__link {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .seatmap-info-row {
