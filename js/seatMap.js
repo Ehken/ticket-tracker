@@ -19,6 +19,7 @@ import {
 } from "./seatMapViewBox.js";
 import { computeStackedFillZones, clampZoneSpansToMinimum } from "./seatMapStackedFill.js";
 import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
+import { generateCandidateOffsets } from "./seatMapZoneCountPlacement.js";
 
 const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
 
@@ -256,7 +257,7 @@ function renderStandingWedge(svg, latest, baseline) {
           [SEAT_STATE.IRTOLIPPU]: row.sold - baselineSold,
           [SEAT_STATE.VAPAA]: row.total - row.sold,
         };
-  addZoneCountsAndHoverTitles(svg, sectionKey, shapeBBox, zones, counts);
+  addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones, counts);
 
   addStandingAreaVerticalName(svg, shapeBBox);
 }
@@ -310,6 +311,51 @@ function zoneCenterY(shapeBBox, zone) {
   return shapeBBox.y + shapeBBox.height * ((topFraction + bottomFraction) / 2);
 }
 
+// The zone's own vertical extent (top/bottom y + height) in the shape's
+// coordinate space — the rectangular span a count is allowed to slide
+// within (see generateCandidateOffsets below), as opposed to the wedge's
+// actual (non-rectangular) outline, which is checked separately via
+// isBoxFullyInsideShape.
+function zoneYExtent(shapeBBox, zone) {
+  const topFraction = 1 - zone.end / 100;
+  const bottomFraction = 1 - zone.start / 100;
+  const top = shapeBBox.y + shapeBBox.height * topFraction;
+  const bottom = shapeBBox.y + shapeBBox.height * bottomFraction;
+  return { top, bottom, height: bottom - top };
+}
+
+// Samples a padded box's four corners plus its four edge midpoints against
+// the shape's actual filled outline (not just its rectangular bbox) — the
+// standing wedge tapers to a point at one end and has a slanted edge at the
+// other, so a box that fits inside the zone's rectangular vertical span can
+// still poke outside the wedge itself near either of those edges. The point
+// coordinates are in the same coordinate space as shapeBBox/getBBox() — safe
+// here because neither the wedge <path> nor its ancestor <g> carries a
+// transform (confirmed against the persisted SVG), so "local" and "global"
+// coordinates coincide. Engines without isPointInFill (older Safari) fall
+// back to true — best-effort centering rather than blocking the count
+// entirely over a feature-detection gap.
+function isBoxFullyInsideShape(shapeEl, box) {
+  if (typeof shapeEl.isPointInFill !== "function") return true;
+  const svg = shapeEl.ownerSVGElement;
+  const points = [
+    [box.x, box.y],
+    [box.x + box.width, box.y],
+    [box.x, box.y + box.height],
+    [box.x + box.width, box.y + box.height],
+    [box.x + box.width / 2, box.y],
+    [box.x + box.width / 2, box.y + box.height],
+    [box.x, box.y + box.height / 2],
+    [box.x + box.width, box.y + box.height / 2],
+  ];
+  return points.every(([x, y]) => {
+    const pt = svg.createSVGPoint();
+    pt.x = x;
+    pt.y = y;
+    return shapeEl.isPointInFill(pt);
+  });
+}
+
 // Renders each nonzero zone's own count, centered in its (already clamped)
 // span — solid, tabular-nums, no halo (these sit on the map's own light
 // surface, not over dot clusters, so a halo is unnecessary — see
@@ -339,7 +385,17 @@ function zoneCenterY(shapeBBox, zone) {
 // split"). tap-to-inspect on the rest of the wedge is unaffected.
 const ZONE_HOVER_PADDING = 6;
 
-function addZoneCountsAndHoverTitles(svg, sectionKey, shapeBBox, zones, counts) {
+// Round 7: a count centered in its zone can render outside the wedge's own
+// (non-rectangular) outline — reported for a small bottom zone poking past
+// the tapered tip, and a clamped top zone poking over the slanted top edge.
+// COUNT_GEOMETRY_PADDING is the clearance required on every side of the
+// count's own rendered box for it to count as "inside" (not flush against
+// the outline); COUNT_SLIDE_STEP is how far each retry moves vertically —
+// small enough that the count only drifts as far off-center as it has to.
+const COUNT_GEOMETRY_PADDING = 4;
+const COUNT_SLIDE_STEP = 4;
+
+function addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones, counts) {
   const svgNs = "http://www.w3.org/2000/svg";
   const cx = shapeBBox.x + shapeBBox.width / 2;
 
@@ -358,6 +414,39 @@ function addZoneCountsAndHoverTitles(svg, sectionKey, shapeBBox, zones, counts) 
     text.setAttribute("aria-hidden", "true");
     text.textContent = formatThousands(count);
     svg.append(text);
+
+    // Measured once at the centered position — dominant-baseline: central +
+    // text-anchor: middle mean shifting `y` translates this box by exactly
+    // the same delta, so candidate boxes can be derived from this single
+    // measurement instead of re-querying the DOM per candidate.
+    const baseBBox = text.getBBox();
+    const zoneExtent = zoneYExtent(shapeBBox, zone);
+    const offsets = generateCandidateOffsets({
+      zoneHeight: zoneExtent.height,
+      boxHeight: baseBBox.height + COUNT_GEOMETRY_PADDING * 2,
+      step: COUNT_SLIDE_STEP,
+    });
+
+    const placedOffset = offsets.find((offset) =>
+      isBoxFullyInsideShape(shapeEl, {
+        x: baseBBox.x - COUNT_GEOMETRY_PADDING,
+        y: baseBBox.y + offset - COUNT_GEOMETRY_PADDING,
+        width: baseBBox.width + COUNT_GEOMETRY_PADDING * 2,
+        height: baseBBox.height + COUNT_GEOMETRY_PADDING * 2,
+      })
+    );
+
+    if (placedOffset === undefined) {
+      // No position inside this zone keeps the count fully within the
+      // wedge's actual outline — omit it rather than let it poke over a
+      // slanted/tapered edge. The hover title's own proxy rect would have
+      // nothing to anchor to without a rendered count, so it's skipped too;
+      // tap-to-inspect (unchanged) still carries the exact figure.
+      text.remove();
+      return;
+    }
+
+    if (placedOffset !== 0) text.setAttribute("y", String(cy + placedOffset));
 
     const textBBox = text.getBBox();
     const hoverRect = document.createElementNS(svgNs, "rect");
@@ -662,17 +751,22 @@ function colorAitioBoxes(svg, seats) {
 
 // The wheelchair area has its own small icon pictogram baked into the SVG
 // (a bare, no-id/no-class path — the same kind hideBakedNameLabel already
-// hides when it's mistaken for a name label, but this one is legitimately
-// decorative and worth keeping visible) sitting on top of the invisible
-// hit rect. Left alone, it silently swallows taps landing on it (default
-// pointer-events hit-tests any painted shape, regardless of what's
-// logically "underneath") — neutralized here so it stays visible but
-// taps pass through to the section's own hit target underneath, same
-// reasoning as the slots' own pointer-events: none below.
+// hides when it's mistaken for a name label) sitting on top of the
+// invisible hit rect and, since round 6, directly under the 12 discrete
+// slots. Round 6 kept it visible but pointer-neutralized (taps landing on
+// it were silently swallowed otherwise, since default pointer-events
+// hit-tests any painted shape regardless of what's logically
+// "underneath"). Round 7: "PYÖRÄTUOLIPAIKAT" already names the area and
+// the icon now sits confusingly under the slots, so it's hidden outright —
+// display:none removes it from hit-testing too, so the pointer-events
+// override is no longer needed. Scoped strictly to this section's own
+// bbox (the same containment check as before), so the WC/restroom
+// pictograms elsewhere on the map (a different icon, a different region)
+// are untouched.
 function neutralizeDecorativeIcons(svg, shapeBBox) {
   for (const el of svg.querySelectorAll("path")) {
     if (el.id || el.getAttribute("class") || el.getAttribute("fill") !== "black") continue;
-    if (isFullyContained(el.getBBox(), shapeBBox)) el.style.pointerEvents = "none";
+    if (isFullyContained(el.getBBox(), shapeBBox)) el.classList.add("seatmap-baked-icon--hidden");
   }
 }
 

@@ -717,6 +717,16 @@ header.site-header h1 {
   display: none;
 }
 
+/* The wheelchair area's own baked icon pictogram — hidden outright (round
+   7): the "PYÖRÄTUOLIPAIKAT" band label already names the area, and the
+   icon now sits underneath the 12 discrete slots. Scoped at the JS level
+   (neutralizeDecorativeIcons) to this section's own bbox only — the WC
+   restroom icons elsewhere on the map are a different element entirely and
+   never get this class. */
+.seatmap-baked-icon--hidden {
+  display: none;
+}
+
 /* The standing area's own name, rotated -90° (reading bottom-to-top) just
    outside the wedge's left edge — see addStandingAreaVerticalName. Solid,
    not halo-styled: it renders on the map's clean margin, not over dots, so
