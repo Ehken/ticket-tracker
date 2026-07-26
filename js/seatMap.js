@@ -19,7 +19,7 @@ import {
 } from "./seatMapViewBox.js";
 import { computeStackedFillZones, clampZoneSpansToMinimum } from "./seatMapStackedFill.js";
 import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
-import { generateCandidateOffsets } from "./seatMapZoneCountPlacement.js";
+import { generateZoneCountPlacementCandidates } from "./seatMapZoneCountPlacement.js";
 
 const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
 
@@ -385,15 +385,43 @@ function isBoxFullyInsideShape(shapeEl, box) {
 // split"). tap-to-inspect on the rest of the wedge is unaffected.
 const ZONE_HOVER_PADDING = 6;
 
-// Round 7: a count centered in its zone can render outside the wedge's own
+// A count centered in its zone can render outside the wedge's own
 // (non-rectangular) outline — reported for a small bottom zone poking past
 // the tapered tip, and a clamped top zone poking over the slanted top edge.
 // COUNT_GEOMETRY_PADDING is the clearance required on every side of the
 // count's own rendered box for it to count as "inside" (not flush against
-// the outline); COUNT_SLIDE_STEP is how far each retry moves vertically —
-// small enough that the count only drifts as far off-center as it has to.
+// the outline). COUNT_Y_SLIDE_STEP/COUNT_X_SLIDE_STEP are how far each
+// retry moves along each axis — small enough that the count only drifts as
+// far off-center as it has to. COUNT_MAX_X_OFFSET_FRACTION bounds how far
+// horizontally a count may drift from the wedge's own x-center (relative to
+// the wedge's own bbox width, not the zone — round 8: the slanted top edge
+// means one side of a zone can be full-height while the other tapers away,
+// so an off-center horizontal position, not a better vertical one, is what
+// rescues it). COUNT_SHRINK_SCALE is the one-step font shrink tried only if
+// every full-size position (both axes) fails.
 const COUNT_GEOMETRY_PADDING = 4;
-const COUNT_SLIDE_STEP = 4;
+const COUNT_Y_SLIDE_STEP = 4;
+const COUNT_X_SLIDE_STEP = 8;
+const COUNT_MAX_X_OFFSET_FRACTION = 0.35;
+const COUNT_SHRINK_SCALE = 0.75;
+
+// The padded box a count of the given (unscaled) size would occupy if its
+// center sat at (cx + xOffset, cy + yOffset) and it were rendered at
+// `scale` — scaling around the box's own center, not the origin, so a
+// shrunk candidate's box stays concentric with the full-size one rather
+// than drifting toward (0, 0).
+function paddedCandidateBox(baseBBox, { scale, xOffset, yOffset }) {
+  const width = baseBBox.width * scale;
+  const height = baseBBox.height * scale;
+  const centerX = baseBBox.x + baseBBox.width / 2 + xOffset;
+  const centerY = baseBBox.y + baseBBox.height / 2 + yOffset;
+  return {
+    x: centerX - width / 2 - COUNT_GEOMETRY_PADDING,
+    y: centerY - height / 2 - COUNT_GEOMETRY_PADDING,
+    width: width + COUNT_GEOMETRY_PADDING * 2,
+    height: height + COUNT_GEOMETRY_PADDING * 2,
+  };
+}
 
 function addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones, counts) {
   const svgNs = "http://www.w3.org/2000/svg";
@@ -415,29 +443,26 @@ function addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones,
     text.textContent = formatThousands(count);
     svg.append(text);
 
-    // Measured once at the centered position — dominant-baseline: central +
-    // text-anchor: middle mean shifting `y` translates this box by exactly
-    // the same delta, so candidate boxes can be derived from this single
-    // measurement instead of re-querying the DOM per candidate.
+    // Measured once at the centered, full-size position — every candidate
+    // below is derived mathematically from this single measurement
+    // (translate for offsets, scale-around-center for the shrink step)
+    // instead of re-querying the DOM per candidate.
     const baseBBox = text.getBBox();
     const zoneExtent = zoneYExtent(shapeBBox, zone);
-    const offsets = generateCandidateOffsets({
+    const candidates = generateZoneCountPlacementCandidates({
       zoneHeight: zoneExtent.height,
       boxHeight: baseBBox.height + COUNT_GEOMETRY_PADDING * 2,
-      step: COUNT_SLIDE_STEP,
+      yStep: COUNT_Y_SLIDE_STEP,
+      shapeWidth: shapeBBox.width,
+      xStep: COUNT_X_SLIDE_STEP,
+      maxXOffsetFraction: COUNT_MAX_X_OFFSET_FRACTION,
+      shrinkScale: COUNT_SHRINK_SCALE,
     });
 
-    const placedOffset = offsets.find((offset) =>
-      isBoxFullyInsideShape(shapeEl, {
-        x: baseBBox.x - COUNT_GEOMETRY_PADDING,
-        y: baseBBox.y + offset - COUNT_GEOMETRY_PADDING,
-        width: baseBBox.width + COUNT_GEOMETRY_PADDING * 2,
-        height: baseBBox.height + COUNT_GEOMETRY_PADDING * 2,
-      })
-    );
+    const placed = candidates.find((candidate) => isBoxFullyInsideShape(shapeEl, paddedCandidateBox(baseBBox, candidate)));
 
-    if (placedOffset === undefined) {
-      // No position inside this zone keeps the count fully within the
+    if (!placed) {
+      // No position at either scale keeps the count fully within the
       // wedge's actual outline — omit it rather than let it poke over a
       // slanted/tapered edge. The hover title's own proxy rect would have
       // nothing to anchor to without a rendered count, so it's skipped too;
@@ -446,7 +471,9 @@ function addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones,
       return;
     }
 
-    if (placedOffset !== 0) text.setAttribute("y", String(cy + placedOffset));
+    if (placed.xOffset !== 0) text.setAttribute("x", String(cx + placed.xOffset));
+    if (placed.yOffset !== 0) text.setAttribute("y", String(cy + placed.yOffset));
+    if (placed.scale !== 1) text.style.fontSize = `${STANDING_ZONE_FONT_SIZE * placed.scale}px`;
 
     const textBBox = text.getBBox();
     const hoverRect = document.createElementNS(svgNs, "rect");
