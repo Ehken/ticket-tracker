@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Simple mark, not a team logo: a single "seat" split black (season
+       ticket) / yellow (single ticket) — the same two-color language the
+       seat map itself uses everywhere. Light background so it stays
+       readable in a browser tab at 16px. -->
+  <rect width="32" height="32" rx="6" fill="#f3ead1" />
+  <path d="M16 6a10 10 0 0 0 0 20z" fill="#1a1a1a" />
+  <path d="M16 6a10 10 0 0 1 0 20z" fill="#ffd400" />
+</svg>
