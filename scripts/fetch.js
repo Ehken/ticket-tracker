@@ -132,6 +132,12 @@ export async function run({
         sold: totals.sold,
         soldSeated: totals.sold - standing - wheelchair,
         soldStanding: standing,
+        available: totals.available,
+        hold: totals.hold,
+        // Deterministic order matters both for the content comparison above
+        // and for clean git diffs. press/aitiot/seisomakatsomo/invalid rows
+        // have no `disabled` flag at all, so they're correctly excluded here.
+        closed: rows.filter((r) => r.disabled).map((r) => r.section).sort(),
       });
       await writeJsonIfChanged(historyPath(dataDir, id), updatedHistory);
 
@@ -170,7 +176,10 @@ async function main() {
     const { hadFailure } = await run({ dataDir });
     process.exit(hadFailure ? 1 : 0);
   } catch (err) {
-    console.error(`[fetch] Aborting run without writing any changes: ${err.message}`);
+    // Doesn't promise "nothing was written" — an error thrown after the
+    // per-event loop (e.g. while writing events.json/autoclass.json) can
+    // land after some other write has already succeeded.
+    console.error(`[fetch] Aborting run: ${err.message}`);
     process.exit(1);
   }
 }
