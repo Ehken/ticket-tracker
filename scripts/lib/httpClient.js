@@ -1,5 +1,5 @@
 const USER_AGENT =
-  "saipa-lipputilanne-tracker/1.0 (+https://github.com/; unofficial fan tracker, contact via repo issues)";
+  "saipa-lipputilanne-tracker/1.0 (+https://github.com/Ehken/ticket-tracker; unofficial fan tracker, contact via repo issues)";
 
 export function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
