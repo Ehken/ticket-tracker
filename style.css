@@ -634,19 +634,32 @@ header.site-header h1 {
   pointer-events: none;
 }
 
-.seatmap-overlay-bg {
-  /* Fixed, not var(--card-bg) — drawn on the map's always-light surface,
-     which doesn't follow the page theme (a dark-mode pill here would sit
-     as a dark patch on light paper). Alpha carried in the fill itself, not
-     a separate opacity (that would compound and wash it out further). */
-  fill: rgba(255, 255, 255, 0.85);
+/* Shared halo treatment for every piece of text we draw on the map — no
+   background boxes anywhere (owner feedback: they "look bad"). A stroke
+   drawn *behind* the fill (paint-order: stroke) reads as a soft light halo
+   around each glyph instead of a box, so labels stay legible over any seat
+   color (incl. black kausikortti dots) or stacked-fill zone underneath.
+   Fixed values, not var(--fg)/var(--card-bg) — this is drawn on the map's
+   always-light surface, which doesn't follow the page theme. */
+.seatmap-halo-text {
+  fill: #1a1a1a;
+  paint-order: stroke;
+  stroke: #fdfcfa;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  font-weight: 700;
 }
 
 .seatmap-overlay-text {
   font-size: 36px;
-  font-weight: 700;
-  /* Fixed, not var(--fg) — same reasoning as .seatmap-overlay-bg above. */
-  fill: #1a1a1a;
+}
+
+/* Every section's own name label (seisomakatsomo, invalid, A1..D2) —
+   uppercase to match the map's other baked (all-caps) labels, since
+   sectionLabel() itself returns normal-case Finnish strings. */
+.seatmap-label-text {
+  font-size: 26px;
+  text-transform: uppercase;
 }
 
 /* Stacked-fill gradient stops for seisomakatsomo/invalid — color lives here
@@ -670,19 +683,6 @@ header.site-header h1 {
 
 .seatmap-baked-label--hidden {
   display: none;
-}
-
-.seatmap-standing-label-bg {
-  /* Same fixed-light-surface reasoning as .seatmap-overlay-bg above. */
-  fill: rgba(255, 255, 255, 0.85);
-}
-
-.seatmap-standing-label-text {
-  font-size: 26px;
-  font-weight: 700;
-  text-transform: uppercase; /* renders sectionLabel()'s "Kaukaan pääty" as "KAUKAAN PÄÄTY" */
-  /* Fixed, not var(--fg) — same reasoning as .seatmap-overlay-text above. */
-  fill: #1a1a1a;
 }
 
 .seatmap-reset-button {

@@ -170,13 +170,14 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   findById(svg, "press")?.classList.add("ei-myynnissa");
   applyStackedFill(svg, latest, baseline, "seisomakatsomo");
   applyStackedFill(svg, latest, baseline, "invalid");
-  const seisomaShapeEl = findById(svg, "seisomakatsomo");
-  if (seisomaShapeEl) {
-    hideBakedNameLabel(svg, seisomaShapeEl, "seisomakatsomo");
-    addStandingAreaLabel(svg, seisomaShapeEl, "seisomakatsomo");
-  }
-  addAggregateOverlay(svg, latest, "seisomakatsomo", legend);
-  addAggregateOverlay(svg, latest, "invalid", legend);
+  // Numeric overlays placed first so replaceSectionLabels can measure their
+  // real rendered geometry and keep any fallback-positioned name label
+  // (see fallbackLabelBox) clear of them — needed on "invalid", whose small
+  // rect leaves no room for a guessed fraction-based gap to reliably clear
+  // the overlay's actual glyph ascent.
+  const seisomaOverlay = addAggregateOverlay(svg, latest, "seisomakatsomo", legend);
+  const invalidOverlay = addAggregateOverlay(svg, latest, "invalid", legend);
+  replaceSectionLabels(svg, latest, { seisomakatsomo: seisomaOverlay, invalid: invalidOverlay });
 
   attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton });
 }
@@ -244,86 +245,152 @@ function isFullyContained(inner, outer) {
   );
 }
 
-// The persisted SVG has no <text> elements — every section name (incl. the
-// standing area's "SEISOMA KATSOMO") is baked in as an outlined
-// <path fill="black">, with no id/class of its own, so it can't be targeted
-// by a static CSS selector. Identified here by geometry instead: the only
-// bare (no id, no class), solid-black path whose bbox sits fully inside the
-// target shape's own bbox. Scoped per-section (only ever called for
-// "seisomakatsomo"), so this can never touch any other section's own baked
-// name label. If more than 2 paths match, the wedge's large bbox has likely
-// swept up an unrelated bare decoration path (e.g. part of an icon) — warn
-// rather than silently mis-hiding something.
+function unionBBox(boxes) {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.width));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+// The persisted SVG has no <text> elements — every section name (A1..D2,
+// seisomakatsomo, invalid) is baked in as an outlined <path fill="black">,
+// with no id/class of its own, so none of them can be targeted by a static
+// CSS selector. Identified here by geometry instead: bare (no id, no
+// class), solid-black paths whose bbox sits fully inside the target
+// section's own bbox — called once per section (see replaceSectionLabels
+// below), so a match is always scoped to that one section's own region and
+// can never pick up another section's label. Returns the union bbox of
+// whatever it hid (or null if nothing matched), so the caller can center
+// its own replacement text on the label's actual former position rather
+// than the whole section's bbox center.
+//
+// D1/D2's own bbox turned out to also contain that column's row-number
+// ruler ("1 2 3 ... 9", ~9-10 units tall each digit) — geometrically inside
+// the section's bbox but not part of its name label. Every real section
+// name label measured 26-30 units tall, so a minimum-height filter cleanly
+// excludes those digits without needing per-section special-casing.
+//
+// "invalid" (wheelchair) turned out to contain a second kind of false
+// match: a bare black wheelchair icon pictogram (~29x33 units — roughly
+// square, actually slightly *taller* than wide). Every genuine name label
+// measured here (even 2-character ones like "A1", let alone full words) is
+// noticeably *wider* than it is tall, since they're horizontal text — an
+// icon glyph isn't. Requiring width > height excludes it without needing
+// to special-case "invalid" by id.
+//
+// If more than 2 paths still match after both filters, something
+// unexpected is being swept up — warn rather than silently mis-hiding it.
+const MIN_LABEL_HEIGHT = 18;
+
 function hideBakedNameLabel(svg, shapeEl, sectionKey) {
   const bbox = shapeEl.getBBox();
   const matches = [];
   for (const el of svg.querySelectorAll("path")) {
     if (el.id || el.getAttribute("class") || el.getAttribute("fill") !== "black") continue;
     const b = el.getBBox();
-    if (b.width === 0 || b.height === 0) continue;
-    if (isFullyContained(b, bbox)) matches.push(el);
+    if (b.width === 0 || b.height < MIN_LABEL_HEIGHT || b.width <= b.height) continue;
+    if (isFullyContained(b, bbox)) matches.push({ el, bbox: b });
   }
 
-  if (matches.length === 0) return; // nothing found — our own label text still renders on top with its own bg rect
+  if (matches.length === 0) return null; // nothing found — caller falls back to the section's own bbox center
 
   if (matches.length > 2) {
     console.warn(
       `[seatmap] ${sectionKey}: ${matches.length} candidate name-label paths matched (expected ≤2) — hiding all, but this may be over-matching.`
     );
   }
-  matches.forEach((el) => el.classList.add("seatmap-baked-label--hidden"));
+  matches.forEach(({ el }) => el.classList.add("seatmap-baked-label--hidden"));
+  return unionBBox(matches.map((m) => m.bbox));
 }
 
-// Replaces the hidden baked-in name with our own text, positioned at the
-// original label's own bbox center (same position/orientation — the
-// original path carries no transform, i.e. it isn't rotated). Split on the
-// first space into two stacked lines, matching the two-line baked original
-// ("SEISOMA" / "KATSOMO"); text-transform: uppercase (CSS) renders it as
-// "KAUKAAN PÄÄTY" while the string itself still comes from sectionLabel(),
-// not a new hardcoded name. A background rect keeps it readable over all
-// three stacked-fill zones, same fixed-light-value convention as the
-// numeric overlay (this is drawn on the map's always-light surface, so it
-// doesn't follow the page theme).
-function addStandingAreaLabel(svg, shapeEl, sectionKey) {
-  const bbox = shapeEl.getBBox();
+// Renders our own replacement name label in place of the hidden baked-in
+// one — halo-styled text (see .seatmap-halo-text; no background box, per
+// owner feedback that boxes on the map "look bad"), centered on the
+// geometry the baked label actually occupied (targetBox — the hidden
+// label's own union bbox, or the section's whole bbox when nothing was
+// hidden). seisomakatsomo keeps the two-line "KAUKAAN" / "PÄÄTY" layout,
+// matching the baked original's own two-line arrangement ("SEISOMA" /
+// "KATSOMO"); every other section renders as one line. The string always
+// comes from sectionLabel() — text-transform: uppercase (CSS) is what
+// turns "Kaukaan pääty" into "KAUKAAN PÄÄTY", not a new hardcoded name.
+function addSectionLabel(svg, sectionKey, targetBox) {
   const label = sectionLabel(sectionKey);
-  const [firstWord, ...rest] = label.split(" ");
-  const secondWord = rest.join(" ");
+  const cx = targetBox.x + targetBox.width / 2;
+  const cy = targetBox.y + targetBox.height / 2;
 
   const svgNs = "http://www.w3.org/2000/svg";
-  const cx = bbox.x + bbox.width / 2;
-  const cy = bbox.y + bbox.height / 2;
-  const lineOffset = 15;
-
   const text = document.createElementNS(svgNs, "text");
-  text.setAttribute("class", "seatmap-standing-label-text");
+  text.setAttribute("class", "seatmap-halo-text seatmap-label-text");
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
 
-  const line1 = document.createElementNS(svgNs, "tspan");
-  line1.setAttribute("x", String(cx));
-  line1.setAttribute("y", String(cy - lineOffset));
-  line1.textContent = firstWord;
+  if (sectionKey === "seisomakatsomo") {
+    const [firstWord, ...rest] = label.split(" ");
+    const secondWord = rest.join(" ");
+    const lineOffset = 15;
 
-  const line2 = document.createElementNS(svgNs, "tspan");
-  line2.setAttribute("x", String(cx));
-  line2.setAttribute("y", String(cy + lineOffset));
-  line2.textContent = secondWord;
+    const line1 = document.createElementNS(svgNs, "tspan");
+    line1.setAttribute("x", String(cx));
+    line1.setAttribute("y", String(cy - lineOffset));
+    line1.textContent = firstWord;
 
-  text.append(line1, line2);
+    const line2 = document.createElementNS(svgNs, "tspan");
+    line2.setAttribute("x", String(cx));
+    line2.setAttribute("y", String(cy + lineOffset));
+    line2.textContent = secondWord;
+
+    text.append(line1, line2);
+  } else {
+    text.setAttribute("x", String(cx));
+    text.setAttribute("y", String(cy));
+    text.textContent = label;
+  }
+
+  // Appended directly to the svg root — after everything already in the
+  // document, incl. #seats — so it always paints on top regardless of
+  // nesting depth, same trick addAggregateOverlay already relies on.
   svg.append(text);
+}
 
-  const textBBox = text.getBBox();
-  const pad = 4;
-  const bg = document.createElementNS(svgNs, "rect");
-  bg.setAttribute("class", "seatmap-standing-label-bg");
-  bg.setAttribute("x", String(textBBox.x - pad));
-  bg.setAttribute("y", String(textBBox.y - pad));
-  bg.setAttribute("width", String(textBBox.width + pad * 2));
-  bg.setAttribute("height", String(textBBox.height + pad * 2));
-  bg.setAttribute("rx", "3");
-  bg.setAttribute("pointer-events", "none");
-  text.before(bg);
+// Aitio boxes and press already read as labeled chips (small colored rects
+// with their own baked short names) — left untouched, only the seated
+// sections and the two aggregate areas get the full hide-and-replace
+// treatment.
+const LABEL_EXCLUDED_SECTIONS = new Set(["press", "aitiot"]);
+
+// "invalid" turns out to have no baked name label of its own to hide
+// (hideBakedNameLabel returns null for it — confirmed by inspecting the
+// real SVG), so its label would otherwise fall back to the shape's own
+// bbox center — which, on a shape this short, visually collides with its
+// numeric "sold / total" overlay (see addAggregateOverlay) right below it.
+// The overlay's own rendered top (measured via getBBox — a 36px-font
+// glyph's ascent) turns out to reach almost all the way up to the shape's
+// own top edge, so there's no usable gap "inside" the shape's bbox at all;
+// the fallback position is instead targeted a fixed distance *above* the
+// overlay's real rendered top, independent of the shape's own bounds.
+// Only relevant when an overlayEl is passed in (seisomakatsomo/invalid);
+// seisomakatsomo never exercises the fallback path in practice (its real
+// baked label is always found), so this is effectively "invalid"-only
+// today.
+const LABEL_OVERLAY_GAP = 20; // clearance between the label's own vertical center and the overlay's rendered top
+
+function fallbackLabelBox(shapeBBox, overlayEl) {
+  if (!overlayEl) return shapeBBox;
+  const overlayBBox = overlayEl.getBBox();
+  const cy = overlayBBox.y - LABEL_OVERLAY_GAP;
+  return { x: shapeBBox.x, y: cy, width: shapeBBox.width, height: 0 };
+}
+
+function replaceSectionLabels(svg, latest, overlaysBySection = {}) {
+  for (const row of latest.sections) {
+    if (LABEL_EXCLUDED_SECTIONS.has(row.section)) continue;
+    const shapeEl = findById(svg, row.section);
+    if (!shapeEl) continue;
+    const hiddenBBox = hideBakedNameLabel(svg, shapeEl, row.section);
+    const targetBox = hiddenBBox ?? fallbackLabelBox(shapeEl.getBBox(), overlaysBySection[row.section]);
+    addSectionLabel(svg, row.section, targetBox);
+  }
 }
 
 const CTA_LINK_TEXT = "Osta liput";
@@ -419,12 +486,16 @@ function colorAitioBoxes(svg, seats) {
 // Places a numeric "sold / total" overlay directly on a shape's own SVG
 // region (seisomakatsomo/invalid — real, addressable geometry). The SVG has
 // no <text> elements of its own: every section name is baked in as an
-// outlined <path> label centered in the shape, so a naive centered overlay
-// would collide with it — placed in the lower part of the bbox instead,
-// with a background rect so it stays legible over the seat-dot grid too.
+// outlined <path> label centered in the shape (replaced by our own, see
+// replaceSectionLabels), so a naive centered overlay would collide with
+// it — placed in the lower part of the bbox instead. Halo-styled (see
+// .seatmap-halo-text), not a background box, so it stays legible over the
+// seat-dot grid and stacked-fill zones without one. Returns the created
+// text element (or null) so replaceSectionLabels can measure its real
+// rendered geometry when positioning a fallback name label above it.
 function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
   const row = latest.sections.find((r) => r.section === sectionKey);
-  if (!row) return;
+  if (!row) return null;
 
   const shapeEl = findById(svg, sectionKey);
   if (!shapeEl) {
@@ -434,32 +505,21 @@ function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
     fallback.className = "seatmap-legend__fallback-numbers";
     fallback.textContent = `${sectionLabel(sectionKey)}: ${formatThousands(row.sold)} / ${formatThousands(row.total)}`;
     legendEl.append(fallback);
-    return;
+    return null;
   }
 
   const svgNs = "http://www.w3.org/2000/svg";
   const bbox = shapeEl.getBBox();
 
   const text = document.createElementNS(svgNs, "text");
-  text.setAttribute("class", "seatmap-overlay-text");
+  text.setAttribute("class", "seatmap-halo-text seatmap-overlay-text");
   text.setAttribute("x", String(bbox.x + bbox.width / 2));
   text.setAttribute("y", String(bbox.y + bbox.height * 0.8));
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
   text.textContent = `${formatThousands(row.sold)} / ${formatThousands(row.total)}`;
   svg.append(text);
-
-  const textBBox = text.getBBox();
-  const pad = 4;
-  const bg = document.createElementNS(svgNs, "rect");
-  bg.setAttribute("class", "seatmap-overlay-bg");
-  bg.setAttribute("x", String(textBBox.x - pad));
-  bg.setAttribute("y", String(textBBox.y - pad));
-  bg.setAttribute("width", String(textBBox.width + pad * 2));
-  bg.setAttribute("height", String(textBBox.height + pad * 2));
-  bg.setAttribute("rx", "3");
-  bg.setAttribute("pointer-events", "none");
-  text.before(bg);
+  return text;
 }
 
 let legendInfoIdCounter = 0;
