@@ -218,6 +218,15 @@ header.site-header h1 {
   transform: rotate(45deg); /* expanded: "v" */
 }
 
+@media (prefers-reduced-motion: reduce) {
+  /* The chevron rotation is the only CSS transition in this file — seat
+     map pan/zoom is driven by direct SVG viewBox attribute changes, not a
+     CSS transition, so there's nothing else to disable here. */
+  .card__chevron {
+    transition: none;
+  }
+}
+
 .card__title {
   display: flex;
   align-items: center;
@@ -542,7 +551,11 @@ header.site-header h1 {
 }
 
 .seatmap-svg-container {
-  aspect-ratio: 1780 / 1261;
+  /* Matches the render-time expanded viewBox (1780+70+55 / 1261+60+55), not
+     the persisted SVG's own 1780/1261 — keep in sync with
+     LABEL_CANVAS_MARGIN in seatMap.js, or the SVG letterboxes inside this
+     container instead of filling it. */
+  aspect-ratio: 1905 / 1376;
   max-height: 70vh;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -602,9 +615,20 @@ header.site-header h1 {
   r: 2.4px; /* smaller, not just a different color — separates by shape too */
 }
 
-.seatmap-svg #seisomakatsomo,
-.seatmap-svg #invalid {
+.seatmap-svg #seisomakatsomo {
   fill: var(--seat-vapaa);
+}
+
+/* The wheelchair area's own rect stays invisible — it's still the tap
+   target (unchanged tap-to-inspect resolves to it via .closest(".section")),
+   but its visual is now WHEELCHAIR_SLOT_COUNT discrete slot rects drawn on
+   top instead of a stacked-fill gradient (see .seatmap-wheelchair-slot).
+   transparent, not none: default pointer-events ("visiblePainted") only
+   hit-tests shapes with a painted fill/stroke — fill:none makes a shape
+   invisible to hit-testing too, same gotcha addSectionHitAreas already
+   works around for its own invisible rects. */
+.seatmap-svg #invalid {
+  fill: transparent;
 }
 
 .seatmap-svg [id^="aitio_"],
@@ -634,19 +658,140 @@ header.site-header h1 {
   pointer-events: none;
 }
 
-.seatmap-overlay-bg {
-  /* Fixed, not var(--card-bg) — drawn on the map's always-light surface,
-     which doesn't follow the page theme (a dark-mode pill here would sit
-     as a dark patch on light paper). Alpha carried in the fill itself, not
-     a separate opacity (that would compound and wash it out further). */
-  fill: rgba(255, 255, 255, 0.85);
+/* Shared halo treatment for every piece of text we draw on the map — no
+   background boxes anywhere (owner feedback: they "look bad"). A stroke
+   drawn *behind* the fill (paint-order: stroke) reads as a soft light halo
+   around each glyph instead of a box, so labels stay legible over any seat
+   color (incl. black kausikortti dots) or stacked-fill zone underneath.
+   Fixed values, not var(--fg)/var(--card-bg) — this is drawn on the map's
+   always-light surface, which doesn't follow the page theme. */
+.seatmap-halo-text {
+  fill: #1a1a1a;
+  paint-order: stroke;
+  stroke: #fdfcfa;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  font-weight: 700;
 }
 
-.seatmap-overlay-text {
-  font-size: 36px;
+/* Every seated section's own name label (A1..D2) and the wheelchair area's
+   word label — uppercase to match the map's other baked (all-caps)
+   labels, since sectionLabel() itself returns normal-case Finnish
+   strings. */
+.seatmap-label-text {
+  font-size: 26px;
+  text-transform: uppercase;
+  /* The `y` addresses the glyph's vertical CENTER directly, not its
+     baseline — seatMap.js computes every label position as a center point
+     (section bbox center, band coordinate, etc.), so this avoids a manual
+     baseline offset correction. */
+  dominant-baseline: central;
+}
+
+/* "Pyörätuolipaikat" is a word, not a peer section code — smaller than the
+   26px codes, but on the same dominant-baseline: central convention. */
+.seatmap-label-text--word {
+  font-size: 20px;
+}
+
+/* Stacked-fill gradient stops for the standing-area wedge — color lives
+   here (not inline in seatMap.js), same convention as the seat/aitio fill
+   classes above. "myyty" is the 2-zone (no-baseline) fallback state. */
+.seatmap-standing-stop--kausikortti {
+  stop-color: var(--seat-kausikortti);
+}
+
+.seatmap-standing-stop--irtolippu {
+  stop-color: var(--seat-irtolippu);
+}
+
+.seatmap-standing-stop--vapaa {
+  stop-color: var(--seat-vapaa);
+}
+
+.seatmap-standing-stop--myyty {
+  stop-color: var(--seat-kausikortti);
+}
+
+.seatmap-baked-label--hidden {
+  display: none;
+}
+
+/* The wheelchair area's own baked icon pictogram — hidden outright (round
+   7): the "PYÖRÄTUOLIPAIKAT" band label already names the area, and the
+   icon now sits underneath the 12 discrete slots. Scoped at the JS level
+   (neutralizeDecorativeIcons) to this section's own bbox only — the WC
+   restroom icons elsewhere on the map are a different element entirely and
+   never get this class. */
+.seatmap-baked-icon--hidden {
+  display: none;
+}
+
+/* The standing area's own name, rotated -90° (reading bottom-to-top) just
+   outside the wedge's left edge — see addStandingAreaVerticalName. Solid,
+   not halo-styled: it renders on the map's clean margin, not over dots, so
+   there's nothing for a halo to protect it from. Fixed color, not
+   var(--fg) — drawn on the map's always-light surface, which doesn't
+   follow the page theme. */
+.seatmap-standing-name {
+  font-size: 34px;
   font-weight: 700;
-  /* Fixed, not var(--fg) — same reasoning as .seatmap-overlay-bg above. */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   fill: #1a1a1a;
+  dominant-baseline: central;
+}
+
+/* Each stacked-fill zone's own count, centered in its (possibly clamped)
+   span — solid, tabular-nums, no halo (same "clean margin, not over dots"
+   reasoning as .seatmap-standing-name — these sit within their own zone's
+   solid fill color, not a dot cluster). Colors are chosen per zone for
+   contrast against THAT zone's own background, not the seat-state's usual
+   semantic color: kausikortti's black zone gets a yellow count, the
+   yellow irtolippu zone gets a black count, the pale vapaa zone gets a
+   muted brownish tone. */
+.seatmap-zone-count {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  dominant-baseline: central;
+}
+
+.seatmap-zone-count--kausikortti,
+.seatmap-zone-count--myyty {
+  fill: var(--seat-irtolippu);
+}
+
+.seatmap-zone-count--irtolippu {
+  fill: #1a1a1a;
+}
+
+.seatmap-zone-count--vapaa {
+  fill: #8a8474;
+}
+
+/* The wheelchair area's WHEELCHAIR_SLOT_COUNT discrete slots — a count
+   visualization (this data has no individual seat ids), not seat
+   identities. Border is a fixed light-mode tone, not var(--border): these
+   sit on the map's always-light surface, which doesn't follow the page
+   theme (same reasoning as the legend swatch border, just fixed instead
+   of theme-following since the surface itself doesn't change). */
+.seatmap-wheelchair-slot {
+  stroke: #d8d8d8;
+  stroke-width: 1px;
+}
+
+.seatmap-wheelchair-slot--kausikortti,
+.seatmap-wheelchair-slot--myyty {
+  fill: var(--seat-kausikortti);
+}
+
+.seatmap-wheelchair-slot--irtolippu {
+  fill: var(--seat-irtolippu);
+}
+
+.seatmap-wheelchair-slot--vapaa {
+  fill: var(--seat-vapaa);
 }
 
 .seatmap-reset-button {
@@ -662,6 +807,12 @@ header.site-header h1 {
 
 .seatmap-reset-button:hover {
   background: var(--hover-bg);
+}
+
+.seatmap-reset-button:focus-visible,
+.seatmap-legend__info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .seatmap-legend {
@@ -750,6 +901,17 @@ header.site-header h1 {
   font-size: 0.8rem;
   font-style: normal;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seatmap-cta {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+
+.seatmap-cta__link {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .seatmap-info-row {

@@ -15,6 +15,20 @@ export function serializeViewBox(viewBox) {
   return `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`;
 }
 
+// Grows a viewBox outward by fixed margins per edge — used to give
+// off-section labels room to render beyond the persisted SVG's own bounds.
+// The result becomes the new zoomed-out/home state wherever it's applied
+// (e.g. set as the SVG's own viewBox attribute before pan/zoom bounds are
+// established from it), not a second, separate notion of "original".
+export function expandViewBox(viewBox, { top = 0, bottom = 0, left = 0, right = 0 } = {}) {
+  return {
+    x: viewBox.x - left,
+    y: viewBox.y - top,
+    width: viewBox.width + left + right,
+    height: viewBox.height + top + bottom,
+  };
+}
+
 function clampPosition(viewBox, bounds) {
   const { x: ox, y: oy, width: ow, height: oh } = bounds.original;
   const maxX = ox + ow - viewBox.width;
