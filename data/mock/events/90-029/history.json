@@ -3,48 +3,72 @@
     "t": "2026-12-22T16:30:00.000Z",
     "sold": 0,
     "soldSeated": 0,
-    "soldStanding": 0
+    "soldStanding": 0,
+    "available": 4796,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-12-14T09:00:00.000Z",
     "sold": 532,
     "soldSeated": 274,
-    "soldStanding": 258
+    "soldStanding": 258,
+    "available": 4264,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-12-06T01:30:00.000Z",
     "sold": 960,
     "soldSeated": 494,
-    "soldStanding": 466
+    "soldStanding": 466,
+    "available": 3836,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-11-27T18:00:00.000Z",
     "sold": 1572,
     "soldSeated": 809,
-    "soldStanding": 763
+    "soldStanding": 763,
+    "available": 3224,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-11-19T10:30:00.000Z",
     "sold": 2132,
     "soldSeated": 1097,
-    "soldStanding": 1035
+    "soldStanding": 1035,
+    "available": 2664,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-11-11T03:00:00.000Z",
     "sold": 2430,
     "soldSeated": 1251,
-    "soldStanding": 1179
+    "soldStanding": 1179,
+    "available": 2366,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-11-02T19:30:00.000Z",
     "sold": 2950,
     "soldSeated": 1518,
-    "soldStanding": 1432
+    "soldStanding": 1432,
+    "available": 1846,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-25T12:00:00.000Z",
     "sold": 3493,
     "soldSeated": 1798,
-    "soldStanding": 1695
+    "soldStanding": 1695,
+    "available": 1303,
+    "hold": 180,
+    "closed": []
   }
 ]

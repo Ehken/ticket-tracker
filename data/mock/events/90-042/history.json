@@ -3,18 +3,27 @@
     "t": "2026-12-10T16:30:00.000Z",
     "sold": 0,
     "soldSeated": 0,
-    "soldStanding": 0
+    "soldStanding": 0,
+    "available": 4796,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-12-13T04:30:00.000Z",
     "sold": 563,
     "soldSeated": 232,
-    "soldStanding": 331
+    "soldStanding": 331,
+    "available": 4233,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-12-15T16:30:00.000Z",
     "sold": 1272,
     "soldSeated": 525,
-    "soldStanding": 747
+    "soldStanding": 747,
+    "available": 3524,
+    "hold": 180,
+    "closed": []
   }
 ]
