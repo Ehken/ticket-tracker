@@ -16,7 +16,12 @@ export function buildChart(canvas, historyPoints) {
           data,
           borderColor: "#1a5d1a",
           backgroundColor: "rgba(26, 93, 26, 0.1)",
-          pointRadius: (ctx) => (ctx.dataIndex === 0 ? 5 : 3),
+          // Only the first point ("Seuranta alkoi") keeps a visible marker —
+          // with a full season of hourly data, one per point is unreadable.
+          // pointHoverRadius still gives every other point a hover target,
+          // even though it's invisible at rest.
+          pointRadius: (ctx) => (ctx.dataIndex === 0 ? 5 : 0),
+          pointHoverRadius: 4,
           pointBackgroundColor: (ctx) => (ctx.dataIndex === 0 ? "#c0392b" : "#1a5d1a"),
           tension: 0.15,
           fill: true,
@@ -25,6 +30,11 @@ export function buildChart(canvas, historyPoints) {
     },
     options: {
       responsive: true,
+      // Chart.js defaults to intersect: true, which needs a visible point
+      // under the cursor to trigger a tooltip — with markers hidden above,
+      // nothing would ever show. mode: "index" + intersect: false makes the
+      // tooltip follow the cursor anywhere along the line instead.
+      interaction: { mode: "index", intersect: false },
       scales: {
         x: {
           type: "time",
