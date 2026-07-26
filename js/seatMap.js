@@ -33,10 +33,13 @@ const SEAT_RADIUS = "4";
 const SEAT_RADIUS_EI_MYYNNISSA = "2.4"; // smaller, not just a different color — separates by shape too
 
 // Keep in sync with .seatmap-svg-container's aspect-ratio in style.css
-// (1780+45 / 1261+45+45) — the container's fixed aspect ratio must match
-// the expanded canvas exactly, or the SVG letterboxes inside it.
-const LABEL_CANVAS_MARGIN = { top: 45, bottom: 45, left: 0, right: 45 };
-const LABEL_GAP = 10; // units between a seated section's bbox edge and its own outside-placed label
+// (1780+55 / 1261+60+55) — the container's fixed aspect ratio must match
+// the expanded canvas exactly, or the SVG letterboxes inside it. Sized to
+// clear the fixed label bands computed in computeLabelBands: top needs the
+// most room (the C band sits above the WC icon box at the map's own
+// y=0), right slightly more than bottom (the D band's label text extends
+// further right than the A band's labels extend down).
+const LABEL_CANVAS_MARGIN = { top: 60, bottom: 55, left: 0, right: 55 };
 
 // Attribute-selector lookup, not getElementById: an SVG root's own
 // getElementById support is inconsistent, and if two cards' seat maps are
@@ -144,6 +147,13 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   svg.classList.add("seatmap-svg");
   svg.removeAttribute("width");
   svg.removeAttribute("height");
+  // Decorative-with-interaction: the section table elsewhere on the page is
+  // the accessible data equivalent, so the map itself is announced as one
+  // described image rather than read fragment-by-fragment — every text/
+  // label drawn onto it (aggregate labels, seated-section labels, numeric
+  // overlays) is individually aria-hidden for the same reason.
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Istumakartta: paikkatilanne katsomoittain — tarkat luvut taulukossa");
   // Grows the canvas beyond the persisted SVG's own bounds so seated-section
   // labels (see replaceSectionLabels) have room to render outside their
   // section instead of on top of the seat dots. Left gets no extra margin —
@@ -167,6 +177,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
 
   const infoRow = document.createElement("div");
   infoRow.className = "seatmap-info-row";
+  infoRow.setAttribute("aria-live", "polite"); // tap-to-inspect selection changes are announced for pointer users
   infoRow.textContent = INFO_ROW_PLACEHOLDER;
 
   const legend = buildLegend(mapContainer, {
@@ -329,9 +340,9 @@ function hideBakedNameLabel(svg, shapeEl, sectionKey) {
 // occupied (targetBox — the hidden label's own union bbox, or the
 // section's whole bbox when nothing was hidden). These two shapes are
 // solid fills with no dots, so "inside" reads fine — unlike the seated
-// sections, which move their labels entirely outside their own bbox (see
-// placeSeatedSectionLabel below). seisomakatsomo keeps the two-line
-// "KAUKAAN" / "PÄÄTY" layout, matching the baked original's own two-line
+// sections, which move their labels entirely outside their own bbox onto
+// a fixed band (see addSeatedSectionLabel below). seisomakatsomo keeps
+// the two-line "KAUKAAN" / "PÄÄTY" layout, matching the baked original's
 // arrangement ("SEISOMA" / "KATSOMO"); invalid renders as one line. The
 // string always comes from sectionLabel() — text-transform: uppercase
 // (CSS) is what turns "Kaukaan pääty" into "KAUKAAN PÄÄTY", not a new
@@ -346,6 +357,7 @@ function addInsideSectionLabel(svg, sectionKey, targetBox) {
   text.setAttribute("class", "seatmap-halo-text seatmap-label-text");
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
+  text.setAttribute("aria-hidden", "true");
 
   if (sectionKey === "seisomakatsomo") {
     const [firstWord, ...rest] = label.split(" ");
@@ -405,174 +417,94 @@ function fallbackLabelBox(shapeBBox, overlayEl) {
 }
 
 // seisomakatsomo/invalid keep their label inside their own shape (solid
-// fills, no dots to blend into) — every other section (the seated ones)
-// moves its label entirely outside its own bbox instead, see
-// placeSeatedSectionLabel.
+// fills, no dots to blend into) — every seated section instead gets a
+// fixed-band label entirely outside its own bbox, see addSeatedSectionLabel.
 const AGGREGATE_LABEL_SECTIONS = new Set(["seisomakatsomo", "invalid"]);
 
-function boxesOverlap(a, b) {
-  return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
+const C_SECTION_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+const A_SECTION_IDS = ["A1", "A2", "A3", "A4", "A5", "A6"];
+const D_SECTION_IDS = ["D1", "D2"];
+
+const LABEL_BAND_GAP = 10; // units between a band and the obstacle geometry it clears
+const LABEL_HALF_HEIGHT = 15; // approx half the rendered height of a single-line .seatmap-label-text glyph
+
+function maxRight(boxes) {
+  return Math.max(...boxes.map((b) => b.x + b.width));
+}
+function minTop(boxes) {
+  return Math.min(...boxes.map((b) => b.y));
+}
+function maxBottom(boxes) {
+  return Math.max(...boxes.map((b) => b.y + b.height));
 }
 
-// Real labels/digits/icons never exceed this in either dimension (measured
-// against the actual SVG: row-number digits ~10x46, the widest hidden
-// section name ~30x70, the small accessible-seat icon glyph ~33x29) — the
-// cutoff excludes the rink graphic itself, which turns out to also be a
-// bare (no id, no class), black-filled path and would otherwise dominate
-// every toward-rink fallback candidate as a false obstacle.
-const MAX_OBSTACLE_DIMENSION = 100;
+// Round 3 gave each seated section its own collision-avoiding placement;
+// the owner's round-4 verdict was that the result was "inconsistent,
+// unaligned" even though nothing overlapped. Replaced with three fixed,
+// shared coordinates instead — one straight row per side — computed once
+// from real measured obstacle geometry (not hardcoded), so it still holds
+// if the persisted SVG's own content ever shifts slightly:
+//   - C band (top): must clear the topmost edge across the aitio chip row,
+//     the press ("Lehdistö") chip, the K18 outline, AND the WC icon that
+//     sits directly above C1/C2 — that icon (y=0) turns out to be the
+//     actual topmost obstacle, not K18 or the chips.
+//   - A band (bottom): must clear the deepest bottom edge across all six
+//     A sections. The WC icon near A1 is beside it (a different x range
+//     entirely), not below, so it's deliberately excluded from this
+//     calculation — verified visually, not by including it defensively.
+//   - D band (right): must clear D1/D2's own right edge, which already
+//     includes their row-number ruler digits (nested inside the same
+//     group, so already part of the section's own bbox).
+function computeLabelBands(svg) {
+  const cBoxes = C_SECTION_IDS.map((id) => findById(svg, id)?.getBBox()).filter(Boolean);
+  const aBoxes = A_SECTION_IDS.map((id) => findById(svg, id)?.getBBox()).filter(Boolean);
+  const dBoxes = D_SECTION_IDS.map((id) => findById(svg, id)?.getBBox()).filter(Boolean);
 
-// Everything an outside-placed section label must not visually collide
-// with, beyond the seats themselves (labels never enter a section's own
-// bbox in the first place, so seats are a non-issue): the aitio/press
-// chips, the "K18" outline (a colored-stroke path, so not caught by the
-// black-fill sweep below), the WC icon signage (gray #B8B8B8 rects, found
-// by inspecting the real SVG), and — generically — every other small,
-// bare (no id, no class), solid-black path still left in the document.
-// That last sweep is what catches the row-number rulers flanking each
-// section (~9-10 units tall digits) and any small icon glyphs (e.g.
-// individual accessible-seat markers) — every section's own *name* label
-// has already been hidden (and so gained the "seatmap-baked-label--hidden"
-// class) by the time this runs, so this can't mistake a still-to-be-
-// replaced name for an obstacle.
-function collectLabelObstacles(svg) {
-  const obstacles = [];
-  const pushBox = (el) => {
-    if (!el) return;
-    const b = el.getBBox();
-    if (b.width > 0 && b.height > 0) obstacles.push(b);
+  const aitioBoxes = Array.from(svg.querySelectorAll('[id^="aitio_"]')).map((el) => el.getBBox());
+  const pressBox = findById(svg, "press")?.getBBox();
+  const k18Box = svg.querySelector('path[stroke="#CC0088"]')?.getBBox();
+  const wcIconBoxes = Array.from(svg.querySelectorAll('rect[fill="#B8B8B8"]')).map((el) => el.getBBox());
+
+  const cTopObstacles = [...aitioBoxes, pressBox, k18Box, ...wcIconBoxes].filter(Boolean);
+
+  return {
+    cLabelY: minTop(cTopObstacles) - LABEL_BAND_GAP - LABEL_HALF_HEIGHT,
+    aLabelY: maxBottom(aBoxes) + LABEL_BAND_GAP + LABEL_HALF_HEIGHT,
+    dLabelX: maxRight(dBoxes) + LABEL_BAND_GAP,
   };
-
-  for (const el of svg.querySelectorAll('[id^="aitio_"], #press')) pushBox(el);
-  pushBox(svg.querySelector('path[stroke="#CC0088"]')); // K18 outline
-  // WC icon signage (<rect>, uppercase hex) and the "VAIHTOAITIOT"/
-  // "JÄÄHYAITIOT" bench boxes + "SAIPAN HYÖKKÄYSSUUNTA" direction banner
-  // (lowercase hex, same gray — but drawn as rounded-rect-shaped <path>s,
-  // not <rect> tags, so this can't be tag-scoped) — e.g. C4/C5's
-  // toward-rink fallback candidate lands right on top of "VAIHTOAITIOT"
-  // without the latter.
-  for (const el of svg.querySelectorAll('[fill="#B8B8B8"], [fill="#b8b8b8"]')) pushBox(el);
-
-  for (const el of svg.querySelectorAll("path")) {
-    if (el.id || el.getAttribute("class") || el.getAttribute("fill") !== "black") continue;
-    const b = el.getBBox();
-    if (b.width > MAX_OBSTACLE_DIMENSION || b.height > MAX_OBSTACLE_DIMENSION) continue;
-    pushBox(el);
-  }
-
-  return obstacles;
 }
 
-// Which edge of a seated section's own bbox faces away from the rink —
-// the side its label is placed on by default.
-function awaySideForSection(sectionKey) {
-  if (sectionKey.startsWith("C")) return "top";
-  if (sectionKey.startsWith("A")) return "bottom";
-  return "right"; // D1/D2
-}
-
-const OPPOSITE_SIDE = { top: "bottom", bottom: "top", left: "right", right: "left" };
-
-// Builds the candidate label bbox for one side of a section, using the
-// label text's own already-measured width/height so the box is exact, not
-// a guess.
-function candidateLabelBox(sectionBBox, textSize, side, gap) {
-  const { width: w, height: h } = textSize;
-  switch (side) {
-    case "top":
-      return { x: sectionBBox.x + sectionBBox.width / 2 - w / 2, y: sectionBBox.y - gap - h, width: w, height: h };
-    case "bottom":
-      return {
-        x: sectionBBox.x + sectionBBox.width / 2 - w / 2,
-        y: sectionBBox.y + sectionBBox.height + gap,
-        width: w,
-        height: h,
-      };
-    case "right":
-      return {
-        x: sectionBBox.x + sectionBBox.width + gap,
-        y: sectionBBox.y + sectionBBox.height / 2 - h / 2,
-        width: w,
-        height: h,
-      };
-    case "left":
-      return {
-        x: sectionBBox.x - gap - w,
-        y: sectionBBox.y + sectionBBox.height / 2 - h / 2,
-        width: w,
-        height: h,
-      };
-    default:
-      throw new Error(`Unknown label side: ${side}`);
-  }
-}
-
-// A handful of sections (e.g. C4/C5, sandwiched between the aitio chip row
-// above and the "VAIHTOAITIOT" bench box below) have BOTH their away and
-// immediate toward-rink position blocked. Rather than give up after one
-// toward-rink attempt, this keeps sliding the candidate further along that
-// same direction — away from the section, past whatever it collided with —
-// until it clears every obstacle, up to a bounded number of steps.
-const MAX_NUDGE_ATTEMPTS = 8;
-const NUDGE_STEP = 12;
-
-function findClearLabelBox(sectionBBox, textSize, side, collides) {
-  for (let i = 0; i < MAX_NUDGE_ATTEMPTS; i++) {
-    const box = candidateLabelBox(sectionBBox, textSize, side, LABEL_GAP + i * NUDGE_STEP);
-    if (!collides(box)) return box;
-  }
-  return null; // never cleared — caller decides what to do
-}
-
-// Places a seated section's own replacement label outside its bbox, on the
-// side facing away from the rink by default (see awaySideForSection). If
-// that collides with a known obstacle (see collectLabelObstacles) or an
-// already-placed label, it tries the opposite (toward-rink) side instead,
-// sliding further along that direction if needed (see findClearLabelBox)
-// before giving up and using the nearest toward-rink position anyway.
-// Two-pass: the text is created and measured first (dominant-baseline:
-// central lets `y` address its exact vertical center directly, no manual
-// baseline correction), then positioned once the real box is decided — its
-// width/height don't change with position, only where it's anchored.
-function placeSeatedSectionLabel(svg, sectionKey, sectionBBox, obstacles, placedBoxes) {
+// Places a seated section's own replacement label on its side's shared
+// band: C sections centered on their own x, all sharing bands.cLabelY; A
+// sections the same but sharing bands.aLabelY; D1/D2 left-aligned at the
+// shared bands.dLabelX, vertically centered on their own section.
+function addSeatedSectionLabel(svg, sectionKey, sectionBBox, bands) {
   const svgNs = "http://www.w3.org/2000/svg";
   const text = document.createElementNS(svgNs, "text");
   text.setAttribute("class", "seatmap-halo-text seatmap-label-text");
-  text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
+  text.setAttribute("aria-hidden", "true");
   text.textContent = sectionLabel(sectionKey);
-  text.setAttribute("x", "0");
-  text.setAttribute("y", "0");
-  svg.append(text);
 
-  const textSize = text.getBBox();
-  const collides = (box) => obstacles.some((o) => boxesOverlap(box, o)) || placedBoxes.some((o) => boxesOverlap(box, o));
-
-  const awaySide = awaySideForSection(sectionKey);
-  let box = candidateLabelBox(sectionBBox, textSize, awaySide, LABEL_GAP);
-
-  if (collides(box)) {
-    const towardSide = OPPOSITE_SIDE[awaySide];
-    const clearBox = findClearLabelBox(sectionBBox, textSize, towardSide, collides);
-    if (!clearBox) {
-      console.warn(
-        `[seatmap] ${sectionKey}: label still collides with an obstacle after sliding along the toward-rink (${towardSide}) side — using the nearest toward-rink position anyway.`
-      );
-    }
-    box = clearBox ?? candidateLabelBox(sectionBBox, textSize, towardSide, LABEL_GAP);
+  if (D_SECTION_IDS.includes(sectionKey)) {
+    text.setAttribute("text-anchor", "start");
+    text.setAttribute("x", String(bands.dLabelX));
+    text.setAttribute("y", String(sectionBBox.y + sectionBBox.height / 2));
+  } else {
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("x", String(sectionBBox.x + sectionBBox.width / 2));
+    text.setAttribute("y", String(C_SECTION_IDS.includes(sectionKey) ? bands.cLabelY : bands.aLabelY));
   }
 
-  text.setAttribute("x", String(box.x + box.width / 2));
-  text.setAttribute("y", String(box.y + box.height / 2));
-
-  return box;
+  // Appended directly to the svg root — after everything already in the
+  // document, incl. #seats — so it always paints on top regardless of
+  // nesting depth, same trick addAggregateOverlay already relies on.
+  svg.append(text);
 }
 
 function replaceSectionLabels(svg, latest, overlaysBySection = {}) {
-  // Pass 1: hide every section's own baked name label first. Must finish
-  // before collectLabelObstacles runs below — otherwise a section's own
-  // not-yet-hidden name label (still bare/black/classless at that point)
-  // could be mistaken for an obstacle.
+  // Pass 1: hide every section's own baked name label first (unaffected by
+  // how the replacement is positioned).
   const hiddenBoxes = {};
   for (const row of latest.sections) {
     if (LABEL_EXCLUDED_SECTIONS.has(row.section)) continue;
@@ -582,8 +514,7 @@ function replaceSectionLabels(svg, latest, overlaysBySection = {}) {
   }
 
   // Pass 2: place each section's own replacement label.
-  const obstacles = collectLabelObstacles(svg);
-  const placedBoxes = [];
+  const bands = computeLabelBands(svg);
   for (const row of latest.sections) {
     if (LABEL_EXCLUDED_SECTIONS.has(row.section)) continue;
     const shapeEl = findById(svg, row.section);
@@ -593,8 +524,7 @@ function replaceSectionLabels(svg, latest, overlaysBySection = {}) {
       const targetBox = hiddenBoxes[row.section] ?? fallbackLabelBox(shapeEl.getBBox(), overlaysBySection[row.section]);
       addInsideSectionLabel(svg, row.section, targetBox);
     } else {
-      const placedBox = placeSeatedSectionLabel(svg, row.section, shapeEl.getBBox(), obstacles, placedBoxes);
-      placedBoxes.push(placedBox);
+      addSeatedSectionLabel(svg, row.section, shapeEl.getBBox(), bands);
     }
   }
 }
@@ -723,6 +653,7 @@ function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
   text.setAttribute("y", String(bbox.y + bbox.height * 0.8));
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
+  text.setAttribute("aria-hidden", "true");
   text.textContent = `${formatThousands(row.sold)} / ${formatThousands(row.total)}`;
   svg.append(text);
   return text;
