@@ -542,7 +542,11 @@ header.site-header h1 {
 }
 
 .seatmap-svg-container {
-  aspect-ratio: 1780 / 1261;
+  /* Matches the render-time expanded viewBox (1780+45 / 1261+45+45), not
+     the persisted SVG's own 1780/1261 — keep in sync with
+     LABEL_CANVAS_MARGIN in seatMap.js, or the SVG letterboxes inside this
+     container instead of filling it. */
+  aspect-ratio: 1825 / 1351;
   max-height: 70vh;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -660,6 +664,11 @@ header.site-header h1 {
 .seatmap-label-text {
   font-size: 26px;
   text-transform: uppercase;
+  /* The `y` (and each <tspan>'s own `y`) addresses the glyph's vertical
+     CENTER directly, not its baseline — seatMap.js computes every label
+     position as a center point (section bbox center, candidate box
+     center, etc.), so this avoids a manual baseline offset correction. */
+  dominant-baseline: central;
 }
 
 /* Stacked-fill gradient stops for seisomakatsomo/invalid — color lives here

@@ -7,6 +7,7 @@ import {
   serializeViewBox,
   viewBoxesEqual,
   normalizeWheelDeltaY,
+  expandViewBox,
 } from "../js/seatMapViewBox.js";
 
 const ORIGINAL = { x: 0, y: 0, width: 1780, height: 1261 };
@@ -113,4 +114,18 @@ test("normalizeWheelDeltaY scales line-mode (deltaMode 1) deltas up so Firefox z
 
 test("normalizeWheelDeltaY scales page-mode (deltaMode 2) deltas up substantially", () => {
   assert.equal(normalizeWheelDeltaY(1, 2), 800);
+});
+
+test("expandViewBox grows width/height by left+right and top+bottom, shifting x/y outward", () => {
+  const expanded = expandViewBox(ORIGINAL, { top: 45, bottom: 45, left: 0, right: 45 });
+  assert.deepEqual(expanded, { x: 0, y: -45, width: 1825, height: 1351 });
+});
+
+test("expandViewBox with no margins is the identity", () => {
+  assert.deepEqual(expandViewBox(ORIGINAL), ORIGINAL);
+});
+
+test("expandViewBox with all four margins shifts both x and y outward", () => {
+  const expanded = expandViewBox(ORIGINAL, { top: 10, bottom: 20, left: 30, right: 40 });
+  assert.deepEqual(expanded, { x: -30, y: -10, width: 1780 + 30 + 40, height: 1261 + 10 + 20 });
 });
