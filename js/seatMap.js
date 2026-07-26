@@ -17,7 +17,8 @@ import {
   normalizeWheelDeltaY,
   expandViewBox,
 } from "./seatMapViewBox.js";
-import { computeStackedFillZones } from "./seatMapStackedFill.js";
+import { computeStackedFillZones, clampZoneSpansToMinimum } from "./seatMapStackedFill.js";
+import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
 
 const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
 
@@ -33,13 +34,14 @@ const SEAT_RADIUS = "4";
 const SEAT_RADIUS_EI_MYYNNISSA = "2.4"; // smaller, not just a different color — separates by shape too
 
 // Keep in sync with .seatmap-svg-container's aspect-ratio in style.css
-// (1780+55 / 1261+60+55) — the container's fixed aspect ratio must match
-// the expanded canvas exactly, or the SVG letterboxes inside it. Sized to
-// clear the fixed label bands computed in computeLabelBands: top needs the
-// most room (the C band sits above the WC icon box at the map's own
-// y=0), right slightly more than bottom (the D band's label text extends
-// further right than the A band's labels extend down).
-const LABEL_CANVAS_MARGIN = { top: 60, bottom: 55, left: 0, right: 55 };
+// (1780+70+55 / 1261+60+55) — the container's fixed aspect ratio must
+// match the expanded canvas exactly, or the SVG letterboxes inside it.
+// Sized to clear the fixed label bands computed in computeLabelBands (top
+// needs the most vertical room — the C band sits above the WC icon box at
+// the map's own y=0 — right slightly more than bottom for the D band's
+// label text) plus the standing area's own rotated vertical name in the
+// left margin (see addStandingAreaVerticalName).
+const LABEL_CANVAS_MARGIN = { top: 60, bottom: 55, left: 70, right: 55 };
 
 // Attribute-selector lookup, not getElementById: an SVG root's own
 // getElementById support is inconsistent, and if two cards' seat maps are
@@ -197,35 +199,69 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   colorSeats(svg, mergedEvent, latest, seats, baseline);
   colorAitioBoxes(svg, seats);
   findById(svg, "press")?.classList.add("ei-myynnissa");
-  applyStackedFill(svg, latest, baseline, "seisomakatsomo");
-  applyStackedFill(svg, latest, baseline, "invalid");
-  // Numeric overlays placed first so replaceSectionLabels can measure their
-  // real rendered geometry and keep any fallback-positioned name label
-  // (see fallbackLabelBox) clear of them — needed on "invalid", whose small
-  // rect leaves no room for a guessed fraction-based gap to reliably clear
-  // the overlay's actual glyph ascent.
-  const seisomaOverlay = addAggregateOverlay(svg, latest, "seisomakatsomo", legend);
-  const invalidOverlay = addAggregateOverlay(svg, latest, "invalid", legend);
-  replaceSectionLabels(svg, latest, { seisomakatsomo: seisomaOverlay, invalid: invalidOverlay });
+
+  const bands = computeLabelBands(svg);
+  renderStandingWedge(svg, latest, baseline);
+  renderWheelchairSlots(svg, latest, baseline, bands);
+  replaceSectionLabels(svg, latest, bands);
 
   attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton });
 }
 
-// Renders a vertical, hard-stop gradient onto an aggregate shape
-// (seisomakatsomo/invalid) reflecting its real kausikortti/irtolippu/vapaa
-// (or myyty/vapaa, with no baseline) composition — same data source as the
-// numeric "sold / total" overlay and the tap-to-inspect info row's
-// irtoliput() split, just visualized instead of only shown as numbers.
+// The standing area (seisomakatsomo) keeps the full stacked fill exactly as
+// implemented in earlier rounds — a hard-stop gradient reflecting its real
+// kausikortti/irtolippu/vapaa (or myyty/vapaa, no baseline) composition,
+// same data source as the tap-to-inspect info row's irtoliput() split.
+// What's new: the raw proportional zones (computeStackedFillZones) are run
+// through clampZoneSpansToMinimum first, so a very small zone (e.g. 12
+// remaining out of 2138) still gets a floor height with room for its own
+// count number, at the cost of the OTHER zones renormalizing slightly —
+// the gradient's stop offsets and each zone's count-text position both
+// come from these same clamped zones, so the visible fill and the numbers
+// drawn over it never disagree about where a zone's boundary is.
 let stackedFillIdCounter = 0;
 
-function applyStackedFill(svg, latest, baseline, sectionKey) {
+const STANDING_ZONE_FONT_SIZE = 26; // px — keep in sync with .seatmap-zone-count's font-size
+const MIN_ZONE_HEIGHT_FACTOR = 2.4; // "~2.4x the count font size" — cap height + breathing room above/below
+const STANDING_NAME_GAP = 10; // units between the wedge's left edge and the rotated name's own edge
+
+const ZONE_TITLE_LABEL = {
+  [SEAT_STATE.KAUSIKORTTI]: "Kausikortit",
+  [SEAT_STATE.IRTOLIPPU]: "Irtoliput",
+  [SEAT_STATE.VAPAA]: "Vapaana",
+  [SEAT_STATE.MYYTY]: "Myyty",
+};
+
+function renderStandingWedge(svg, latest, baseline) {
+  const sectionKey = "seisomakatsomo";
   const row = latest.sections.find((r) => r.section === sectionKey);
   const shapeEl = findById(svg, sectionKey);
-  if (!row || !shapeEl) return; // no usable region — addAggregateOverlay's own fallback already covers "no numbers"
+  if (!row || !shapeEl) return;
 
+  hideBakedNameLabel(svg, shapeEl, sectionKey);
+
+  const shapeBBox = shapeEl.getBBox();
   const baselineSold = baseline.sectionSold?.get(sectionKey) ?? null;
-  const zones = computeStackedFillZones({ sold: row.sold, total: row.total, kausikorttiSold: baselineSold });
+  const rawZones = computeStackedFillZones({ sold: row.sold, total: row.total, kausikorttiSold: baselineSold });
+  const minSharePct = ((STANDING_ZONE_FONT_SIZE * MIN_ZONE_HEIGHT_FACTOR) / shapeBBox.height) * 100;
+  const zones = clampZoneSpansToMinimum(rawZones, minSharePct);
 
+  applyWedgeGradient(svg, shapeEl, zones);
+
+  const counts =
+    baselineSold == null
+      ? { [SEAT_STATE.MYYTY]: row.sold, [SEAT_STATE.VAPAA]: row.total - row.sold }
+      : {
+          [SEAT_STATE.KAUSIKORTTI]: baselineSold,
+          [SEAT_STATE.IRTOLIPPU]: row.sold - baselineSold,
+          [SEAT_STATE.VAPAA]: row.total - row.sold,
+        };
+  addZoneCountsAndHoverTitles(svg, sectionKey, shapeBBox, zones, counts);
+
+  addStandingAreaVerticalName(svg, shapeBBox);
+}
+
+function applyWedgeGradient(svg, shapeEl, zones) {
   const svgNs = "http://www.w3.org/2000/svg";
   const gradientId = `seatmap-stacked-fill-${++stackedFillIdCounter}`;
   const gradient = document.createElementNS(svgNs, "linearGradient");
@@ -234,7 +270,7 @@ function applyStackedFill(svg, latest, baseline, sectionKey) {
   // Bottom (offset 0%) -> top (offset 100%) in the shape's own bounding box —
   // vertical regardless of the shape's own rotation/tilt (the standing area
   // is a wedge, not a rectangle, so this is an approximation of share by
-  // visual height; the numeric overlay carries the exact figures).
+  // visual height; each zone's own count carries the exact figure).
   gradient.setAttribute("x1", "0");
   gradient.setAttribute("y1", "1");
   gradient.setAttribute("x2", "0");
@@ -259,10 +295,114 @@ function applyStackedFill(svg, latest, baseline, sectionKey) {
   defs.append(gradient);
 
   // Inline style (not setAttribute) so it beats the existing
-  // ".seatmap-svg #seisomakatsomo, .seatmap-svg #invalid { fill: var(--seat-vapaa); }"
-  // CSS rule, which is left in place as a harmless fallback for the
-  // shape-not-found case above.
+  // ".seatmap-svg #seisomakatsomo { fill: var(--seat-vapaa); }" CSS rule,
+  // which is left in place as a harmless fallback for the
+  // shape-not-found case in renderStandingWedge above.
   shapeEl.style.fill = `url(#${gradientId})`;
+}
+
+// Converts a zone's [start, end] (percent, 0 = bottom of the stack) into
+// its vertical center in the shape's own coordinate space (SVG y grows
+// downward, so a higher percent-from-bottom means a smaller y).
+function zoneCenterY(shapeBBox, zone) {
+  const topFraction = 1 - zone.end / 100;
+  const bottomFraction = 1 - zone.start / 100;
+  return shapeBBox.y + shapeBBox.height * ((topFraction + bottomFraction) / 2);
+}
+
+// Renders each nonzero zone's own count, centered in its (already clamped)
+// span — solid, tabular-nums, no halo (these sit on the map's own light
+// surface, not over dot clusters, so a halo is unnecessary — see
+// .seatmap-zone-count). A zero-count zone renders no text at all: a
+// sold-out wedge is pure black+yellow, an unsold one pure sand with only
+// the vapaa count. Each zone also gets an invisible hoverable proxy rect
+// (sized to just the count text's own glyph area, not the whole zone —
+// see below) carrying a native <title> tooltip.
+//
+// Two things were tried here and rejected before landing on this shape:
+// (1) giving the proxy rect the wedge's own "seisomakatsomo" id, reasoning
+// that handleTap()'s unchanged `.closest(".section")` + `.id` lookup would
+// then resolve it identically to tapping the wedge directly — but a
+// duplicate id anywhere in the document turned out to make Chromium stop
+// painting the wedge's own objectBoundingBox gradient entirely (confirmed
+// by removing the duplicate and watching the fill reappear; a minimal
+// standalone repro of just the gradient, with no duplicate id, rendered
+// fine). (2) a unique id instead, but sized to the zone's FULL span — that
+// avoided the gradient bug but meant a proxy rect the size of, say, the
+// 88%-of-the-wedge vapaa zone sat on top of almost the entire shape,
+// silently swallowing nearly every tap (no class="section"/matching id,
+// so handleTap's `.closest(".section")` finds nothing there and no-ops).
+// Sizing the rect to just the count text's own measured bbox (plus a
+// small margin) shrinks that dead zone from "most of the wedge" down to a
+// few dozen square units around each visible number — genuinely narrow,
+// and still an intuitive hover target ("hover the number for the exact
+// split"). tap-to-inspect on the rest of the wedge is unaffected.
+const ZONE_HOVER_PADDING = 6;
+
+function addZoneCountsAndHoverTitles(svg, sectionKey, shapeBBox, zones, counts) {
+  const svgNs = "http://www.w3.org/2000/svg";
+  const cx = shapeBBox.x + shapeBBox.width / 2;
+
+  zones.forEach((zone, zoneIndex) => {
+    const count = counts[zone.state] ?? 0;
+    if (count <= 0) return;
+
+    const cy = zoneCenterY(shapeBBox, zone);
+
+    const text = document.createElementNS(svgNs, "text");
+    text.setAttribute("class", `seatmap-zone-count seatmap-zone-count--${zone.state}`);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("x", String(cx));
+    text.setAttribute("y", String(cy));
+    text.setAttribute("pointer-events", "none");
+    text.setAttribute("aria-hidden", "true");
+    text.textContent = formatThousands(count);
+    svg.append(text);
+
+    const textBBox = text.getBBox();
+    const hoverRect = document.createElementNS(svgNs, "rect");
+    hoverRect.setAttribute("id", `seatmap-zone-hover-${sectionKey}-${zoneIndex}`);
+    hoverRect.setAttribute("x", String(textBBox.x - ZONE_HOVER_PADDING));
+    hoverRect.setAttribute("y", String(textBBox.y - ZONE_HOVER_PADDING));
+    hoverRect.setAttribute("width", String(textBBox.width + ZONE_HOVER_PADDING * 2));
+    hoverRect.setAttribute("height", String(textBBox.height + ZONE_HOVER_PADDING * 2));
+    hoverRect.setAttribute("fill", "transparent");
+    hoverRect.style.pointerEvents = "all";
+    const title = document.createElementNS(svgNs, "title");
+    title.textContent = `${ZONE_TITLE_LABEL[zone.state]}: ${formatThousands(count)}`;
+    hoverRect.append(title);
+    svg.append(hoverRect);
+  });
+}
+
+// Replaces the old in-wedge "KAUKAAN PÄÄTY" label with a name rendered
+// vertically (rotated -90°, reading bottom-to-top) just outside the
+// wedge's left edge, in the expanded left margin — solid, not halo-styled
+// (nothing to blend into out there). Two-pass: the text is measured at a
+// neutral position first (its rendered height, pre-rotation, becomes its
+// horizontal footprint once rotated), then positioned so that footprint's
+// outer edge clears the wedge by STANDING_NAME_GAP. dominant-baseline:
+// central (see .seatmap-standing-name) keeps the rotation anchor centered
+// in both axes, so this footprint math holds.
+function addStandingAreaVerticalName(svg, shapeBBox) {
+  const svgNs = "http://www.w3.org/2000/svg";
+  const text = document.createElementNS(svgNs, "text");
+  text.setAttribute("class", "seatmap-standing-name");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("pointer-events", "none");
+  text.setAttribute("aria-hidden", "true");
+  text.textContent = sectionLabel("seisomakatsomo");
+  text.setAttribute("x", "0");
+  text.setAttribute("y", "0");
+  svg.append(text);
+
+  const size = text.getBBox();
+  const cy = shapeBBox.y + shapeBBox.height / 2;
+  const cx = shapeBBox.x - STANDING_NAME_GAP - size.height / 2;
+
+  text.setAttribute("x", String(cx));
+  text.setAttribute("y", String(cy));
+  text.setAttribute("transform", `rotate(-90, ${cx}, ${cy})`);
 }
 
 function isFullyContained(inner, outer) {
@@ -333,93 +473,11 @@ function hideBakedNameLabel(svg, shapeEl, sectionKey) {
   return unionBBox(matches.map((m) => m.bbox));
 }
 
-// Renders seisomakatsomo/invalid's own replacement name label INSIDE their
-// shape, in place of the hidden baked-in one — halo-styled text (see
-// .seatmap-halo-text; no background box, per owner feedback that boxes on
-// the map "look bad"), centered on the geometry the baked label actually
-// occupied (targetBox — the hidden label's own union bbox, or the
-// section's whole bbox when nothing was hidden). These two shapes are
-// solid fills with no dots, so "inside" reads fine — unlike the seated
-// sections, which move their labels entirely outside their own bbox onto
-// a fixed band (see addSeatedSectionLabel below). seisomakatsomo keeps
-// the two-line "KAUKAAN" / "PÄÄTY" layout, matching the baked original's
-// arrangement ("SEISOMA" / "KATSOMO"); invalid renders as one line. The
-// string always comes from sectionLabel() — text-transform: uppercase
-// (CSS) is what turns "Kaukaan pääty" into "KAUKAAN PÄÄTY", not a new
-// hardcoded name.
-function addInsideSectionLabel(svg, sectionKey, targetBox) {
-  const label = sectionLabel(sectionKey);
-  const cx = targetBox.x + targetBox.width / 2;
-  const cy = targetBox.y + targetBox.height / 2;
-
-  const svgNs = "http://www.w3.org/2000/svg";
-  const text = document.createElementNS(svgNs, "text");
-  text.setAttribute("class", "seatmap-halo-text seatmap-label-text");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("pointer-events", "none");
-  text.setAttribute("aria-hidden", "true");
-
-  if (sectionKey === "seisomakatsomo") {
-    const [firstWord, ...rest] = label.split(" ");
-    const secondWord = rest.join(" ");
-    const lineOffset = 15;
-
-    const line1 = document.createElementNS(svgNs, "tspan");
-    line1.setAttribute("x", String(cx));
-    line1.setAttribute("y", String(cy - lineOffset));
-    line1.textContent = firstWord;
-
-    const line2 = document.createElementNS(svgNs, "tspan");
-    line2.setAttribute("x", String(cx));
-    line2.setAttribute("y", String(cy + lineOffset));
-    line2.textContent = secondWord;
-
-    text.append(line1, line2);
-  } else {
-    text.setAttribute("x", String(cx));
-    text.setAttribute("y", String(cy));
-    text.textContent = label;
-  }
-
-  // Appended directly to the svg root — after everything already in the
-  // document, incl. #seats — so it always paints on top regardless of
-  // nesting depth, same trick addAggregateOverlay already relies on.
-  svg.append(text);
-}
-
 // Aitio boxes and press already read as labeled chips (small colored rects
-// with their own baked short names) — left untouched, only the seated
-// sections and the two aggregate areas get the full hide-and-replace
-// treatment.
-const LABEL_EXCLUDED_SECTIONS = new Set(["press", "aitiot"]);
-
-// "invalid" turns out to have no baked name label of its own to hide
-// (hideBakedNameLabel returns null for it — confirmed by inspecting the
-// real SVG), so its label would otherwise fall back to the shape's own
-// bbox center — which, on a shape this short, visually collides with its
-// numeric "sold / total" overlay (see addAggregateOverlay) right below it.
-// The overlay's own rendered top (measured via getBBox — a 36px-font
-// glyph's ascent) turns out to reach almost all the way up to the shape's
-// own top edge, so there's no usable gap "inside" the shape's bbox at all;
-// the fallback position is instead targeted a fixed distance *above* the
-// overlay's real rendered top, independent of the shape's own bounds.
-// Only relevant when an overlayEl is passed in (seisomakatsomo/invalid);
-// seisomakatsomo never exercises the fallback path in practice (its real
-// baked label is always found), so this is effectively "invalid"-only
-// today.
-const LABEL_OVERLAY_GAP = 20; // clearance between the label's own vertical center and the overlay's rendered top
-
-function fallbackLabelBox(shapeBBox, overlayEl) {
-  if (!overlayEl) return shapeBBox;
-  const overlayBBox = overlayEl.getBBox();
-  const cy = overlayBBox.y - LABEL_OVERLAY_GAP;
-  return { x: shapeBBox.x, y: cy, width: shapeBBox.width, height: 0 };
-}
-
-// seisomakatsomo/invalid keep their label inside their own shape (solid
-// fills, no dots to blend into) — every seated section instead gets a
-// fixed-band label entirely outside its own bbox, see addSeatedSectionLabel.
-const AGGREGATE_LABEL_SECTIONS = new Set(["seisomakatsomo", "invalid"]);
+// with their own baked short names); seisomakatsomo and invalid now get
+// their own bespoke treatment (renderStandingWedge, renderWheelchairSlots)
+// — only the seated sections go through this generic band-label path.
+const LABEL_EXCLUDED_SECTIONS = new Set(["press", "aitiot", "seisomakatsomo", "invalid"]);
 
 const C_SECTION_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
 const A_SECTION_IDS = ["A1", "A2", "A3", "A4", "A5", "A6"];
@@ -498,34 +556,17 @@ function addSeatedSectionLabel(svg, sectionKey, sectionBBox, bands) {
 
   // Appended directly to the svg root — after everything already in the
   // document, incl. #seats — so it always paints on top regardless of
-  // nesting depth, same trick addAggregateOverlay already relies on.
+  // nesting depth.
   svg.append(text);
 }
 
-function replaceSectionLabels(svg, latest, overlaysBySection = {}) {
-  // Pass 1: hide every section's own baked name label first (unaffected by
-  // how the replacement is positioned).
-  const hiddenBoxes = {};
+function replaceSectionLabels(svg, latest, bands) {
   for (const row of latest.sections) {
     if (LABEL_EXCLUDED_SECTIONS.has(row.section)) continue;
     const shapeEl = findById(svg, row.section);
     if (!shapeEl) continue;
-    hiddenBoxes[row.section] = hideBakedNameLabel(svg, shapeEl, row.section);
-  }
-
-  // Pass 2: place each section's own replacement label.
-  const bands = computeLabelBands(svg);
-  for (const row of latest.sections) {
-    if (LABEL_EXCLUDED_SECTIONS.has(row.section)) continue;
-    const shapeEl = findById(svg, row.section);
-    if (!shapeEl) continue;
-
-    if (AGGREGATE_LABEL_SECTIONS.has(row.section)) {
-      const targetBox = hiddenBoxes[row.section] ?? fallbackLabelBox(shapeEl.getBBox(), overlaysBySection[row.section]);
-      addInsideSectionLabel(svg, row.section, targetBox);
-    } else {
-      addSeatedSectionLabel(svg, row.section, shapeEl.getBBox(), bands);
-    }
+    hideBakedNameLabel(svg, shapeEl, row.section);
+    addSeatedSectionLabel(svg, row.section, shapeEl.getBBox(), bands);
   }
 }
 
@@ -619,44 +660,85 @@ function colorAitioBoxes(svg, seats) {
   }
 }
 
-// Places a numeric "sold / total" overlay directly on a shape's own SVG
-// region (seisomakatsomo/invalid — real, addressable geometry). The SVG has
-// no <text> elements of its own: every section name is baked in as an
-// outlined <path> label centered in the shape (replaced by our own, see
-// replaceSectionLabels), so a naive centered overlay would collide with
-// it — placed in the lower part of the bbox instead. Halo-styled (see
-// .seatmap-halo-text), not a background box, so it stays legible over the
-// seat-dot grid and stacked-fill zones without one. Returns the created
-// text element (or null) so replaceSectionLabels can measure its real
-// rendered geometry when positioning a fallback name label above it.
-function addAggregateOverlay(svg, latest, sectionKey, legendEl) {
-  const row = latest.sections.find((r) => r.section === sectionKey);
-  if (!row) return null;
-
-  const shapeEl = findById(svg, sectionKey);
-  if (!shapeEl) {
-    // No usable region in this SVG version — surface the numbers in the
-    // legend instead of inventing overlay coordinates.
-    const fallback = document.createElement("div");
-    fallback.className = "seatmap-legend__fallback-numbers";
-    fallback.textContent = `${sectionLabel(sectionKey)}: ${formatThousands(row.sold)} / ${formatThousands(row.total)}`;
-    legendEl.append(fallback);
-    return null;
+// The wheelchair area has its own small icon pictogram baked into the SVG
+// (a bare, no-id/no-class path — the same kind hideBakedNameLabel already
+// hides when it's mistaken for a name label, but this one is legitimately
+// decorative and worth keeping visible) sitting on top of the invisible
+// hit rect. Left alone, it silently swallows taps landing on it (default
+// pointer-events hit-tests any painted shape, regardless of what's
+// logically "underneath") — neutralized here so it stays visible but
+// taps pass through to the section's own hit target underneath, same
+// reasoning as the slots' own pointer-events: none below.
+function neutralizeDecorativeIcons(svg, shapeBBox) {
+  for (const el of svg.querySelectorAll("path")) {
+    if (el.id || el.getAttribute("class") || el.getAttribute("fill") !== "black") continue;
+    if (isFullyContained(el.getBBox(), shapeBBox)) el.style.pointerEvents = "none";
   }
+}
+
+// Replaces the wheelchair area's stacked-fill rect with WHEELCHAIR_SLOT_COUNT
+// discrete, individually-colored slots in the same footprint — a count
+// visualization (this data has no individual seat ids to color one-by-one,
+// unlike the seated sections), not proportional scaling: the area's real
+// capacity is exactly 12 in this arena. The underlying rect stays as an
+// invisible hit target (see the ".seatmap-svg #invalid { fill: transparent; }"
+// CSS rule) — the slots are purely visual, pointer-events: none, so tapping
+// anywhere in the area still resolves to it via the unchanged tap handler.
+// The numeral overlay is gone; exact figures live in tap-to-inspect and the
+// table, same as every other section.
+function renderWheelchairSlots(svg, latest, baseline, bands) {
+  const sectionKey = "invalid";
+  const row = latest.sections.find((r) => r.section === sectionKey);
+  const shapeEl = findById(svg, sectionKey);
+  if (!row || !shapeEl) return;
+
+  hideBakedNameLabel(svg, shapeEl, sectionKey); // no-op today (no baked label found here), kept for consistency
+
+  const shapeBBox = shapeEl.getBBox();
+  neutralizeDecorativeIcons(svg, shapeBBox);
+
+  const baselineSold = baseline.sectionSold?.get(sectionKey) ?? null;
+  const slots = computeSlotSplit({ sold: row.sold, kausikorttiSold: baselineSold });
 
   const svgNs = "http://www.w3.org/2000/svg";
-  const bbox = shapeEl.getBBox();
+  const gap = 3;
+  const slotWidth = (shapeBBox.width - gap * (WHEELCHAIR_SLOT_COUNT - 1)) / WHEELCHAIR_SLOT_COUNT;
 
+  slots.forEach((state, i) => {
+    const rect = document.createElementNS(svgNs, "rect");
+    rect.setAttribute("class", `seatmap-wheelchair-slot seatmap-wheelchair-slot--${state}`);
+    rect.setAttribute("x", String(shapeBBox.x + i * (slotWidth + gap)));
+    rect.setAttribute("y", String(shapeBBox.y));
+    rect.setAttribute("width", String(slotWidth));
+    rect.setAttribute("height", String(shapeBBox.height));
+    rect.setAttribute("rx", "2");
+    rect.setAttribute("pointer-events", "none");
+    svg.append(rect);
+  });
+
+  addWheelchairLabel(svg, shapeBBox, bands);
+}
+
+// "Pyörätuolipaikat" sits on the A-section band's shared y, centered on the
+// slot row — but the wheelchair area happens to share its exact x-range
+// with A1 (both are centered at the same x in this arena), so without an
+// offset the two labels would land on the exact same point. Nudged down by
+// a fixed gap from the shared band instead: still visually "on the A row",
+// clear of A1's own label above it. A smaller font (--word modifier) since
+// it's a word, not a peer section code.
+const WHEELCHAIR_LABEL_Y_OFFSET = 24;
+
+function addWheelchairLabel(svg, shapeBBox, bands) {
+  const svgNs = "http://www.w3.org/2000/svg";
   const text = document.createElementNS(svgNs, "text");
-  text.setAttribute("class", "seatmap-halo-text seatmap-overlay-text");
-  text.setAttribute("x", String(bbox.x + bbox.width / 2));
-  text.setAttribute("y", String(bbox.y + bbox.height * 0.8));
+  text.setAttribute("class", "seatmap-halo-text seatmap-label-text seatmap-label-text--word");
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("pointer-events", "none");
   text.setAttribute("aria-hidden", "true");
-  text.textContent = `${formatThousands(row.sold)} / ${formatThousands(row.total)}`;
+  text.setAttribute("x", String(shapeBBox.x + shapeBBox.width / 2));
+  text.setAttribute("y", String(bands.aLabelY + WHEELCHAIR_LABEL_Y_OFFSET));
+  text.textContent = sectionLabel("invalid");
   svg.append(text);
-  return text;
 }
 
 let legendInfoIdCounter = 0;

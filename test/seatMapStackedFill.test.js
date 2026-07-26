@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SEAT_STATE } from "../js/seatMapClassify.js";
-import { computeStackedFillZones } from "../js/seatMapStackedFill.js";
+import { computeStackedFillZones, clampZoneSpansToMinimum } from "../js/seatMapStackedFill.js";
+
+function approxEqual(a, b, epsilon = 1e-6) {
+  return Math.abs(a - b) < epsilon;
+}
+
+function assertSpansSumTo100(zones) {
+  assert.ok(approxEqual(zones[zones.length - 1].end, 100), `expected zones to end at 100, got ${zones[zones.length - 1].end}`);
+  assert.ok(approxEqual(zones[0].start, 0), `expected zones to start at 0, got ${zones[0].start}`);
+}
 
 test("computeStackedFillZones: 3-zone split reflects kausikortti/irtolippu/vapaa shares of capacity", () => {
   const zones = computeStackedFillZones({ sold: 70, total: 100, kausikorttiSold: 40 });
@@ -67,4 +76,102 @@ test("computeStackedFillZones: total of 0 is handled without dividing by zero", 
     { state: SEAT_STATE.IRTOLIPPU, start: 0, end: 0 },
     { state: SEAT_STATE.VAPAA, start: 0, end: 100 },
   ]);
+});
+
+test("clampZoneSpansToMinimum: a single tiny zone is clamped to the minimum, others shrink to compensate", () => {
+  // vapaa's true share is 2% — well under a 10% minimum.
+  const zones = computeStackedFillZones({ sold: 98, total: 100, kausikorttiSold: 60 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+
+  const vapaa = clamped.find((z) => z.state === SEAT_STATE.VAPAA);
+  assert.ok(approxEqual(vapaa.end - vapaa.start, 10), `expected vapaa clamped to 10, got ${vapaa.end - vapaa.start}`);
+  assertSpansSumTo100(clamped);
+
+  // the two sold zones shrink proportionally (60:38 ratio) to fill the remaining 90%.
+  const kausikortti = clamped.find((z) => z.state === SEAT_STATE.KAUSIKORTTI);
+  const irtolippu = clamped.find((z) => z.state === SEAT_STATE.IRTOLIPPU);
+  assert.ok(approxEqual(kausikortti.end - kausikortti.start, (60 / 98) * 90));
+  assert.ok(approxEqual(irtolippu.end - irtolippu.start, (38 / 98) * 90));
+});
+
+test("clampZoneSpansToMinimum: multiple simultaneously-tiny zones are all clamped", () => {
+  // kausikortti=1, irtolippu=1, vapaa=98 — both sold zones are tiny.
+  const zones = computeStackedFillZones({ sold: 2, total: 100, kausikorttiSold: 1 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+
+  const kausikortti = clamped.find((z) => z.state === SEAT_STATE.KAUSIKORTTI);
+  const irtolippu = clamped.find((z) => z.state === SEAT_STATE.IRTOLIPPU);
+  const vapaa = clamped.find((z) => z.state === SEAT_STATE.VAPAA);
+
+  assert.ok(approxEqual(kausikortti.end - kausikortti.start, 10));
+  assert.ok(approxEqual(irtolippu.end - irtolippu.start, 10));
+  assert.ok(approxEqual(vapaa.end - vapaa.start, 80));
+  assertSpansSumTo100(clamped);
+});
+
+test("clampZoneSpansToMinimum: a zero-share zone is left at zero, never clamped up", () => {
+  // no baseline tracked and nothing sold — myyty=0, vapaa=100.
+  const zones = computeStackedFillZones({ sold: 0, total: 100 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+
+  const myyty = clamped.find((z) => z.state === SEAT_STATE.MYYTY);
+  assert.equal(myyty.end - myyty.start, 0);
+  assertSpansSumTo100(clamped);
+});
+
+test("clampZoneSpansToMinimum: sold-out (vapaa=0) leaves vapaa at zero and clamps only the two sold zones if needed", () => {
+  const zones = computeStackedFillZones({ sold: 100, total: 100, kausikorttiSold: 99 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+
+  const vapaa = clamped.find((z) => z.state === SEAT_STATE.VAPAA);
+  assert.equal(vapaa.end - vapaa.start, 0);
+
+  const kausikortti = clamped.find((z) => z.state === SEAT_STATE.KAUSIKORTTI);
+  const irtolippu = clamped.find((z) => z.state === SEAT_STATE.IRTOLIPPU);
+  assert.ok(approxEqual(irtolippu.end - irtolippu.start, 10)); // irtolippu's true share (1%) is tiny — clamped
+  assert.ok(approxEqual(kausikortti.end - kausikortti.start, 90));
+  assertSpansSumTo100(clamped);
+});
+
+test("clampZoneSpansToMinimum: unsold (only vapaa) needs no clamping — vapaa fills the whole span", () => {
+  const zones = computeStackedFillZones({ sold: 0, total: 100, kausikorttiSold: 0 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+
+  const vapaa = clamped.find((z) => z.state === SEAT_STATE.VAPAA);
+  assert.equal(vapaa.start, 0);
+  assert.equal(vapaa.end, 100);
+  assertSpansSumTo100(clamped);
+});
+
+test("clampZoneSpansToMinimum: all zones comfortably above the minimum pass through unchanged", () => {
+  const zones = computeStackedFillZones({ sold: 70, total: 100, kausikorttiSold: 40 });
+  const clamped = clampZoneSpansToMinimum(zones, 10);
+  assert.deepEqual(clamped, zones);
+});
+
+test("clampZoneSpansToMinimum: canonical scarcity case — total 2138, sold 2126, vapaa exactly 12 remaining", () => {
+  const zones = computeStackedFillZones({ sold: 2126, total: 2138, kausikorttiSold: 1013 });
+  const vapaaShare = zones.find((z) => z.state === SEAT_STATE.VAPAA);
+  assert.ok(approxEqual(vapaaShare.end - vapaaShare.start, (12 / 2138) * 100)); // sanity: ~0.56% before clamping
+
+  const clamped = clampZoneSpansToMinimum(zones, 5); // a clearly-enforced 5% minimum
+  const vapaa = clamped.find((z) => z.state === SEAT_STATE.VAPAA);
+  assert.ok(approxEqual(vapaa.end - vapaa.start, 5), `expected vapaa clamped to 5, got ${vapaa.end - vapaa.start}`);
+
+  // the two sold zones (1013 kausikortti, 1113 irtolippu) renormalize
+  // proportionally around the clamped vapaa zone, still summing to 100.
+  const kausikortti = clamped.find((z) => z.state === SEAT_STATE.KAUSIKORTTI);
+  const irtolippu = clamped.find((z) => z.state === SEAT_STATE.IRTOLIPPU);
+  assert.ok(approxEqual(kausikortti.end - kausikortti.start, (1013 / 2126) * 95));
+  assert.ok(approxEqual(irtolippu.end - irtolippu.start, (1113 / 2126) * 95));
+  assertSpansSumTo100(clamped);
+});
+
+test("clampZoneSpansToMinimum: infeasible minimum (too many nonzero zones for the space) splits evenly instead of crashing", () => {
+  const zones = computeStackedFillZones({ sold: 70, total: 100, kausikorttiSold: 40 });
+  const clamped = clampZoneSpansToMinimum(zones, 40); // 3 zones * 40% > 100%
+  for (const zone of clamped) {
+    assert.ok(approxEqual(zone.end - zone.start, 100 / 3));
+  }
+  assertSpansSumTo100(clamped);
 });
