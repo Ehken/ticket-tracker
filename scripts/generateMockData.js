@@ -251,7 +251,10 @@ function computeTotals(sections) {
   );
 }
 
-function buildHistory(rng, { finalSold, finalStanding, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }) {
+function buildHistory(
+  rng,
+  { finalSold, finalStanding, finalHold, grandTotal, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }
+) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
   const spanDays = (endTime - startTime) / 86400000;
@@ -297,7 +300,20 @@ function buildHistory(rng, { finalSold, finalStanding, firstSeenIso, lastPointIs
 
     const standingShare = finalSold > 0 ? finalStanding / finalSold : 0;
     const soldStanding = Math.round(sold * standingShare);
-    points.push({ t: new Date(t).toISOString(), sold, soldSeated: sold - soldStanding, soldStanding });
+    // hold is a constant across the whole synthetic timeline — mock data
+    // never simulates a section opening/closing mid-event, only sold
+    // changing — so available is derived the same way production derives it
+    // for an open section: total - hold - sold. closed stays [] throughout;
+    // no release scenario is invented here (that belongs to a later PR).
+    points.push({
+      t: new Date(t).toISOString(),
+      sold,
+      soldSeated: sold - soldStanding,
+      soldStanding,
+      available: grandTotal - finalHold - sold,
+      hold: finalHold,
+      closed: [],
+    });
   }
 
   // Same "only append when sold changed" rule as production's real history.json.
@@ -449,6 +465,8 @@ async function main() {
       buildHistory(rng, {
         finalSold: totals.sold,
         finalStanding: standingRow.sold,
+        finalHold: totals.hold,
+        grandTotal: totals.total,
         firstSeenIso,
         lastPointIso,
         pointCount: historyPoints,
@@ -673,6 +691,31 @@ async function main() {
     historyPoints: 3,
   });
   // Intentionally: no overrides["90-042"], no autoclass["90-042"].
+
+  // --- Verify the sold+available+hold=total invariant on every generated
+  // history point, rather than assuming buildHistory's "hold is constant"
+  // reasoning holds for every event shape it's fed (e.g. a disabled
+  // section's hold = that section's own total-sold, which only stays
+  // constant across the timeline if it never sells any seats in mock data —
+  // true today, but worth checking rather than assuming forever). ---
+  const invariantViolations = [];
+  for (const event of events) {
+    const total = latestById.get(event.id).totals.total;
+    for (const point of historyById.get(event.id)) {
+      if (point.sold + point.available + point.hold !== total) {
+        invariantViolations.push(
+          `${event.id} @ ${point.t}: sold(${point.sold}) + available(${point.available}) + hold(${point.hold}) ` +
+            `= ${point.sold + point.available + point.hold}, expected total ${total}`
+        );
+      }
+    }
+  }
+  if (invariantViolations.length > 0) {
+    throw new Error(
+      `generateMockData: sold+available+hold≠total for ${invariantViolations.length} history point(s):\n` +
+        invariantViolations.join("\n")
+    );
+  }
 
   // --- Write everything out ---
   await mkdir(mockDir, { recursive: true });

@@ -3,60 +3,90 @@
     "t": "2026-08-19T15:30:00.000Z",
     "sold": 0,
     "soldSeated": 0,
-    "soldStanding": 0
+    "soldStanding": 0,
+    "available": 4796,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-08-29T04:42:51.428Z",
     "sold": 499,
     "soldSeated": 268,
-    "soldStanding": 231
+    "soldStanding": 231,
+    "available": 4297,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-09-07T17:55:42.857Z",
     "sold": 1143,
     "soldSeated": 613,
-    "soldStanding": 530
+    "soldStanding": 530,
+    "available": 3653,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-09-17T07:08:34.285Z",
     "sold": 1533,
     "soldSeated": 822,
-    "soldStanding": 711
+    "soldStanding": 711,
+    "available": 3263,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-09-26T20:21:25.714Z",
     "sold": 1858,
     "soldSeated": 996,
-    "soldStanding": 862
+    "soldStanding": 862,
+    "available": 2938,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-06T09:34:17.142Z",
     "sold": 2737,
     "soldSeated": 1467,
-    "soldStanding": 1270
+    "soldStanding": 1270,
+    "available": 2059,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-15T22:47:08.571Z",
     "sold": 2959,
     "soldSeated": 1586,
-    "soldStanding": 1373
+    "soldStanding": 1373,
+    "available": 1837,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-18T12:00:00.000Z",
     "sold": 3242,
     "soldSeated": 1738,
-    "soldStanding": 1504
+    "soldStanding": 1504,
+    "available": 1554,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-22T12:00:00.000Z",
     "sold": 3563,
     "soldSeated": 1910,
-    "soldStanding": 1653
+    "soldStanding": 1653,
+    "available": 1233,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2026-10-25T06:00:00.000Z",
     "sold": 3568,
     "soldSeated": 1913,
-    "soldStanding": 1655
+    "soldStanding": 1655,
+    "available": 1228,
+    "hold": 180,
+    "closed": []
   }
 ]

@@ -3,12 +3,18 @@
     "t": "2027-08-22T15:30:00.000Z",
     "sold": 0,
     "soldSeated": 0,
-    "soldStanding": 0
+    "soldStanding": 0,
+    "available": 4796,
+    "hold": 180,
+    "closed": []
   },
   {
     "t": "2027-08-10T12:00:00.000Z",
     "sold": 486,
     "soldSeated": 344,
-    "soldStanding": 142
+    "soldStanding": 142,
+    "available": 4310,
+    "hold": 180,
+    "closed": []
   }
 ]

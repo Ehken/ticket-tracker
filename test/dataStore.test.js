@@ -17,6 +17,12 @@ test("eventDirId replaces colons with dashes (Windows-safe)", () => {
   assert.equal(eventDirId("53:575"), "53-575");
 });
 
+test("eventDirId rejects ids that don't match the strict digits:digits shape", () => {
+  for (const malformed of ["53-575", "../../etc/passwd", "", "53:575/x", undefined]) {
+    assert.throws(() => eventDirId(malformed), /Refusing to build a data path from a malformed event id/);
+  }
+});
+
 test("writeJsonIfChanged writes a new file and reports it changed", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "datastore-test-"));
   const file = path.join(dir, "sub", "events.json");
@@ -178,34 +184,98 @@ test("appendHistoryPointIfChanged always keeps the first point", () => {
     sold: 1200,
     soldSeated: 1100,
     soldStanding: 100,
+    available: 800,
+    hold: 0,
+    closed: [],
   });
   assert.deepEqual(history, [
-    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100 },
+    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100, available: 800, hold: 0, closed: [] },
   ]);
 });
 
-test("appendHistoryPointIfChanged skips a point when sold is unchanged", () => {
-  const existing = [{ t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100 }];
+test("appendHistoryPointIfChanged skips a point when nothing (sold/available/hold/closed) changed", () => {
+  const existing = [
+    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100, available: 800, hold: 0, closed: ["C2"] },
+  ];
   const history = appendHistoryPointIfChanged(existing, {
     tISO: "2026-06-01T11:00:00.000Z",
     sold: 1200,
     soldSeated: 1100,
     soldStanding: 100,
+    available: 800,
+    hold: 0,
+    closed: ["C2"], // different array reference, same content — must not force an append
   });
   assert.equal(history, existing);
   assert.equal(history.length, 1);
 });
 
 test("appendHistoryPointIfChanged appends a point when sold changed", () => {
-  const existing = [{ t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100 }];
+  const existing = [
+    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100, available: 800, hold: 0, closed: [] },
+  ];
   const history = appendHistoryPointIfChanged(existing, {
     tISO: "2026-06-01T11:00:00.000Z",
     sold: 1205,
     soldSeated: 1105,
     soldStanding: 100,
+    available: 795,
+    hold: 0,
+    closed: [],
   });
   assert.equal(history.length, 2);
   assert.equal(history[1].sold, 1205);
+});
+
+test("appendHistoryPointIfChanged appends when sold is unchanged but available/hold changed (e.g. a quota release)", () => {
+  const existing = [
+    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100, available: 800, hold: 200, closed: [] },
+  ];
+  const history = appendHistoryPointIfChanged(existing, {
+    tISO: "2026-06-01T11:00:00.000Z",
+    sold: 1200,
+    soldSeated: 1100,
+    soldStanding: 100,
+    available: 900,
+    hold: 100,
+    closed: [],
+  });
+  assert.equal(history.length, 2);
+  assert.equal(history[1].available, 900);
+  assert.equal(history[1].hold, 100);
+});
+
+test("appendHistoryPointIfChanged appends when only the closed-section list changed", () => {
+  const existing = [
+    { t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100, available: 800, hold: 0, closed: [] },
+  ];
+  const history = appendHistoryPointIfChanged(existing, {
+    tISO: "2026-06-01T11:00:00.000Z",
+    sold: 1200,
+    soldSeated: 1100,
+    soldStanding: 100,
+    available: 800,
+    hold: 0,
+    closed: ["C2"],
+  });
+  assert.equal(history.length, 2);
+  assert.deepEqual(history[1].closed, ["C2"]);
+});
+
+test("appendHistoryPointIfChanged appends once for a legacy point with no available/hold recorded", () => {
+  const existing = [{ t: "2026-06-01T10:00:00.000Z", sold: 1200, soldSeated: 1100, soldStanding: 100 }];
+  const history = appendHistoryPointIfChanged(existing, {
+    tISO: "2026-06-01T11:00:00.000Z",
+    sold: 1200,
+    soldSeated: 1100,
+    soldStanding: 100,
+    available: 800,
+    hold: 0,
+    closed: [],
+  });
+  assert.equal(history.length, 2);
+  assert.equal(history[1].available, 800);
+  assert.equal(history[1].hold, 0);
 });
 
 test("setAutoclassIfAbsent inserts a new entry when the key is absent", () => {

@@ -1,7 +1,15 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
+const EVENT_ID_RE = /^\d+:\d+$/;
+
+// Real ids come from listing.js's own /\d+:\d+/ regex, so this is
+// defence-in-depth (a malformed id must never reach path.join), not a live
+// exploit — but every path-building helper below funnels through here.
 export function eventDirId(id) {
+  if (typeof id !== "string" || !EVENT_ID_RE.test(id)) {
+    throw new Error(`Refusing to build a data path from a malformed event id: ${JSON.stringify(id)}`);
+  }
   return id.replace(/:/g, "-");
 }
 
@@ -105,12 +113,33 @@ export function assertListingNotSuspiciouslyEmpty(index, presentIds) {
   }
 }
 
-export function appendHistoryPointIfChanged(history, { tISO, sold, soldSeated, soldStanding }) {
-  const point = { t: tISO, sold, soldSeated, soldStanding };
+// For an open section, available = total - sold, so available/hold move in
+// lockstep with sold and add no new signal on their own. When sold is
+// unchanged, available/hold can only move on a release, a closure, or a
+// capacity change — exactly the events worth a data point, which is why the
+// gate widens to all four fields instead of just sold. A legacy point with
+// no available/hold recorded yet (undefined) naturally compares unequal to
+// a real number, so the first run after this field lands appends once
+// without needing a special case.
+export function appendHistoryPointIfChanged(
+  history,
+  { tISO, sold, soldSeated, soldStanding, available, hold, closed = [] }
+) {
+  const point = { t: tISO, sold, soldSeated, soldStanding, available, hold, closed };
 
   if (history.length === 0) return [point];
-  if (history[history.length - 1].sold !== sold) return [...history, point];
-  return history;
+
+  const prev = history[history.length - 1];
+  const changed =
+    prev.sold !== sold || prev.available !== available || prev.hold !== hold || !sameClosedList(prev.closed, closed);
+
+  return changed ? [...history, point] : history;
+}
+
+function sameClosedList(a, b) {
+  const arrA = a ?? [];
+  const arrB = b ?? [];
+  return arrA.length === arrB.length && arrA.every((v, i) => v === arrB[i]);
 }
 
 export function setAutoclassIfAbsent(autoclassMap, dashId, entry) {
