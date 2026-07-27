@@ -257,7 +257,17 @@ function computeTotals(sections) {
 
 function buildHistory(
   rng,
-  { finalSold, finalStanding, finalHold, grandTotal, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }
+  {
+    finalSold,
+    finalStanding,
+    finalHold,
+    grandTotal,
+    firstSeenIso,
+    lastPointIso,
+    pointCount,
+    pinRecentToFinal = false,
+    closed = [],
+  }
 ) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
@@ -307,8 +317,10 @@ function buildHistory(
     // hold is a constant across the whole synthetic timeline — mock data
     // never simulates a section opening/closing mid-event, only sold
     // changing — so available is derived the same way production derives it
-    // for an open section: total - hold - sold. closed stays [] throughout;
-    // no release scenario is invented here (that belongs to a later PR).
+    // for an open section: total - hold - sold. closed is likewise constant
+    // across the timeline (the event's own disabled-section list, matching
+    // its latest.json exactly) — not empty, just never changing; no release
+    // scenario is invented here (that belongs to a later PR).
     points.push({
       t: new Date(t).toISOString(),
       sold,
@@ -316,7 +328,7 @@ function buildHistory(
       soldStanding,
       available: grandTotal - finalHold - sold,
       hold: finalHold,
-      closed: [],
+      closed,
     });
   }
 
@@ -464,6 +476,11 @@ async function main() {
     });
 
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");
+    // Same derivation production uses (scripts/fetch.js): sorted section
+    // names of every disabled row. Constant across the timeline — mock data
+    // doesn't simulate a section opening/closing mid-event — so every
+    // history point below carries this same list, matching latest.json.
+    const closed = sections.filter((s) => s.disabled).map((s) => s.section).sort();
     historyById.set(
       id,
       buildHistory(rng, {
@@ -475,6 +492,7 @@ async function main() {
         lastPointIso,
         pointCount: historyPoints,
         pinRecentToFinal,
+        closed,
       })
     );
 
@@ -722,15 +740,30 @@ async function main() {
   // reasoning holds for every event shape it's fed (e.g. a disabled
   // section's hold = that section's own total-sold, which only stays
   // constant across the timeline if it never sells any seats in mock data —
-  // true today, but worth checking rather than assuming forever). ---
+  // true today, but worth checking rather than assuming forever). Also
+  // verify every point's closed list matches the event's own latest.json —
+  // this is what would have caught closed staying [] while latest.json
+  // already listed disabled sections. ---
   const invariantViolations = [];
   for (const event of events) {
-    const total = latestById.get(event.id).totals.total;
+    const latest = latestById.get(event.id);
+    const total = latest.totals.total;
+    const expectedClosed = latest.sections
+      .filter((s) => s.disabled)
+      .map((s) => s.section)
+      .sort();
     for (const point of historyById.get(event.id)) {
       if (point.sold + point.available + point.hold !== total) {
         invariantViolations.push(
           `${event.id} @ ${point.t}: sold(${point.sold}) + available(${point.available}) + hold(${point.hold}) ` +
             `= ${point.sold + point.available + point.hold}, expected total ${total}`
+        );
+      }
+      const actualClosed = [...point.closed].sort();
+      if (JSON.stringify(actualClosed) !== JSON.stringify(expectedClosed)) {
+        invariantViolations.push(
+          `${event.id} @ ${point.t}: closed=[${point.closed.join(", ")}], expected [${expectedClosed.join(", ")}] ` +
+            "(latest.json's disabled sections)"
         );
       }
     }
