@@ -69,6 +69,41 @@ export function resolveSarja(requested, availability) {
   return option && option.hasEvents ? requested : "kaikki";
 }
 
+// The season "currently being played or sold": the nearest upcoming
+// event's season, or (if nothing is upcoming) the most recent past
+// event's season. `events` must be match events only (not kausikortti
+// strips) — a kausikortti event stays status "upcoming" for its entire
+// sale window regardless of the season's own start date, so including it
+// would pick a season by kausikortti sale-open date rather than by actual
+// game availability. Returns null when there's nothing to go on (no
+// events at all, or none carrying a season), leaving the caller to fall
+// back to its own default.
+export function resolveDefaultSeason(events) {
+  const upcoming = events.filter((e) => e.status === "upcoming" && e.season);
+  if (upcoming.length > 0) {
+    return [...upcoming].sort((a, b) => a.start.localeCompare(b.start))[0].season;
+  }
+  const past = events.filter((e) => e.status === "past" && e.season);
+  if (past.length > 0) {
+    return [...past].sort((a, b) => b.start.localeCompare(a.start))[0].season;
+  }
+  return null;
+}
+
+// requested === "kaikki" and an explicit, still-valid requested season are
+// both kept as-is; only the no-selection fallback changes: previously
+// "newest season with data" (lexically last), which picks a future season
+// with nothing on sale yet as soon as one exists. Now: the season actually
+// being played/sold (see resolveDefaultSeason), falling back to the old
+// lexically-last behavior only when that can't be determined.
+export function resolveKausi(requested, seasons, events) {
+  if (requested === "kaikki") return "kaikki";
+  if (requested && seasons.includes(requested)) return requested;
+  const defaultSeason = resolveDefaultSeason(events);
+  if (defaultSeason && seasons.includes(defaultSeason)) return defaultSeason;
+  return seasons[seasons.length - 1] ?? "kaikki";
+}
+
 const OPPONENT_PREFIX_RE = /^saipa\s*[-–—]\s*/i;
 
 export function extractOpponentDisplay(name) {

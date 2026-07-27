@@ -8,136 +8,136 @@
   "sections": [
     {
       "section": "A1",
-      "sold": 116,
-      "available": 55,
+      "sold": 66,
+      "available": 105,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 189,
-      "available": 79,
+      "sold": 201,
+      "available": 67,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 201,
-      "available": 45,
+      "sold": 199,
+      "available": 47,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 147,
-      "available": 97,
+      "sold": 186,
+      "available": 58,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 121,
-      "available": 126,
+      "sold": 199,
+      "available": 48,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 74,
-      "available": 46,
+      "sold": 106,
+      "available": 14,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 76,
-      "available": 32,
+      "sold": 93,
+      "available": 15,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
-      "sold": 82,
-      "available": 38,
+      "sold": 51,
+      "available": 69,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C3",
-      "sold": 112,
-      "available": 38,
+      "sold": 132,
+      "available": 18,
       "hold": 0,
       "total": 150,
       "disabled": false
     },
     {
       "section": "C4",
-      "sold": 102,
-      "available": 18,
+      "sold": 116,
+      "available": 4,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C5",
-      "sold": 97,
-      "available": 23,
+      "sold": 114,
+      "available": 6,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C6",
-      "sold": 77,
-      "available": 36,
+      "sold": 87,
+      "available": 26,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 67,
-      "available": 27,
+      "sold": 64,
+      "available": 30,
       "hold": 0,
       "total": 94,
       "disabled": false
     },
     {
       "section": "C8",
-      "sold": 69,
-      "available": 36,
+      "sold": 74,
+      "available": 31,
       "hold": 0,
       "total": 105,
       "disabled": false
     },
     {
       "section": "D1",
-      "sold": 108,
-      "available": 97,
+      "sold": 109,
+      "available": 96,
       "hold": 0,
       "total": 205,
       "disabled": false
     },
     {
       "section": "D2",
-      "sold": 152,
-      "available": 63,
+      "sold": 53,
+      "available": 162,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1695,
-      "available": 443,
+      "sold": 1525,
+      "available": 613,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 3493,
-    "available": 1303,
+    "sold": 3383,
+    "available": 1413,
     "hold": 180,
     "total": 4976
   },
