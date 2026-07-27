@@ -94,5 +94,19 @@
     "sold": 2554,
     "soldSeated": 1534,
     "soldStanding": 1015
+  },
+  {
+    "t": "2026-07-27T07:50:03.239Z",
+    "sold": 2555,
+    "soldSeated": 1534,
+    "soldStanding": 1016,
+    "available": 1825,
+    "hold": 596,
+    "closed": [
+      "C2",
+      "C7",
+      "C8",
+      "D2"
+    ]
   }
 ]
