@@ -10,6 +10,9 @@ import {
   archiveMissingEvents,
   assertListingNotSuspiciouslyEmpty,
   appendHistoryPointIfChanged,
+  appendSectionHistoryPointIfChanged,
+  serializeSectionHistory,
+  writeSectionHistoryIfChanged,
   setAutoclassIfAbsent,
 } from "../scripts/lib/dataStore.js";
 
@@ -276,6 +279,183 @@ test("appendHistoryPointIfChanged appends once for a legacy point with no availa
   assert.equal(history.length, 2);
   assert.equal(history[1].available, 800);
   assert.equal(history[1].hold, 0);
+});
+
+test("appendSectionHistoryPointIfChanged starts the first generation on an empty file", () => {
+  const generations = appendSectionHistoryPointIfChanged([], {
+    capacitiesHash: "hash1",
+    sections: ["A1", "A2"],
+    tISO: "2026-08-01T10:00:00.000Z",
+    sold: [1, 2],
+    closed: [],
+  });
+  assert.deepEqual(generations, [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ]);
+});
+
+test("appendSectionHistoryPointIfChanged is a no-op when neither sold nor closed changed", () => {
+  const existing = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ];
+  const result = appendSectionHistoryPointIfChanged(existing, {
+    capacitiesHash: "hash1",
+    sections: ["A1", "A2"],
+    tISO: "2026-08-01T11:00:00.000Z",
+    sold: [1, 2],
+    closed: [],
+  });
+  assert.equal(result, existing); // same reference: no-op
+});
+
+test("appendSectionHistoryPointIfChanged appends within the same generation when a section's sold changed", () => {
+  const existing = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ];
+  const result = appendSectionHistoryPointIfChanged(existing, {
+    capacitiesHash: "hash1",
+    sections: ["A1", "A2"],
+    tISO: "2026-08-01T11:00:00.000Z",
+    sold: [1, 3],
+    closed: [],
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0].points.length, 2);
+  assert.deepEqual(result[0].points[1], { t: "2026-08-01T11:00:00.000Z", sold: [1, 3], closed: [] });
+});
+
+test("appendSectionHistoryPointIfChanged appends within the same generation when only the closed list changed", () => {
+  const existing = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ];
+  const result = appendSectionHistoryPointIfChanged(existing, {
+    capacitiesHash: "hash1",
+    sections: ["A1", "A2"],
+    tISO: "2026-08-01T11:00:00.000Z",
+    sold: [1, 2],
+    closed: ["A1"],
+  });
+  assert.equal(result[0].points.length, 2);
+  assert.deepEqual(result[0].points[1].closed, ["A1"]);
+});
+
+test("appendSectionHistoryPointIfChanged starts a new generation when capacitiesHash changes, preserving the old generation untouched", () => {
+  const existing = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ];
+  const warnings = [];
+  const result = appendSectionHistoryPointIfChanged(
+    existing,
+    {
+      capacitiesHash: "hash2",
+      sections: ["A1", "A2"],
+      tISO: "2026-09-01T10:00:00.000Z",
+      sold: [5, 6],
+      closed: [],
+    },
+    { warn: (msg) => warnings.push(msg) }
+  );
+
+  assert.equal(result.length, 2);
+  assert.equal(result[0], existing[0]); // untouched, same reference
+  assert.deepEqual(result[1], {
+    capacitiesHash: "hash2",
+    sections: ["A1", "A2"],
+    points: [{ t: "2026-09-01T10:00:00.000Z", sold: [5, 6], closed: [] }],
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /hash1 -> hash2/);
+});
+
+test("appendSectionHistoryPointIfChanged starts a new generation when the section list changes, logging added/removed names", () => {
+  const existing = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [{ t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] }],
+    },
+  ];
+  const warnings = [];
+  const result = appendSectionHistoryPointIfChanged(
+    existing,
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A3"],
+      tISO: "2026-09-01T10:00:00.000Z",
+      sold: [5, 6],
+      closed: [],
+    },
+    { warn: (msg) => warnings.push(msg) }
+  );
+
+  assert.equal(result.length, 2);
+  assert.equal(result[0], existing[0]);
+  assert.match(warnings[0], /\+\[A3\] -\[A2\]/);
+});
+
+test("appendSectionHistoryPointIfChanged does not warn on the very first generation (nothing to compare against)", () => {
+  const warnings = [];
+  appendSectionHistoryPointIfChanged(
+    [],
+    { capacitiesHash: "hash1", sections: ["A1"], tISO: "2026-08-01T10:00:00.000Z", sold: [1], closed: [] },
+    { warn: (msg) => warnings.push(msg) }
+  );
+  assert.equal(warnings.length, 0);
+});
+
+test("serializeSectionHistory renders each point as a single compact JSON line, structure indented", () => {
+  const generations = [
+    {
+      capacitiesHash: "hash1",
+      sections: ["A1", "A2"],
+      points: [
+        { t: "2026-08-01T10:00:00.000Z", sold: [1, 2], closed: [] },
+        { t: "2026-08-02T10:00:00.000Z", sold: [3, 4], closed: ["A1"] },
+      ],
+    },
+  ];
+  const serialized = serializeSectionHistory(generations);
+
+  assert.deepEqual(JSON.parse(serialized), generations); // valid JSON round-trip
+  const lines = serialized.split("\n");
+  assert.ok(lines.some((l) => l.trim() === '{"t":"2026-08-01T10:00:00.000Z","sold":[1,2],"closed":[]},'));
+  assert.ok(lines.some((l) => l.trim() === '{"t":"2026-08-02T10:00:00.000Z","sold":[3,4],"closed":["A1"]}'));
+});
+
+test("serializeSectionHistory renders an empty generations array as a plain empty array", () => {
+  assert.equal(serializeSectionHistory([]), "[]\n");
+});
+
+test("writeSectionHistoryIfChanged writes a new file and is a no-op on an unchanged rewrite", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "section-history-test-"));
+  const filePath = path.join(dir, "sub", "sectionHistory.json");
+  const generations = [{ capacitiesHash: "hash1", sections: ["A1"], points: [{ t: "t1", sold: [1], closed: [] }] }];
+
+  assert.equal(await writeSectionHistoryIfChanged(filePath, generations), true);
+  const written = await readFile(filePath, "utf8");
+  assert.deepEqual(JSON.parse(written), generations);
+
+  assert.equal(await writeSectionHistoryIfChanged(filePath, generations), false);
 });
 
 test("setAutoclassIfAbsent inserts a new entry when the key is absent", () => {

@@ -10,6 +10,7 @@ import { parseSeatmapSeatIds } from "./lib/seatmap.js";
 import { compareAitioIds } from "./lib/sections.js";
 import { sectionOfSeatId } from "../js/seatMapClassify.js";
 import { mergeClassification } from "../js/classify.js";
+import { appendSectionHistoryPointIfChanged, writeSectionHistoryIfChanged } from "./lib/dataStore.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -345,20 +346,14 @@ export function assertBaselineSnapshotValid(snapshot, realCapacitiesHash) {
   }
 }
 
-function buildHistory(
-  rng,
-  {
-    finalSold,
-    finalStanding,
-    finalHold,
-    grandTotal,
-    firstSeenIso,
-    lastPointIso,
-    pointCount,
-    pinRecentToFinal = false,
-    closed = [],
-  }
-) {
+// Shared progress/timestamp grid for both buildHistory (aggregate) and
+// buildSectionHistory (per-section) — same points in time, so the two series
+// describe the same synthetic timeline, just at different granularity.
+// Splices in denser points close to "now" (the tracked window's end) so
+// 24h/7d deltas have real data to compute on — only for events with enough
+// tracked history for these offsets to fall inside their range — and
+// guarantees an exact final point at progress 1.
+function generateProgressPoints(firstSeenIso, lastPointIso, pointCount) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
   const spanDays = (endTime - startTime) / 86400000;
@@ -366,9 +361,6 @@ function buildHistory(
   const progresses = [];
   for (let i = 0; i < pointCount; i++) progresses.push(i / (pointCount - 1));
 
-  // Splice in denser points close to "now" (the tracked window's end) so
-  // 24h/7d deltas have real data to compute on — only for events with
-  // enough tracked history for these offsets to fall inside their range.
   const recentProgressSet = new Set();
   if (spanDays >= 7) {
     for (const offsetDays of [7, 3, 1, 0.25]) {
@@ -383,15 +375,35 @@ function buildHistory(
   const uniqueSortedProgresses = [...new Set(progresses)].sort((a, b) => a - b);
   uniqueSortedProgresses[uniqueSortedProgresses.length - 1] = 1; // guarantee an exact final point
 
+  return uniqueSortedProgresses.map((progress, i) => ({
+    progress,
+    t: new Date(startTime + (endTime - startTime) * progress).toISOString(),
+    isLast: i === uniqueSortedProgresses.length - 1,
+    isRecent: recentProgressSet.has(progress),
+  }));
+}
+
+function buildHistory(
+  rng,
+  {
+    finalSold,
+    finalStanding,
+    finalHold,
+    grandTotal,
+    firstSeenIso,
+    lastPointIso,
+    pointCount,
+    pinRecentToFinal = false,
+    closed = [],
+  }
+) {
+  const progressPoints = generateProgressPoints(firstSeenIso, lastPointIso, pointCount);
+
   const points = [];
   let prevSold = 0;
-  for (let i = 0; i < uniqueSortedProgresses.length; i++) {
-    const progress = uniqueSortedProgresses[i];
-    const t = startTime + (endTime - startTime) * progress;
-    const isLast = i === uniqueSortedProgresses.length - 1;
-
+  for (const { t, progress, isLast, isRecent } of progressPoints) {
     let sold;
-    if (pinRecentToFinal && (recentProgressSet.has(progress) || isLast)) {
+    if (pinRecentToFinal && (isRecent || isLast)) {
       // Sales have plateaued over the recent window — a deliberately "flat"
       // mock game, so top-movers/sellout-estimate have a real zero-velocity
       // case to exclude, not just synthetic unit-test fixtures.
@@ -412,7 +424,7 @@ function buildHistory(
     // its latest.json exactly) — not empty, just never changing; no release
     // scenario is invented here (that belongs to a later PR).
     points.push({
-      t: new Date(t).toISOString(),
+      t,
       sold,
       soldSeated: sold - soldStanding,
       soldStanding,
@@ -424,6 +436,47 @@ function buildHistory(
 
   // Same "only append when sold changed" rule as production's real history.json.
   return points.filter((p, i) => i === 0 || p.sold !== points[i - 1].sold);
+}
+
+// Per-section counterpart to buildHistory — same progress/timestamp grid,
+// but each section's sold ramps independently with the same shape buildHistory
+// already uses (just per-section), and the result is built by calling the
+// real appendSectionHistoryPointIfChanged once per progress point, so this
+// mock fixture is produced by the exact accumulation logic production uses,
+// not a reimplementation of it. Every mock event's own disabled set and
+// capacitiesHash are constant across its timeline (no transitions in this
+// PR — that fixture gap is a later PR's job), so this always yields exactly
+// one generation.
+function buildSectionHistory(rng, { sections, capacitiesHash, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }) {
+  const progressPoints = generateProgressPoints(firstSeenIso, lastPointIso, pointCount);
+  const sectionNames = sections.map((s) => s.section);
+  const closed = sections.filter((s) => s.disabled).map((s) => s.section).sort();
+  const prevSold = new Array(sections.length).fill(0);
+
+  let generations = [];
+  for (const { t, progress, isLast, isRecent } of progressPoints) {
+    const sold = sections.map((s, idx) => {
+      let value;
+      if (pinRecentToFinal && (isRecent || isLast)) {
+        value = s.sold;
+      } else {
+        value = clamp(Math.round(s.sold * progress * (0.85 + rng() * 0.3)), prevSold[idx], s.sold);
+      }
+      if (isLast) value = s.sold;
+      prevSold[idx] = Math.max(prevSold[idx], value);
+      return value;
+    });
+
+    generations = appendSectionHistoryPointIfChanged(generations, {
+      capacitiesHash,
+      sections: sectionNames,
+      tISO: t,
+      sold,
+      closed,
+    });
+  }
+
+  return generations;
 }
 
 // Deterministic seeded pick of `count` items from `pool`, sorted in the
@@ -496,6 +549,7 @@ async function main() {
   const events = [];
   const latestById = new Map();
   const historyById = new Map();
+  const sectionHistoryById = new Map();
   const seatsById = new Map();
   const overrides = {};
   const autoclass = {};
@@ -604,6 +658,21 @@ async function main() {
         pointCount: historyPoints,
         pinRecentToFinal,
         closed,
+      })
+    );
+
+    // Called after buildHistory so it doesn't disturb buildSections'/
+    // assignSeatIds'/buildHistory's existing relative rng-draw order for
+    // this event — this is purely additional rng consumption at the end.
+    sectionHistoryById.set(
+      id,
+      buildSectionHistory(rng, {
+        sections,
+        capacitiesHash: "mock-fixture",
+        firstSeenIso,
+        lastPointIso,
+        pointCount: historyPoints,
+        pinRecentToFinal,
       })
     );
 
@@ -950,6 +1019,37 @@ async function main() {
     }
   }
 
+  // --- Verify sectionHistory.json's shape: every mock event's own disabled
+  // set and capacitiesHash are constant across its timeline (no
+  // open/closed transitions in this PR), so every mock event must produce
+  // exactly one generation, whose sections match latest.json's row order,
+  // with every point's sold array the same length as that section list. ---
+  for (const event of events) {
+    const generations = sectionHistoryById.get(event.id);
+    const latestSections = latestById.get(event.id).sections.map((s) => s.section);
+
+    if (generations.length !== 1) {
+      invariantViolations.push(
+        `${event.id}: expected exactly 1 sectionHistory generation (no mock event transitions in this PR), ` +
+          `got ${generations.length}`
+      );
+      continue;
+    }
+
+    const [generation] = generations;
+    if (JSON.stringify(generation.sections) !== JSON.stringify(latestSections)) {
+      invariantViolations.push(`${event.id}: sectionHistory sections don't match latest.json's row order`);
+    }
+    for (const point of generation.points) {
+      if (point.sold.length !== generation.sections.length) {
+        invariantViolations.push(
+          `${event.id} @ ${point.t}: sectionHistory sold array length (${point.sold.length}) != ` +
+            `sections length (${generation.sections.length})`
+        );
+      }
+    }
+  }
+
   if (invariantViolations.length > 0) {
     throw new Error(
       `generateMockData: ${invariantViolations.length} invariant violation(s):\n` + invariantViolations.join("\n")
@@ -976,6 +1076,7 @@ async function main() {
     await writeFile(path.join(dir, "latest.json"), JSON.stringify(latestById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "history.json"), JSON.stringify(historyById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "seats.json"), JSON.stringify(seatsById.get(event.id), null, 2) + "\n");
+    await writeSectionHistoryIfChanged(path.join(dir, "sectionHistory.json"), sectionHistoryById.get(event.id));
   }
 
   console.log(`Generated ${events.length} mock events under ${path.relative(repoRoot, mockDir)}/`);

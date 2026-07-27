@@ -33,6 +33,10 @@ export function seatsPath(dataDir, id) {
   return path.join(eventDir(dataDir, id), "seats.json");
 }
 
+export function sectionHistoryPath(dataDir, id) {
+  return path.join(eventDir(dataDir, id), "sectionHistory.json");
+}
+
 export function capacitiesPath(dataDir, hash) {
   return path.join(dataDir, "capacities", `${hash}.json`);
 }
@@ -57,6 +61,52 @@ export async function readJson(filePath, fallback) {
 
 export async function writeJsonIfChanged(filePath, obj) {
   const serialized = JSON.stringify(obj, null, 2) + "\n";
+
+  let existing;
+  try {
+    existing = await readFile(filePath, "utf8");
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+
+  if (existing === serialized) return false;
+
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, serialized);
+  return true;
+}
+
+// sectionHistory.json's own serializer, not writeJsonIfChanged's generic
+// JSON.stringify(obj, null, 2) — that pretty-printer puts every element of a
+// 20-number `sold` array on its own line, throwing away most of the
+// compactness the column-oriented format exists for (~320 bytes/point vs
+// ~150 with one point per line). Structure (generations, their
+// capacitiesHash/sections fields) stays indented/readable; each point is one
+// compact JSON line, so diffs stay strictly line-additive as the file grows
+// across a season — the whole point of storing it this way.
+export function serializeSectionHistory(generations) {
+  if (generations.length === 0) return "[]\n";
+
+  const genBlocks = generations.map((gen) => {
+    const pointsBlock =
+      gen.points.length === 0
+        ? "[]"
+        : "[\n" + gen.points.map((p) => "      " + JSON.stringify(p)).join(",\n") + "\n    ]";
+
+    return (
+      "  {\n" +
+      `    "capacitiesHash": ${JSON.stringify(gen.capacitiesHash)},\n` +
+      `    "sections": ${JSON.stringify(gen.sections)},\n` +
+      `    "points": ${pointsBlock}\n` +
+      "  }"
+    );
+  });
+
+  return "[\n" + genBlocks.join(",\n") + "\n]\n";
+}
+
+export async function writeSectionHistoryIfChanged(filePath, generations) {
+  const serialized = serializeSectionHistory(generations);
 
   let existing;
   try {
@@ -140,6 +190,50 @@ function sameClosedList(a, b) {
   const arrA = a ?? [];
   const arrB = b ?? [];
   return arrA.length === arrB.length && arrA.every((v, i) => v === arrB[i]);
+}
+
+function sameArray(a, b) {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+// sectionHistory.json is a top-level array of generations, each keyed by the
+// capacitiesHash it's relative to (see scripts/generateMockData.js's/
+// scripts/fetch.js's callers for the file's full shape/rationale). A new
+// generation starts whenever capacitiesHash or the section list itself
+// (order-sensitive — sold[i] is only meaningful relative to sections[i])
+// differs from the last one, instead of throwing: continuing to collect data
+// matters more than refusing to append over a rare, unscheduled capacities
+// change, and old generations are never touched, so nothing is lost. Within
+// one generation, the same reasoning as appendHistoryPointIfChanged applies,
+// adapted for the array shape: append only when something actually changed
+// (any section's sold, or the closed list).
+export function appendSectionHistoryPointIfChanged(
+  generations,
+  { capacitiesHash, sections, tISO, sold, closed = [] },
+  logger = console
+) {
+  const point = { t: tISO, sold, closed };
+  const last = generations[generations.length - 1];
+
+  if (!last || last.capacitiesHash !== capacitiesHash || !sameArray(last.sections, sections)) {
+    if (last) {
+      const added = sections.filter((s) => !last.sections.includes(s));
+      const removed = last.sections.filter((s) => !sections.includes(s));
+      logger.warn(
+        `[sectionHistory] capacities changed (hash ${last.capacitiesHash} -> ${capacitiesHash}, ` +
+          `+[${added.join(", ")}] -[${removed.join(", ")}]) — starting a new generation, ` +
+          "previous generation's data preserved"
+      );
+    }
+    return [...generations, { capacitiesHash, sections, points: [point] }];
+  }
+
+  const prevPoint = last.points[last.points.length - 1];
+  const changed = !prevPoint || !sameArray(prevPoint.sold, sold) || !sameClosedList(prevPoint.closed, closed);
+  if (!changed) return generations;
+
+  const updatedLast = { ...last, points: [...last.points, point] };
+  return [...generations.slice(0, -1), updatedLast];
 }
 
 export function setAutoclassIfAbsent(autoclassMap, dashId, entry) {
