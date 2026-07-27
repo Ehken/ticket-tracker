@@ -139,14 +139,16 @@
       "sold": 1736,
       "available": 402,
       "hold": 0,
-      "total": 2138
+      "total": 2138,
+      "disabled": false
     },
     {
       "section": "invalid",
       "sold": 8,
       "available": 4,
       "hold": 0,
-      "total": 12
+      "total": 12,
+      "disabled": false
     },
     {
       "section": "press",

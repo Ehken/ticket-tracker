@@ -1,0 +1,38 @@
+[
+  {
+    "t": "2027-09-11T15:30:00.000Z",
+    "sold": 0,
+    "soldSeated": 0,
+    "soldStanding": 0,
+    "available": 3981,
+    "hold": 995,
+    "closed": []
+  },
+  {
+    "t": "2027-08-31T22:20:00.000Z",
+    "sold": 1021,
+    "soldSeated": 568,
+    "soldStanding": 453,
+    "available": 2960,
+    "hold": 995,
+    "closed": []
+  },
+  {
+    "t": "2027-08-21T05:10:00.000Z",
+    "sold": 1752,
+    "soldSeated": 975,
+    "soldStanding": 777,
+    "available": 2229,
+    "hold": 995,
+    "closed": []
+  },
+  {
+    "t": "2027-08-10T12:00:00.000Z",
+    "sold": 2984,
+    "soldSeated": 1661,
+    "soldStanding": 1323,
+    "available": 997,
+    "hold": 995,
+    "closed": []
+  }
+]

@@ -358,5 +358,13 @@
     "status": "upcoming",
     "firstSeen": "2026-12-10T16:30:00.000Z",
     "lastSeen": "2026-12-15T16:30:00.000Z"
+  },
+  {
+    "id": "90:043",
+    "name": "SaiPa - Färjestad",
+    "start": "2027-10-01T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2027-09-11T15:30:00.000Z",
+    "lastSeen": "2027-08-10T12:00:00.000Z"
   }
 ]
