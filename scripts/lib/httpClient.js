@@ -26,6 +26,14 @@ export async function fetchWithRetry(
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}`);
       }
+      // The timeout signal keeps counting down after this function returns
+      // — it isn't cleared just because the headers arrived in time. If a
+      // caller's own body read (e.g. res.text()) is still in flight when it
+      // fires, that read throws a raw TimeoutError with none of the
+      // rewriting above, since it happens outside this try/catch entirely.
+      // Every current caller (fetch.js, seatmap.js) reads the body
+      // immediately after awaiting this call, so it's theoretical today —
+      // flagged here so a future slow-body-read caller isn't surprised.
       return res;
     } catch (err) {
       const isAbort = err.name === "TimeoutError" || err.name === "AbortError";
