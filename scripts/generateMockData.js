@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { parseSeatmapSeatIds } from "./lib/seatmap.js";
 import { compareAitioIds } from "./lib/sections.js";
+import { sectionOfSeatId } from "../js/seatMapClassify.js";
+import { mergeClassification } from "../js/classify.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -183,7 +185,15 @@ function soldWithBaseline(rng, popularity, total, baselineSold, spread, fixedFra
   return baselineSold + Math.round(nonBaselineCapacity * fraction);
 }
 
-function buildSections(rng, popularity, disabledSections, baselineBySection, sectionFractionOverrides = {}, soldAitioIds = []) {
+function buildSections(
+  rng,
+  popularity,
+  disabledSections,
+  baselineBySection,
+  sectionFractionOverrides = {},
+  soldAitioIds = [],
+  aggregateSoldOverrides = {}
+) {
   const baseline = baselineBySection ?? new Map();
   const sections = [];
 
@@ -208,7 +218,9 @@ function buildSections(rng, popularity, disabledSections, baselineBySection, sec
   }
 
   const standingDisabled = disabledSections.includes("seisomakatsomo");
-  const standingSold = soldWithBaseline(rng, popularity, STANDING_CAPACITY, baseline.get("seisomakatsomo") ?? 0, 0.3);
+  const standingSold =
+    aggregateSoldOverrides.seisomakatsomo ??
+    soldWithBaseline(rng, popularity, STANDING_CAPACITY, baseline.get("seisomakatsomo") ?? 0, 0.3);
   sections.push({
     section: "seisomakatsomo",
     sold: standingSold,
@@ -219,7 +231,9 @@ function buildSections(rng, popularity, disabledSections, baselineBySection, sec
   });
 
   const wheelchairDisabled = disabledSections.includes("invalid");
-  const wheelchairSold = soldWithBaseline(rng, popularity, WHEELCHAIR_CAPACITY, baseline.get("invalid") ?? 0, 0.3);
+  const wheelchairSold =
+    aggregateSoldOverrides.invalid ??
+    soldWithBaseline(rng, popularity, WHEELCHAIR_CAPACITY, baseline.get("invalid") ?? 0, 0.3);
   sections.push({
     section: "invalid",
     sold: wheelchairSold,
@@ -253,6 +267,86 @@ function computeTotals(sections) {
     }),
     { sold: 0, available: 0, hold: 0, total: 0 }
   );
+}
+
+// Groups a flat sold-seat-id list (e.g. from a pinned real-data snapshot)
+// back into the per-section shape assignSeatIds/addEvent expect, using the
+// same section-prefix convention the frontend already relies on
+// (sectionOfSeatId, js/seatMapClassify.js). Sorted per section for stable
+// diffs, same as pickSeats's own output.
+export function groupSeatIdsBySection(seatIds) {
+  const bySection = {};
+  for (const id of seatIds) {
+    const section = sectionOfSeatId(id);
+    (bySection[section] ??= []).push(id);
+  }
+  for (const ids of Object.values(bySection)) ids.sort();
+  return bySection;
+}
+
+// Builds a kausikortti event's own `sections` directly from a pinned real
+// snapshot's per-section sold counts, instead of buildSections's rng-driven
+// soldWithBaseline draw. disabled is always false (a kausikortti event
+// itself is never disabled) and hold is always 0 — mirrors buildSections's
+// shape exactly, just deterministic. press/aitiot aren't in the snapshot
+// (see refreshMockBaseline.js) so they default to their fixed capacities.
+export function buildPinnedKausikorttiSections(pinnedSoldBySection) {
+  const sections = [];
+  for (const [section, total] of Object.entries(SEATED_CAPACITIES)) {
+    const sold = pinnedSoldBySection.get(section) ?? 0;
+    sections.push({ section, sold, available: total - sold, hold: 0, total, disabled: false });
+  }
+
+  const standingSold = pinnedSoldBySection.get("seisomakatsomo") ?? 0;
+  sections.push({
+    section: "seisomakatsomo",
+    sold: standingSold,
+    available: STANDING_CAPACITY - standingSold,
+    hold: 0,
+    total: STANDING_CAPACITY,
+    disabled: false,
+  });
+
+  const wheelchairSold = pinnedSoldBySection.get("invalid") ?? 0;
+  sections.push({
+    section: "invalid",
+    sold: wheelchairSold,
+    available: WHEELCHAIR_CAPACITY - wheelchairSold,
+    hold: 0,
+    total: WHEELCHAIR_CAPACITY,
+    disabled: false,
+  });
+
+  sections.push({ section: "press", sold: 0, available: 0, hold: PRESS_CAPACITY, total: PRESS_CAPACITY });
+  sections.push({ section: "aitiot", sold: 0, available: 0, hold: AITIOT_CAPACITY, total: AITIOT_CAPACITY });
+
+  return sections;
+}
+
+// Validates a loaded baseline snapshot before it's used to generate any mock
+// data. Both checks matter because the snapshot pins real, independently-
+// drifting external state: the svgHash check catches the arena SVG changing
+// underneath a stale pinned seat-id list (phantom/missing seats on the
+// rendered map); the capacity check catches mock's own hardcoded capacity
+// constants drifting apart from what the live shop actually reports.
+export function assertBaselineSnapshotValid(snapshot, realCapacitiesHash) {
+  if (snapshot.svgHash !== realCapacitiesHash) {
+    throw new Error(
+      `generateMockData: baseline snapshot's svgHash (${snapshot.svgHash}) doesn't match the current capacities ` +
+        `SVG (${realCapacitiesHash}) — run \`npm run refresh-mock-baseline\` to update it.`
+    );
+  }
+
+  const capacities = { ...SEATED_CAPACITIES, seisomakatsomo: STANDING_CAPACITY, invalid: WHEELCHAIR_CAPACITY };
+  for (const { section, sold } of snapshot.sections) {
+    const capacity = capacities[section];
+    if (capacity !== undefined && sold > capacity) {
+      throw new Error(
+        `generateMockData: baseline snapshot's ${section} sold (${sold}) exceeds mock's hardcoded capacity ` +
+          `(${capacity}) — mock capacities have drifted from the live arena.`
+      );
+    }
+  }
 }
 
 function buildHistory(
@@ -373,11 +467,20 @@ export function assignSeatIds(rng, seatPoolBySection, sections, baselineSeatsByS
 async function main() {
   const schedule = JSON.parse(await readFile(path.join(repoRoot, "data", "schedule.json"), "utf8"));
 
-  // Real, currently-active kausikortti event's seatmap — its actual seat IDs
-  // (e.g. "A1-1-001") are reused for every mock event's seats.json, so mock
-  // seat IDs look like the real arena rather than synthetic placeholders.
+  // Pinned real 2026-27 season-ticket baseline (see refreshMockBaseline.js —
+  // never read live at generation time, since season tickets keep selling
+  // and that would make the mock tree shift on every regeneration).
+  const baselineSnapshot = JSON.parse(
+    await readFile(path.join(repoRoot, "scripts", "mockKausikorttiBaseline.json"), "utf8")
+  );
+
+  // Real season-ticket event's seatmap — its actual seat IDs (e.g.
+  // "A1-1-001") are reused for every mock event's seats.json, so mock seat
+  // IDs look like the real arena rather than synthetic placeholders.
+  // Resolved via the pinned snapshot's own sourceEventId rather than a
+  // hardcoded id — the snapshot is the one place that id is allowed to live.
   const realLatest = JSON.parse(
-    await readFile(path.join(repoRoot, "data", "events", "53-575", "latest.json"), "utf8")
+    await readFile(path.join(repoRoot, "data", "events", baselineSnapshot.sourceEventId, "latest.json"), "utf8")
   );
   const realSvg = await readFile(
     path.join(repoRoot, "data", "capacities", `${realLatest.capacitiesHash}.svg`),
@@ -387,7 +490,12 @@ async function main() {
     path.join(repoRoot, "data", "capacities", `${realLatest.capacitiesHash}.json`),
     "utf8"
   );
+  assertBaselineSnapshotValid(baselineSnapshot, realLatest.capacitiesHash);
   const seatPoolBySection = parseSeatmapSeatIds(realSvg);
+  const pinned2026_27Baseline = {
+    sectionsMap: new Map(baselineSnapshot.sections.map((s) => [s.section, s.sold])),
+    soldSeatIds: baselineSnapshot.soldSeatIds,
+  };
 
   const events = [];
   const latestById = new Map();
@@ -415,8 +523,10 @@ async function main() {
     disabledSections = [],
     historyPoints = 10,
     sectionFractionOverrides,
+    aggregateSoldOverrides,
     pinRecentToFinal,
     soldAitioIds = [],
+    pinnedBaseline, // { sectionsMap, soldSeatIds } — real data, bypasses rng entirely (kausikortti events only)
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
     const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
@@ -433,18 +543,23 @@ async function main() {
 
     const rng = makeRng(id);
     const baselineBySection = gameType === "kausikortti" ? null : baselineBySeason.get(season);
-    const sections = buildSections(
-      rng,
-      popularity,
-      disabledSections,
-      baselineBySection,
-      sectionFractionOverrides,
-      soldAitioIds
-    );
+    const sections = pinnedBaseline
+      ? buildPinnedKausikorttiSections(pinnedBaseline.sectionsMap)
+      : buildSections(
+          rng,
+          popularity,
+          disabledSections,
+          baselineBySection,
+          sectionFractionOverrides,
+          soldAitioIds,
+          aggregateSoldOverrides
+        );
     const totals = computeTotals(sections);
 
     const baselineSeatsBySection = gameType === "kausikortti" ? null : baselineSeatsBySeason.get(season);
-    const seatsBySection = assignSeatIds(rng, seatPoolBySection, sections, baselineSeatsBySection);
+    const seatsBySection = pinnedBaseline
+      ? groupSeatIdsBySection(pinnedBaseline.soldSeatIds)
+      : assignSeatIds(rng, seatPoolBySection, sections, baselineSeatsBySection);
     const soldSeatIds = Object.values(seatsBySection).flat().sort();
 
     events.push({
@@ -510,6 +625,13 @@ async function main() {
   // and the season selector picking up a 3rd season. Also: the season each
   // kausikortti is generated "as of" (nowIso) becomes that season's shared
   // baseline AND the shared "now" reference for its match events below.
+  //
+  // 2025-26 and 2027-28 stay fully synthetic (rng-derived, via popularity)
+  // below — no real season-ticket data exists for either season (2025-26's
+  // sale window has closed with nothing archived; 2027-28's hasn't opened
+  // for real yet). Only 2026-27 uses the pinned real baseline (see
+  // pinned2026_27Baseline above and refreshMockBaseline.js) — made explicit
+  // here rather than left implicit.
   addEvent({
     id: "90:900",
     name: "SaiPa kausikortit 2025-2026",
@@ -539,8 +661,8 @@ async function main() {
     status: "upcoming",
     firstSeenDaysBefore: 0,
     nowIso: SEASON_2026_27_NOW, // sales opened 07-31; "now" is ~3 months into the season
-    popularity: 0.55,
     historyPoints: 14,
+    pinnedBaseline: pinned2026_27Baseline, // real data — popularity is unused, sections come from the snapshot
   });
   overrides[toDashId(kausikorttiId)] = { gameType: "kausikortti", season: "2026-27" };
 
@@ -579,6 +701,27 @@ async function main() {
     5: ["aitio_2"],
     20: ["aitio_5", "aitio_7"],
   };
+  // First *upcoming* runkosarja fixture — resolved dynamically (not a
+  // hardcoded index like the two above) because schedule.json is
+  // human-owned and can be reordered/regenerated. Skips the archived range
+  // (i >= PAST_OPPONENTS_BY_ORDER): an archived fixture is hidden by
+  // default (pelatut off hides past events), which would make this
+  // permanently-verifiable-on-plain-?mock=1 scenario invisible. Throws
+  // loudly rather than silently landing on nothing, or silently colliding
+  // with one of the two hardcoded scenario indices above (a schedule
+  // reorder could make the dynamic lookup land on either one).
+  const firstUpcomingRunkosarjaIndex = schedule.findIndex(
+    (f, i) => i >= PAST_OPPONENTS_BY_ORDER && f.gameType === "runkosarja"
+  );
+  if (firstUpcomingRunkosarjaIndex === -1) {
+    throw new Error("generateMockData: no upcoming runkosarja fixture found for the 1-ticket-left scenario");
+  }
+  if (firstUpcomingRunkosarjaIndex === NEAR_SELLOUT_INDEX || firstUpcomingRunkosarjaIndex === FLAT_VELOCITY_INDEX) {
+    throw new Error(
+      `generateMockData: firstUpcomingRunkosarjaIndex (${firstUpcomingRunkosarjaIndex}) collides with a ` +
+        "hardcoded scenario index — schedule.json has likely been reordered"
+    );
+  }
 
   schedule.forEach((fixture, index) => {
     const num = String(index + 1).padStart(3, "0");
@@ -590,12 +733,15 @@ async function main() {
     let popularity = isPast ? 0.85 + (index % 3) * 0.05 : 0.15 + ((index * 37) % 60) / 100;
     let sectionFractionOverrides;
     let pinRecentToFinal;
+    let aggregateSoldOverrides;
 
     if (index === NEAR_SELLOUT_INDEX) {
       popularity = 0.9; // overall irtolippu fill % well above the Kiirehdi threshold
       sectionFractionOverrides = { C4: 0.97 }; // premium section individually near sold out
     } else if (index === FLAT_VELOCITY_INDEX) {
       pinRecentToFinal = true; // sales have plateaued — a real zero-velocity case
+    } else if (index === firstUpcomingRunkosarjaIndex) {
+      aggregateSoldOverrides = { seisomakatsomo: STANDING_CAPACITY - 1 }; // exactly 1 standing ticket left
     }
 
     addEvent({
@@ -612,6 +758,7 @@ async function main() {
       disabledSections,
       historyPoints: isPast ? 12 : 8,
       sectionFractionOverrides,
+      aggregateSoldOverrides,
       pinRecentToFinal,
       soldAitioIds: AITIO_OCCUPANCY[index] ?? [],
     });
@@ -768,10 +915,48 @@ async function main() {
       }
     }
   }
+  // --- Verify the within-season baseline invariant: every match event in a
+  // season must be a strict superset of that season's kausikortti baseline
+  // (season-ticket holders sit in the same seats every game), for both
+  // individual seat ids and per-section sold counts (including the
+  // seisomakatsomo/invalid aggregate rows). Already true today by
+  // construction — this locks it in as a regression guard, which matters
+  // more after 2026-27's baseline switched from rng-derived to a pinned
+  // real snapshot: there are now two code paths producing a baseline, and
+  // only one is exercised by the season anyone looks at first. ---
+  for (const [season, baselineSeatsBySection] of baselineSeatsBySeason) {
+    const baselineSectionSold = baselineBySeason.get(season);
+    const baselineSeatIds = new Set(Object.values(baselineSeatsBySection).flat());
+
+    for (const event of events) {
+      const merged = mergeClassification(event, { overrides, autoclass });
+      if (merged.season !== season || merged.gameType === "kausikortti") continue;
+
+      const matchSeatIds = new Set(seatsById.get(event.id).soldSeatIds);
+      const missingSeats = [...baselineSeatIds].filter((id) => !matchSeatIds.has(id));
+      if (missingSeats.length > 0) {
+        invariantViolations.push(
+          `${event.id} (season ${season}): missing ${missingSeats.length} baseline seat id(s), ` +
+            `e.g. ${missingSeats.slice(0, 3).join(", ")}`
+        );
+      }
+
+      const matchSections = latestById.get(event.id).sections;
+      for (const [section, baselineSold] of baselineSectionSold) {
+        const row = matchSections.find((s) => s.section === section);
+        if (!row || row.sold < baselineSold) {
+          invariantViolations.push(
+            `${event.id} (season ${season}): section ${section} sold(${row?.sold ?? "missing"}) ` +
+              `< baseline sold(${baselineSold})`
+          );
+        }
+      }
+    }
+  }
+
   if (invariantViolations.length > 0) {
     throw new Error(
-      `generateMockData: sold+available+hold≠total for ${invariantViolations.length} history point(s):\n` +
-        invariantViolations.join("\n")
+      `generateMockData: ${invariantViolations.length} invariant violation(s):\n` + invariantViolations.join("\n")
     );
   }
 

@@ -7,6 +7,7 @@ import {
   filterBySarja,
   computeSarjaAvailability,
   resolveSarja,
+  resolveKausi,
   computeOpponents,
   resolveVastustaja,
   filterByVastustaja,
@@ -83,24 +84,18 @@ async function main() {
   const { seasons, hasMultipleSeasons } = computeSeasons({ overrides, autoclass, schedule });
   const { kausikortti, rest } = splitKausikortti(withLatest);
 
-  function resolveKausi(requested) {
-    if (requested === "kaikki") return "kaikki";
-    if (requested && seasons.includes(requested)) return requested;
-    return seasons[seasons.length - 1] ?? "kaikki"; // newest season with data
-  }
-
   if (IS_DASHBOARD) {
     // Unreleased private preview — same data-source resolution as the
     // normal view (incl. ?mock=1), but renders a completely separate page
     // instead. No visible link to it from the normal UI.
-    const kausi = resolveKausi(readUrlState().kausi);
+    const kausi = resolveKausi(readUrlState().kausi, seasons, rest);
     await renderDashboard({ kausikortti, matchEvents: rest, kausi });
     return;
   }
 
   function render() {
     const raw = readUrlState();
-    const kausi = resolveKausi(raw.kausi);
+    const kausi = resolveKausi(raw.kausi, seasons, rest);
 
     const kausikorttiForSeason = filterBySeason(kausikortti, kausi).sort((a, b) =>
       (b.season ?? "").localeCompare(a.season ?? "")

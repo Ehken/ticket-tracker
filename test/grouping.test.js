@@ -7,6 +7,8 @@ import {
   filterBySarja,
   computeSarjaAvailability,
   resolveSarja,
+  resolveDefaultSeason,
+  resolveKausi,
   extractOpponentDisplay,
   computeOpponents,
   resolveVastustaja,
@@ -128,6 +130,58 @@ test("resolveSarja: keeps an available requested value, resets unavailable/unkno
   assert.equal(resolveSarja("chl", availability), "kaikki"); // unavailable
   assert.equal(resolveSarja("not-a-real-value", availability), "kaikki");
   assert.equal(resolveSarja(undefined, availability), "kaikki");
+});
+
+test("resolveDefaultSeason picks the nearest upcoming event's season, not just array order", () => {
+  const events = [
+    ev({ id: "a", status: "upcoming", season: "2027-28", start: "2027-09-05T17:00:00.000Z" }),
+    ev({ id: "b", status: "upcoming", season: "2026-27", start: "2026-11-01T17:00:00.000Z" }),
+    ev({ id: "c", status: "upcoming", season: "2026-27", start: "2026-09-01T17:00:00.000Z" }), // nearest
+  ];
+  assert.equal(resolveDefaultSeason(events), "2026-27");
+});
+
+test("resolveDefaultSeason falls back to the most recent past event's season when nothing is upcoming", () => {
+  const events = [
+    ev({ id: "a", status: "past", season: "2025-26", start: "2026-01-01T17:00:00.000Z" }),
+    ev({ id: "b", status: "past", season: "2026-27", start: "2026-05-01T17:00:00.000Z" }), // most recent
+  ];
+  assert.equal(resolveDefaultSeason(events), "2026-27");
+});
+
+test("resolveDefaultSeason with a single season returns it regardless of status mix", () => {
+  const events = [
+    ev({ id: "a", status: "past", season: "2026-27", start: "2026-01-01T17:00:00.000Z" }),
+    ev({ id: "b", status: "upcoming", season: "2026-27", start: "2026-11-01T17:00:00.000Z" }),
+  ];
+  assert.equal(resolveDefaultSeason(events), "2026-27");
+});
+
+test("resolveDefaultSeason returns null with no events, or none carrying a season", () => {
+  assert.equal(resolveDefaultSeason([]), null);
+  assert.equal(resolveDefaultSeason([ev({ id: "a", season: null })]), null);
+});
+
+test("resolveKausi: an explicit valid ?kausi= is kept even when it differs from the computed default", () => {
+  const events = [ev({ id: "a", status: "upcoming", season: "2027-28", start: "2027-09-05T17:00:00.000Z" })];
+  assert.equal(resolveKausi("2026-27", ["2026-27", "2027-28"], events), "2026-27");
+});
+
+test("resolveKausi: 'kaikki' passes through regardless of computed default", () => {
+  const events = [ev({ id: "a", status: "upcoming", season: "2027-28", start: "2027-09-05T17:00:00.000Z" })];
+  assert.equal(resolveKausi("kaikki", ["2026-27", "2027-28"], events), "kaikki");
+});
+
+test("resolveKausi: no requested value defaults to the season with the nearest upcoming event", () => {
+  const events = [
+    ev({ id: "a", status: "upcoming", season: "2027-28", start: "2027-09-05T17:00:00.000Z" }),
+    ev({ id: "b", status: "upcoming", season: "2026-27", start: "2026-09-01T17:00:00.000Z" }),
+  ];
+  assert.equal(resolveKausi(undefined, ["2026-27", "2027-28"], events), "2026-27");
+});
+
+test("resolveKausi: falls back to the lexically-last season when no default can be computed", () => {
+  assert.equal(resolveKausi(undefined, ["2025-26", "2026-27"], []), "2026-27");
 });
 
 test("extractOpponentDisplay parses 'SaiPa - X' variants, preserving original casing", () => {
