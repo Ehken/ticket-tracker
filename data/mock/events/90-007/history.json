@@ -6,7 +6,10 @@
     "soldStanding": 0,
     "available": 4742,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-08-20T13:42:51.428Z",
@@ -15,7 +18,10 @@
     "soldStanding": 240,
     "available": 4238,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-08-31T13:25:42.857Z",
@@ -24,7 +30,10 @@
     "soldStanding": 484,
     "available": 3726,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-09-11T13:08:34.285Z",
@@ -33,7 +42,10 @@
     "soldStanding": 880,
     "available": 2895,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-09-22T12:51:25.714Z",
@@ -42,7 +54,10 @@
     "soldStanding": 1209,
     "available": 2203,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-03T12:34:17.142Z",
@@ -51,7 +66,10 @@
     "soldStanding": 1252,
     "available": 2112,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-14T12:17:08.571Z",
@@ -60,7 +78,10 @@
     "soldStanding": 1554,
     "available": 1479,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-18T12:00:00.000Z",
@@ -69,7 +90,10 @@
     "soldStanding": 1766,
     "available": 1034,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-22T12:00:00.000Z",
@@ -78,7 +102,10 @@
     "soldStanding": 1809,
     "available": 943,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-24T12:00:00.000Z",
@@ -87,6 +114,9 @@
     "soldStanding": 1899,
     "available": 754,
     "hold": 234,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   }
 ]

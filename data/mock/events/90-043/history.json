@@ -6,7 +6,9 @@
     "soldStanding": 0,
     "available": 3981,
     "hold": 995,
-    "closed": []
+    "closed": [
+      "seisomakatsomo"
+    ]
   },
   {
     "t": "2027-08-31T22:20:00.000Z",
@@ -15,7 +17,9 @@
     "soldStanding": 453,
     "available": 2960,
     "hold": 995,
-    "closed": []
+    "closed": [
+      "seisomakatsomo"
+    ]
   },
   {
     "t": "2027-08-21T05:10:00.000Z",
@@ -24,7 +28,9 @@
     "soldStanding": 777,
     "available": 2229,
     "hold": 995,
-    "closed": []
+    "closed": [
+      "seisomakatsomo"
+    ]
   },
   {
     "t": "2027-08-10T12:00:00.000Z",
@@ -33,6 +39,8 @@
     "soldStanding": 1323,
     "available": 997,
     "hold": 995,
-    "closed": []
+    "closed": [
+      "seisomakatsomo"
+    ]
   }
 ]

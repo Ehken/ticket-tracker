@@ -6,7 +6,10 @@
     "soldStanding": 0,
     "available": 4712,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-22T04:17:08.571Z",
@@ -15,7 +18,10 @@
     "soldStanding": 202,
     "available": 4298,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-22T17:34:17.142Z",
@@ -24,7 +30,10 @@
     "soldStanding": 461,
     "available": 3765,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-23T06:51:25.714Z",
@@ -33,7 +42,10 @@
     "soldStanding": 719,
     "available": 3235,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-23T20:08:34.285Z",
@@ -42,7 +54,10 @@
     "soldStanding": 868,
     "available": 2929,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-24T09:25:42.857Z",
@@ -51,7 +66,10 @@
     "soldStanding": 1212,
     "available": 2222,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-24T22:42:51.428Z",
@@ -60,7 +78,10 @@
     "soldStanding": 1263,
     "available": 2118,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   },
   {
     "t": "2026-10-25T12:00:00.000Z",
@@ -69,6 +90,9 @@
     "soldStanding": 1512,
     "available": 1606,
     "hold": 264,
-    "closed": []
+    "closed": [
+      "C2",
+      "C7"
+    ]
   }
 ]
