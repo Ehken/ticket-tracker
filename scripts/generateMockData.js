@@ -207,22 +207,26 @@ function buildSections(rng, popularity, disabledSections, baselineBySection, sec
     });
   }
 
+  const standingDisabled = disabledSections.includes("seisomakatsomo");
   const standingSold = soldWithBaseline(rng, popularity, STANDING_CAPACITY, baseline.get("seisomakatsomo") ?? 0, 0.3);
   sections.push({
     section: "seisomakatsomo",
     sold: standingSold,
-    available: STANDING_CAPACITY - standingSold,
-    hold: 0,
+    available: standingDisabled ? 0 : STANDING_CAPACITY - standingSold,
+    hold: standingDisabled ? STANDING_CAPACITY - standingSold : 0,
     total: STANDING_CAPACITY,
+    disabled: standingDisabled,
   });
 
+  const wheelchairDisabled = disabledSections.includes("invalid");
   const wheelchairSold = soldWithBaseline(rng, popularity, WHEELCHAIR_CAPACITY, baseline.get("invalid") ?? 0, 0.3);
   sections.push({
     section: "invalid",
     sold: wheelchairSold,
-    available: WHEELCHAIR_CAPACITY - wheelchairSold,
-    hold: 0,
+    available: wheelchairDisabled ? 0 : WHEELCHAIR_CAPACITY - wheelchairSold,
+    hold: wheelchairDisabled ? WHEELCHAIR_CAPACITY - wheelchairSold : 0,
     total: WHEELCHAIR_CAPACITY,
+    disabled: wheelchairDisabled,
   });
 
   sections.push({ section: "press", sold: 0, available: 0, hold: PRESS_CAPACITY, total: PRESS_CAPACITY });
@@ -253,7 +257,17 @@ function computeTotals(sections) {
 
 function buildHistory(
   rng,
-  { finalSold, finalStanding, finalHold, grandTotal, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }
+  {
+    finalSold,
+    finalStanding,
+    finalHold,
+    grandTotal,
+    firstSeenIso,
+    lastPointIso,
+    pointCount,
+    pinRecentToFinal = false,
+    closed = [],
+  }
 ) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
@@ -303,8 +317,10 @@ function buildHistory(
     // hold is a constant across the whole synthetic timeline — mock data
     // never simulates a section opening/closing mid-event, only sold
     // changing — so available is derived the same way production derives it
-    // for an open section: total - hold - sold. closed stays [] throughout;
-    // no release scenario is invented here (that belongs to a later PR).
+    // for an open section: total - hold - sold. closed is likewise constant
+    // across the timeline (the event's own disabled-section list, matching
+    // its latest.json exactly) — not empty, just never changing; no release
+    // scenario is invented here (that belongs to a later PR).
     points.push({
       t: new Date(t).toISOString(),
       sold,
@@ -312,7 +328,7 @@ function buildHistory(
       soldStanding,
       available: grandTotal - finalHold - sold,
       hold: finalHold,
-      closed: [],
+      closed,
     });
   }
 
@@ -460,6 +476,11 @@ async function main() {
     });
 
     const standingRow = sections.find((s) => s.section === "seisomakatsomo");
+    // Same derivation production uses (scripts/fetch.js): sorted section
+    // names of every disabled row. Constant across the timeline — mock data
+    // doesn't simulate a section opening/closing mid-event — so every
+    // history point below carries this same list, matching latest.json.
+    const closed = sections.filter((s) => s.disabled).map((s) => s.section).sort();
     historyById.set(
       id,
       buildHistory(rng, {
@@ -471,6 +492,7 @@ async function main() {
         lastPointIso,
         pointCount: historyPoints,
         pinRecentToFinal,
+        closed,
       })
     );
 
@@ -692,20 +714,56 @@ async function main() {
   });
   // Intentionally: no overrides["90-042"], no autoclass["90-042"].
 
+  // --- One event with a closed standing area (seisomakatsomo) carrying a
+  // nonzero sold count — permanent ?mock=1 coverage for the aggregate-row
+  // half of the closed-section-with-sold-seats fix, so it doesn't rely on
+  // a hand-edit-and-revert to verify. popularity is high enough that
+  // soldWithBaseline's minimum 2% floor alone would still produce a
+  // meaningfully nonzero standingSold even in an unlucky rng draw.
+  addEvent({
+    id: "90:043",
+    name: "SaiPa - Färjestad",
+    gameType: "harjoitusottelu",
+    season: "2027-28",
+    dateStr: "2027-10-01",
+    status: "upcoming",
+    firstSeenDaysBefore: 20,
+    nowIso: SEASON_2027_28_NOW,
+    popularity: 0.6,
+    historyPoints: 4,
+    disabledSections: ["seisomakatsomo"],
+  });
+  autoclass["90-043"] = { gameType: "harjoitusottelu", season: "2027-28" };
+
   // --- Verify the sold+available+hold=total invariant on every generated
   // history point, rather than assuming buildHistory's "hold is constant"
   // reasoning holds for every event shape it's fed (e.g. a disabled
   // section's hold = that section's own total-sold, which only stays
   // constant across the timeline if it never sells any seats in mock data —
-  // true today, but worth checking rather than assuming forever). ---
+  // true today, but worth checking rather than assuming forever). Also
+  // verify every point's closed list matches the event's own latest.json —
+  // this is what would have caught closed staying [] while latest.json
+  // already listed disabled sections. ---
   const invariantViolations = [];
   for (const event of events) {
-    const total = latestById.get(event.id).totals.total;
+    const latest = latestById.get(event.id);
+    const total = latest.totals.total;
+    const expectedClosed = latest.sections
+      .filter((s) => s.disabled)
+      .map((s) => s.section)
+      .sort();
     for (const point of historyById.get(event.id)) {
       if (point.sold + point.available + point.hold !== total) {
         invariantViolations.push(
           `${event.id} @ ${point.t}: sold(${point.sold}) + available(${point.available}) + hold(${point.hold}) ` +
             `= ${point.sold + point.available + point.hold}, expected total ${total}`
+        );
+      }
+      const actualClosed = [...point.closed].sort();
+      if (JSON.stringify(actualClosed) !== JSON.stringify(expectedClosed)) {
+        invariantViolations.push(
+          `${event.id} @ ${point.t}: closed=[${point.closed.join(", ")}], expected [${expectedClosed.join(", ")}] ` +
+            "(latest.json's disabled sections)"
         );
       }
     }

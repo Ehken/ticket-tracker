@@ -231,6 +231,7 @@ const ZONE_TITLE_LABEL = {
   [SEAT_STATE.IRTOLIPPU]: "Irtoliput",
   [SEAT_STATE.VAPAA]: "Vapaana",
   [SEAT_STATE.MYYTY]: "Myyty",
+  [SEAT_STATE.EI_MYYNNISSA]: "Ei myynnissä",
 };
 
 function renderStandingWedge(svg, latest, baseline) {
@@ -243,19 +244,29 @@ function renderStandingWedge(svg, latest, baseline) {
 
   const shapeBBox = shapeEl.getBBox();
   const baselineSold = baseline.sectionSold?.get(sectionKey) ?? null;
-  const rawZones = computeStackedFillZones({ sold: row.sold, total: row.total, kausikorttiSold: baselineSold });
+  const rawZones = computeStackedFillZones({
+    sold: row.sold,
+    total: row.total,
+    kausikorttiSold: baselineSold,
+    disabled: row.disabled,
+  });
   const minSharePct = ((STANDING_ZONE_FONT_SIZE * MIN_ZONE_HEIGHT_FACTOR) / shapeBBox.height) * 100;
   const zones = clampZoneSpansToMinimum(rawZones, minSharePct);
 
   applyWedgeGradient(svg, shapeEl, zones);
 
+  // The remainder's own zone.state is ei-myynnissa when the section is
+  // closed (see computeStackedFillZones) — counts must be keyed the same
+  // way, or its count silently fails to render (looks up a vapaa key that
+  // isn't there).
+  const remainderState = row.disabled ? SEAT_STATE.EI_MYYNNISSA : SEAT_STATE.VAPAA;
   const counts =
     baselineSold == null
-      ? { [SEAT_STATE.MYYTY]: row.sold, [SEAT_STATE.VAPAA]: row.total - row.sold }
+      ? { [SEAT_STATE.MYYTY]: row.sold, [remainderState]: row.total - row.sold }
       : {
           [SEAT_STATE.KAUSIKORTTI]: baselineSold,
           [SEAT_STATE.IRTOLIPPU]: row.sold - baselineSold,
-          [SEAT_STATE.VAPAA]: row.total - row.sold,
+          [remainderState]: row.total - row.sold,
         };
   addZoneCountsAndHoverTitles(svg, sectionKey, shapeEl, shapeBBox, zones, counts);
 
@@ -739,10 +750,12 @@ function colorSeats(svg, mergedEvent, latest, seats, baseline) {
 
   // One walk over the seats actually present in the SVG (not one
   // querySelector per sold seat id, which was effectively O(sold count ×
-  // DOM size)). classifySeat already checks disabled-section status first,
-  // so a single classification per seat replaces the earlier two-pass
-  // approach (color sold seats, then re-walk disabled sections to force
-  // ei-myynnissa) entirely.
+  // DOM size)). classifySeat checks sold status first — sold always wins,
+  // even in a disabled section, since hold is defined as total - sold so
+  // the two never overlap — and disabled-section status only for the
+  // unsold remainder, so a single classification per seat still replaces
+  // the earlier two-pass approach (color sold seats, then re-walk disabled
+  // sections to force ei-myynnissa) entirely.
   let matchedSoldCount = 0;
   for (const el of svg.querySelectorAll(".seat")) {
     const id = el.id;
@@ -819,7 +832,7 @@ function renderWheelchairSlots(svg, latest, baseline, bands) {
   neutralizeDecorativeIcons(svg, shapeBBox);
 
   const baselineSold = baseline.sectionSold?.get(sectionKey) ?? null;
-  const slots = computeSlotSplit({ sold: row.sold, kausikorttiSold: baselineSold });
+  const slots = computeSlotSplit({ sold: row.sold, kausikorttiSold: baselineSold, disabled: row.disabled });
 
   const svgNs = "http://www.w3.org/2000/svg";
   const gap = 3;

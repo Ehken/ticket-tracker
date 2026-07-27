@@ -53,3 +53,23 @@ test("computeSlotSplit: sold beyond capacity is defensively clamped to 12", () =
   assert.equal(slots.length, WHEELCHAIR_SLOT_COUNT);
   assert.ok(slots.every((s) => s === SEAT_STATE.KAUSIKORTTI));
 });
+
+test("computeSlotSplit: disabled paints the remainder slots ei-myynnissa instead of vapaa (3-state)", () => {
+  const slots = computeSlotSplit({ sold: 7, kausikorttiSold: 4, disabled: true });
+  assert.equal(slots.filter((s) => s === SEAT_STATE.KAUSIKORTTI).length, 4);
+  assert.equal(slots.filter((s) => s === SEAT_STATE.IRTOLIPPU).length, 3);
+  assert.equal(slots.filter((s) => s === SEAT_STATE.EI_MYYNNISSA).length, 5);
+  assert.equal(slots.filter((s) => s === SEAT_STATE.VAPAA).length, 0);
+});
+
+test("computeSlotSplit: disabled paints the remainder slots ei-myynnissa instead of vapaa (2-state, no baseline)", () => {
+  const slots = computeSlotSplit({ sold: 6, disabled: true });
+  assert.equal(slots.filter((s) => s === SEAT_STATE.MYYTY).length, 6);
+  assert.equal(slots.filter((s) => s === SEAT_STATE.EI_MYYNNISSA).length, 6);
+  assert.equal(slots.filter((s) => s === SEAT_STATE.VAPAA).length, 0);
+});
+
+test("computeSlotSplit: not disabled (default) still leaves the remainder vapaa", () => {
+  const slots = computeSlotSplit({ sold: 7, kausikorttiSold: 4 });
+  assert.equal(slots.filter((s) => s === SEAT_STATE.VAPAA).length, 5);
+});

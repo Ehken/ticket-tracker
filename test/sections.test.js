@@ -7,6 +7,7 @@ import {
   compareAitioIds,
   isSectionDisabled,
   warnOnOrphanRowLevelDisabled,
+  warnOnUnmatchedDisabledSection,
   buildSectionTable,
   computeTotals,
   extractSoldSeatIds,
@@ -76,7 +77,7 @@ test("buildSectionTable: disabled seated section has available=0, hold=total-sol
   assert.deepEqual(rows, [{ section: "C7", sold: 20, available: 0, hold: 74, total: 94, disabled: true }]);
 });
 
-test("buildSectionTable: standing/wheelchair use aggregate sold, hold=0", () => {
+test("buildSectionTable: open standing/wheelchair use aggregate sold, hold=0", () => {
   const rows = buildSectionTable({
     soldCounts: {},
     capacities: { seisomakatsomo: 2138, invalid: 12 },
@@ -85,9 +86,58 @@ test("buildSectionTable: standing/wheelchair use aggregate sold, hold=0", () => 
     wheelchairSold: 3,
   });
   assert.deepEqual(rows, [
-    { section: "seisomakatsomo", sold: 50, available: 2088, hold: 0, total: 2138 },
-    { section: "invalid", sold: 3, available: 9, hold: 0, total: 12 },
+    { section: "seisomakatsomo", sold: 50, available: 2088, hold: 0, total: 2138, disabled: false },
+    { section: "invalid", sold: 3, available: 9, hold: 0, total: 12, disabled: false },
   ]);
+});
+
+test("buildSectionTable: disabled seisomakatsomo has available=0, hold=total-sold, same as a disabled seated section", () => {
+  const rows = buildSectionTable({
+    soldCounts: {},
+    capacities: { seisomakatsomo: 2138 },
+    disabled: ["seisomakatsomo"],
+    standingSold: 50,
+    wheelchairSold: 0,
+  });
+  assert.deepEqual(rows, [
+    { section: "seisomakatsomo", sold: 50, available: 0, hold: 2088, total: 2138, disabled: true },
+  ]);
+});
+
+test("buildSectionTable: disabled invalid (wheelchair) has available=0, hold=total-sold", () => {
+  const rows = buildSectionTable({
+    soldCounts: {},
+    capacities: { invalid: 12 },
+    disabled: ["invalid"],
+    standingSold: 0,
+    wheelchairSold: 3,
+  });
+  assert.deepEqual(rows, [{ section: "invalid", sold: 3, available: 0, hold: 9, total: 12, disabled: true }]);
+});
+
+test("warnOnUnmatchedDisabledSection warns when a whole-section entry matches no known capacity key", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+
+  warnOnUnmatchedDisabledSection(["seisomaterassi"], { A1: 171 }, logger);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /seisomaterassi/);
+});
+
+test("warnOnUnmatchedDisabledSection is silent when the whole-section entry matches a known capacity key", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+
+  warnOnUnmatchedDisabledSection(["seisomakatsomo"], { seisomakatsomo: 2138, A1: 171 }, logger);
+  assert.equal(warnings.length, 0);
+});
+
+test("warnOnUnmatchedDisabledSection skips row-level entries (already covered by warnOnOrphanRowLevelDisabled)", () => {
+  const warnings = [];
+  const logger = { warn: (msg) => warnings.push(msg) };
+
+  warnOnUnmatchedDisabledSection(["C7-3"], { A1: 171 }, logger);
+  assert.equal(warnings.length, 0);
 });
 
 test("buildSectionTable: aitiot (merged) and press are always fully held", () => {

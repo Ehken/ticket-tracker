@@ -78,6 +78,28 @@ test("computeStackedFillZones: total of 0 is handled without dividing by zero", 
   ]);
 });
 
+test("computeStackedFillZones: disabled paints the remainder ei-myynnissa instead of vapaa (3-zone)", () => {
+  const zones = computeStackedFillZones({ sold: 70, total: 100, kausikorttiSold: 40, disabled: true });
+  assert.deepEqual(zones, [
+    { state: SEAT_STATE.KAUSIKORTTI, start: 0, end: 40 },
+    { state: SEAT_STATE.IRTOLIPPU, start: 40, end: 70 },
+    { state: SEAT_STATE.EI_MYYNNISSA, start: 70, end: 100 },
+  ]);
+});
+
+test("computeStackedFillZones: disabled paints the remainder ei-myynnissa instead of vapaa (2-zone, no baseline)", () => {
+  const zones = computeStackedFillZones({ sold: 60, total: 100, disabled: true });
+  assert.deepEqual(zones, [
+    { state: SEAT_STATE.MYYTY, start: 0, end: 60 },
+    { state: SEAT_STATE.EI_MYYNNISSA, start: 60, end: 100 },
+  ]);
+});
+
+test("computeStackedFillZones: not disabled (default) still paints the remainder vapaa", () => {
+  const zones = computeStackedFillZones({ sold: 70, total: 100, kausikorttiSold: 40 });
+  assert.equal(zones[2].state, SEAT_STATE.VAPAA);
+});
+
 test("clampZoneSpansToMinimum: a single tiny zone is clamped to the minimum, others shrink to compensate", () => {
   // vapaa's true share is 2% — well under a 10% minimum.
   const zones = computeStackedFillZones({ sold: 98, total: 100, kausikorttiSold: 60 });

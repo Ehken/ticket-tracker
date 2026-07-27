@@ -60,19 +60,28 @@ test("classifySeat: 3-state fallback (MYYTY, not KAUSIKORTTI/IRTOLIPPU) when bas
   assert.equal(state, SEAT_STATE.MYYTY);
 });
 
-test("classifySeat: disabled-section priority wins over sold status, even for a seat in soldSet/baselineSet", () => {
+test("classifySeat: sold status wins over disabled-section — a sold seat in a closed section is still kausikortti/irtolippu", () => {
   const state = classifySeat("C7-3-050", {
     soldSet: new Set(["C7-3-050"]),
     baselineSet: new Set(["C7-3-050"]),
     disabledSectionSet: new Set(["C7"]),
   });
-  assert.equal(state, SEAT_STATE.EI_MYYNNISSA);
+  assert.equal(state, SEAT_STATE.KAUSIKORTTI);
 });
 
-test("classifySeat: disabled-section priority also wins in 3-state fallback mode", () => {
+test("classifySeat: sold status also wins over disabled-section in 3-state fallback mode", () => {
   const state = classifySeat("C7-3-050", {
     soldSet: new Set(["C7-3-050"]),
     baselineSet: null,
+    disabledSectionSet: new Set(["C7"]),
+  });
+  assert.equal(state, SEAT_STATE.MYYTY);
+});
+
+test("classifySeat: an unsold seat in a disabled section is still ei-myynnissa", () => {
+  const state = classifySeat("C7-3-050", {
+    soldSet: new Set(),
+    baselineSet: new Set(),
     disabledSectionSet: new Set(["C7"]),
   });
   assert.equal(state, SEAT_STATE.EI_MYYNNISSA);
