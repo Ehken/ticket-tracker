@@ -568,7 +568,7 @@ async function main() {
     stopIsoOverride, // e.g. kausikortti's "stop" is end-of-season, not start+durationHours
     status,
     firstSeenDaysBefore = 45,
-    nowIso, // shared per-season "as of" instant (SEASON_2026_27_NOW etc.) — ignored if the event hasn't gone on sale yet as of that instant
+    nowIso, // shared per-season "as of" instant (SEASON_2026_27_NOW etc.) — used as lastPointIso for any non-past event; firstSeenIso is clamped below so it's never after this
     popularity,
     disabledSections = [],
     historyPoints = 10,
@@ -580,16 +580,25 @@ async function main() {
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
     const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
-    const firstSeenIso = new Date(new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000).toISOString();
+    const lastPointIso =
+      status === "past" ? new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString() : nowIso ?? startIso;
 
-    let lastPointIso;
-    if (status === "past") {
-      lastPointIso = new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString();
-    } else if (nowIso && new Date(nowIso).getTime() > new Date(firstSeenIso).getTime()) {
-      lastPointIso = nowIso;
-    } else {
-      lastPointIso = nowIso ?? startIso;
-    }
+    // firstSeen must never be after the last tracked point, or the
+    // synthetic timeline runs backwards (sold decreasing as "time"
+    // advances). A game more than firstSeenDaysBefore days after its
+    // season's nowIso would otherwise get a firstSeen in the future
+    // relative to lastPointIso — clamp to a short but valid tracked window
+    // ending at lastPointIso instead: every upcoming event keeps a
+    // plausible short history rather than an inverted one, and no event
+    // drops out of the dataset.
+    const naturalFirstSeenIso = new Date(
+      new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000
+    ).toISOString();
+    const MIN_TRACKED_WINDOW_DAYS = 3;
+    const firstSeenIso =
+      new Date(naturalFirstSeenIso).getTime() <= new Date(lastPointIso).getTime()
+        ? naturalFirstSeenIso
+        : new Date(new Date(lastPointIso).getTime() - MIN_TRACKED_WINDOW_DAYS * 86400 * 1000).toISOString();
 
     const rng = makeRng(id);
     const baselineBySection = gameType === "kausikortti" ? null : baselineBySeason.get(season);
@@ -1047,6 +1056,52 @@ async function main() {
             `sections length (${generation.sections.length})`
         );
       }
+    }
+  }
+
+  // --- Verify every event's timeline runs forward: history.json and
+  // sectionHistory.json points must be strictly ascending in time, and
+  // firstSeen must never be after the first point of either series. This
+  // is exactly what would have caught the backwards-timeline bug where an
+  // upcoming event's game date fell more than firstSeenDaysBefore days
+  // after its season's nowIso, giving it a firstSeen in the future
+  // relative to lastPointIso. ---
+  for (const event of events) {
+    const history = historyById.get(event.id);
+    for (let i = 1; i < history.length; i++) {
+      if (new Date(history[i].t).getTime() <= new Date(history[i - 1].t).getTime()) {
+        invariantViolations.push(
+          `${event.id}: history.json point ${i} (${history[i].t}) is not strictly after point ${i - 1} ` +
+            `(${history[i - 1].t})`
+        );
+      }
+    }
+    if (history.length > 0 && new Date(event.firstSeen).getTime() > new Date(history[0].t).getTime()) {
+      invariantViolations.push(
+        `${event.id}: firstSeen (${event.firstSeen}) is after history.json's first point (${history[0].t})`
+      );
+    }
+
+    const [firstGeneration] = sectionHistoryById.get(event.id);
+    for (const generation of sectionHistoryById.get(event.id)) {
+      for (let i = 1; i < generation.points.length; i++) {
+        if (new Date(generation.points[i].t).getTime() <= new Date(generation.points[i - 1].t).getTime()) {
+          invariantViolations.push(
+            `${event.id}: sectionHistory.json point ${i} (${generation.points[i].t}) is not strictly after ` +
+              `point ${i - 1} (${generation.points[i - 1].t})`
+          );
+        }
+      }
+    }
+    if (
+      firstGeneration &&
+      firstGeneration.points.length > 0 &&
+      new Date(event.firstSeen).getTime() > new Date(firstGeneration.points[0].t).getTime()
+    ) {
+      invariantViolations.push(
+        `${event.id}: firstSeen (${event.firstSeen}) is after sectionHistory.json's first point ` +
+          `(${firstGeneration.points[0].t})`
+      );
     }
   }
 
