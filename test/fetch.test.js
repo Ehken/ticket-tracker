@@ -248,7 +248,10 @@ test("run() never rewrites an existing autoclass.json entry on a later run, even
     JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "harjoitusottelu", season: "2027-28" }], null, 2) + "\n"
   );
 
-  // Second run: "53:601" is now present in events.json, so it's no longer first-seen.
+  // Second run: "53:601" already has an autoclass.json entry, so it's
+  // skipped entirely — setAutoclassIfAbsent's write-once semantics mean
+  // this would hold even if it were re-attempted, but the point of this
+  // test is that it isn't attempted at all.
   await run({
     dataDir,
     baseUrl: "https://elippu.net/saipa",
@@ -260,6 +263,179 @@ test("run() never rewrites an existing autoclass.json entry on a later run, even
 
   const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
   assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("run() retries classification on a later run when the first attempt didn't match, and classifies once schedule.json is corrected", async () => {
+  const { dataDir } = await seedDataDir([]);
+  const scheduleJsonPath = path.join(dataDir, "schedule.json");
+  // Wrong opponent name on the first run — findScheduleMatch won't match.
+  await writeFile(
+    scheduleJsonPath,
+    JSON.stringify([{ date: "2026-10-08", opponent: "Jukurit", gameType: "runkosarja", season: "2026-27" }], null, 2) +
+      "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  let autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, {}); // still unclassified — the old guard would have given up here forever
+
+  // Someone fixes the opponent name in schedule.json.
+  await writeFile(
+    scheduleJsonPath,
+    JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }], null, 2) + "\n"
+  );
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-02T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("run() does not retry classification for an event whose overrides.json entry already sets gameType", async () => {
+  const { dataDir } = await seedDataDir([]);
+  await writeFile(
+    path.join(dataDir, "schedule.json"),
+    JSON.stringify([{ date: "2026-10-08", opponent: "Jukurit", gameType: "runkosarja", season: "2026-27" }], null, 2) +
+      "\n"
+  );
+  await writeFile(
+    path.join(dataDir, "overrides.json"),
+    JSON.stringify({ "53-601": { gameType: "playoffs", season: "2026-27" } }, null, 2) + "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  const warnings = [];
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: { ...silentLog, warn: (msg) => warnings.push(msg) },
+  });
+
+  const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, {}); // never attempted — the override already sets gameType
+  assert.equal(warnings.some((w) => w.includes("[autoclass]")), false); // not even a warning — not attempted
+});
+
+test("run() retries classification for an event whose overrides.json entry sets some other field but not gameType", async () => {
+  const { dataDir } = await seedDataDir([]);
+  await writeFile(
+    path.join(dataDir, "schedule.json"),
+    JSON.stringify([{ date: "2026-10-08", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }], null, 2) + "\n"
+  );
+  await writeFile(
+    path.join(dataDir, "overrides.json"),
+    JSON.stringify({ "53-601": { note: "Ottelu saattaa siirtyä." } }, null, 2) + "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
+  assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("run() warns once per unmatched event, naming both near-miss candidate lists", async () => {
+  const { dataDir } = await seedDataDir([]);
+  await writeFile(
+    path.join(dataDir, "schedule.json"),
+    JSON.stringify(
+      [
+        { date: "2026-10-08", opponent: "Jukurit", gameType: "runkosarja", season: "2026-27" }, // same date, different opponent
+        { date: "2026-10-15", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }, // same opponent, different date
+      ],
+      null,
+      2
+    ) + "\n"
+  );
+
+  const eventHtml = buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  });
+  const httpClient = httpClientFor({
+    listingHtml: `<a href="/saipa/53:601">SaiPa - JYP</a>`,
+    eventUrlFragment: "53:601",
+    eventHtml,
+  });
+
+  const warnings = [];
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-08-01T10:00:00.000Z"),
+    sleep: async () => {},
+    log: { ...silentLog, warn: (msg) => warnings.push(msg) },
+  });
+
+  const autoclassWarnings = warnings.filter((w) => w.includes("[autoclass]"));
+  assert.equal(autoclassWarnings.length, 1); // one line per unmatched event per run
+  assert.match(autoclassWarnings[0], /53:601/);
+  assert.match(autoclassWarnings[0], /SaiPa - JYP/);
+  assert.match(autoclassWarnings[0], /2026-10-08/);
+  assert.match(autoclassWarnings[0], /same date, different opponent: \[Jukurit\]/);
+  assert.match(autoclassWarnings[0], /same opponent, different date: \[2026-10-15\]/);
 });
 
 test("run() twice with unchanged data appends no new sectionHistory point", async () => {

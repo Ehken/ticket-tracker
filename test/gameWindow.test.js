@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getHelsinkiHour, isGameDayWindowNow } from "../scripts/lib/gameWindow.js";
+import { getHelsinkiHour, isGameDayWindowNow, warnOnPastWatchDates } from "../scripts/lib/gameWindow.js";
 import { decide } from "../scripts/checkGameWindow.js";
 
 const UPCOMING_JYP_OCT8 = [
@@ -60,10 +60,71 @@ test("isGameDayWindowNow near-midnight DST case: Helsinki date has already rolle
   assert.equal(isGameDayWindowNow(eventOnRolledOverDate, now), false);
 });
 
+test("isGameDayWindowNow is true for a matching watch date within its default window (8-20 Helsinki)", () => {
+  const watchDates = [{ date: "2026-08-03" }];
+  const now = new Date("2026-08-03T06:00:00.000Z"); // 09:00 Helsinki (UTC+3 in August)
+  assert.equal(isGameDayWindowNow([], now, watchDates), true);
+});
+
+test("isGameDayWindowNow is false for an unrelated date, even inside the default watch window's hours", () => {
+  const watchDates = [{ date: "2026-08-03" }];
+  const now = new Date("2026-08-04T06:00:00.000Z"); // same hour, wrong date
+  assert.equal(isGameDayWindowNow([], now, watchDates), false);
+});
+
+test("isGameDayWindowNow is false for a watch date outside its default window's hours", () => {
+  const watchDates = [{ date: "2026-08-03" }];
+  const tooEarly = new Date("2026-08-03T04:00:00.000Z"); // 07:00 Helsinki — before the 8-20 default
+  const tooLate = new Date("2026-08-03T18:00:00.000Z"); // 21:00 Helsinki — after the 8-20 default
+  assert.equal(isGameDayWindowNow([], tooEarly, watchDates), false);
+  assert.equal(isGameDayWindowNow([], tooLate, watchDates), false);
+});
+
+test("isGameDayWindowNow respects a watch date entry's own startHour/endHour override", () => {
+  const watchDates = [{ date: "2026-08-03", startHour: 6, endHour: 9 }];
+  const insideCustomWindow = new Date("2026-08-03T04:30:00.000Z"); // 07:30 Helsinki
+  const outsideDefaultButInsideCustom = insideCustomWindow;
+  assert.equal(isGameDayWindowNow([], outsideDefaultButInsideCustom, watchDates), true);
+
+  const afterCustomWindowButInsideDefault = new Date("2026-08-03T07:00:00.000Z"); // 10:00 Helsinki
+  assert.equal(isGameDayWindowNow([], afterCustomWindowButInsideDefault, watchDates), false);
+});
+
+test("isGameDayWindowNow: a watch date and the evening game-day window combine with OR, not AND", () => {
+  // A watch date's own window doesn't need an upcoming event, and an
+  // upcoming event's evening window doesn't need a watch date entry.
+  const watchDates = [{ date: "2026-08-03" }];
+  const watchDateMorning = new Date("2026-08-03T06:00:00.000Z"); // 09:00 Helsinki, no events at all
+  assert.equal(isGameDayWindowNow([], watchDateMorning, watchDates), true);
+
+  const gameDayEvening = new Date("2026-10-08T14:00:00.000Z"); // 17:00 Helsinki, no watch dates at all
+  assert.equal(isGameDayWindowNow(UPCOMING_JYP_OCT8, gameDayEvening, []), true);
+});
+
+test("warnOnPastWatchDates warns naming every stale entry, and only stale entries", () => {
+  const watchDates = [{ date: "2026-07-01" }, { date: "2026-08-03" }];
+  const warnings = [];
+  warnOnPastWatchDates(watchDates, new Date("2026-08-03T06:00:00.000Z"), { warn: (msg) => warnings.push(msg) });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /2026-07-01/);
+  assert.doesNotMatch(warnings[0], /2026-08-03/);
+});
+
+test("warnOnPastWatchDates does not warn when no entry is in the past", () => {
+  const watchDates = [{ date: "2026-08-03" }];
+  const warnings = [];
+  warnOnPastWatchDates(watchDates, new Date("2026-08-03T06:00:00.000Z"), { warn: (msg) => warnings.push(msg) });
+  assert.equal(warnings.length, 0);
+});
+
 async function seedDataDir(index) {
   const dataDir = await mkdtemp(path.join(tmpdir(), "gamewindow-test-"));
   await writeFile(path.join(dataDir, "events.json"), JSON.stringify(index, null, 2) + "\n");
   return dataDir;
+}
+
+async function seedWatchDates(dataDir, watchDates) {
+  await writeFile(path.join(dataDir, "watchDates.json"), JSON.stringify(watchDates, null, 2) + "\n");
 }
 
 test("decide() returns the literal string 'proceed' for an in-window game day", async () => {
@@ -84,4 +145,26 @@ test("decide() treats a missing events.json as no events (skip), rather than thr
   const dataDir = await mkdtemp(path.join(tmpdir(), "gamewindow-test-empty-"));
   const result = await decide(dataDir, new Date("2026-10-08T14:00:00.000Z"));
   assert.equal(result, "skip");
+});
+
+test("decide() proceeds on a watch date with no upcoming events at all", async () => {
+  const dataDir = await seedDataDir([]);
+  await seedWatchDates(dataDir, [{ date: "2026-08-03" }]);
+  const result = await decide(dataDir, new Date("2026-08-03T06:00:00.000Z")); // 09:00 Helsinki
+  assert.equal(result, "proceed");
+});
+
+test("decide() treats a missing watchDates.json as no watch dates (skip on a non-game day), rather than throwing", async () => {
+  const dataDir = await seedDataDir([]);
+  const result = await decide(dataDir, new Date("2026-08-03T06:00:00.000Z"));
+  assert.equal(result, "skip");
+});
+
+test("decide() warns via the passed-in logger when watchDates.json has a stale entry", async () => {
+  const dataDir = await seedDataDir([]);
+  await seedWatchDates(dataDir, [{ date: "2026-07-01" }, { date: "2026-08-03" }]);
+  const warnings = [];
+  await decide(dataDir, new Date("2026-08-03T06:00:00.000Z"), { warn: (msg) => warnings.push(msg) });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /2026-07-01/);
 });

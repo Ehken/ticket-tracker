@@ -1,11 +1,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readJson, eventsIndexPath } from "./lib/dataStore.js";
-import { isGameDayWindowNow } from "./lib/gameWindow.js";
+import { readJson, eventsIndexPath, watchDatesPath } from "./lib/dataStore.js";
+import { isGameDayWindowNow, warnOnPastWatchDates } from "./lib/gameWindow.js";
 
-export async function decide(dataDir, now = new Date()) {
+export async function decide(dataDir, now = new Date(), logger = console) {
   const index = await readJson(eventsIndexPath(dataDir), []);
-  return isGameDayWindowNow(index, now) ? "proceed" : "skip";
+  const watchDates = await readJson(watchDatesPath(dataDir), []);
+  warnOnPastWatchDates(watchDates, now, logger);
+  return isGameDayWindowNow(index, now, watchDates) ? "proceed" : "skip";
 }
 
 async function main() {

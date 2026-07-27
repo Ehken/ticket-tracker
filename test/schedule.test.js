@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import {
   normalizeName,
   extractOpponent,
   toHelsinkiDateString,
   findScheduleMatch,
+  findNearMissCandidates,
 } from "../scripts/lib/schedule.js";
 
 test("normalizeName is case, whitespace, and hyphen-variant tolerant", () => {
@@ -86,4 +90,60 @@ test("findScheduleMatch returns null when the event name doesn't parse as 'SaiPa
     findScheduleMatch(schedule, { name: "SaiPa kausikortit 2026-2027", startIso: "2026-08-27T17:00:00.000Z" }),
     null
   );
+});
+
+test("findNearMissCandidates finds a same-date-different-opponent candidate (naming problem)", () => {
+  const schedule = [{ date: "2026-10-08", opponent: "Jukurit", gameType: "runkosarja", season: "2026-27" }];
+  const result = findNearMissCandidates(schedule, { name: "SaiPa - JYP", startIso: "2026-10-08T17:30:00.000Z" });
+  assert.deepEqual(result.sameDateDifferentOpponent, [schedule[0]]);
+  assert.deepEqual(result.sameOpponentDifferentDate, []);
+});
+
+test("findNearMissCandidates finds a same-opponent-different-date candidate (date problem)", () => {
+  const schedule = [{ date: "2026-10-15", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }];
+  const result = findNearMissCandidates(schedule, { name: "SaiPa - JYP", startIso: "2026-10-08T17:30:00.000Z" });
+  assert.deepEqual(result.sameDateDifferentOpponent, []);
+  assert.deepEqual(result.sameOpponentDifferentDate, [schedule[0]]);
+});
+
+test("findNearMissCandidates can return both candidate lists at once", () => {
+  const schedule = [
+    { date: "2026-10-08", opponent: "Jukurit", gameType: "runkosarja", season: "2026-27" },
+    { date: "2026-10-15", opponent: "JYP", gameType: "runkosarja", season: "2026-27" },
+  ];
+  const result = findNearMissCandidates(schedule, { name: "SaiPa - JYP", startIso: "2026-10-08T17:30:00.000Z" });
+  assert.deepEqual(result.sameDateDifferentOpponent, [schedule[0]]);
+  assert.deepEqual(result.sameOpponentDifferentDate, [schedule[1]]);
+});
+
+test("findNearMissCandidates returns empty lists for an actual match (nothing to diagnose)", () => {
+  const schedule = [{ date: "2026-10-08", opponent: "JYP", gameType: "runkosarja", season: "2026-27" }];
+  const result = findNearMissCandidates(schedule, { name: "SaiPa - JYP", startIso: "2026-10-08T17:30:00.000Z" });
+  assert.deepEqual(result.sameDateDifferentOpponent, []);
+  assert.deepEqual(result.sameOpponentDifferentDate, []);
+});
+
+test("findNearMissCandidates: same-date candidates still surface even when the event name doesn't parse as 'SaiPa - X'", () => {
+  const schedule = [{ date: "2026-08-27", opponent: "Jukurit", gameType: "harjoitusottelu", season: "2026-27" }];
+  const result = findNearMissCandidates(schedule, {
+    name: "SaiPa kausikortit 2026-2027",
+    startIso: "2026-08-27T17:00:00.000Z",
+  });
+  assert.deepEqual(result.sameDateDifferentOpponent, [schedule[0]]);
+  assert.deepEqual(result.sameOpponentDifferentDate, []); // no opponent parsed, so this axis can't be searched
+});
+
+// scripts/lib/schedule.js is imported directly by js/dashboardUnclassified.js
+// (a browser module, served statically — this repo has no build step) so
+// the same near-miss diagnosis logic isn't duplicated between the Node
+// scraper and the frontend. That only works as long as this file never
+// gains a Node-only API; nothing else enforces that, so pin it down here
+// rather than letting it become an assumption that silently breaks the
+// dashboard at runtime with no test failing.
+test("scripts/lib/schedule.js stays browser-safe (no node: imports, require(), or process.*)", () => {
+  const filePath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "lib", "schedule.js");
+  const source = readFileSync(filePath, "utf8");
+  assert.doesNotMatch(source, /\bnode:/);
+  assert.doesNotMatch(source, /\brequire\(/);
+  assert.doesNotMatch(source, /\bprocess\./);
 });

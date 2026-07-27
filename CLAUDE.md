@@ -41,14 +41,22 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
 
 ## Data ownership (`data/`)
 
-- `data/overrides.json` and `data/schedule.json` are **human-owned** —
-  code must never write to them. No script in this repo does.
+- `data/overrides.json`, `data/schedule.json`, and `data/watchDates.json`
+  are **human-owned** — code must never write to them. No script in this
+  repo does. `watchDates.json` is read-only input to
+  `scripts/checkGameWindow.js`'s game-day gate (extends it to high-frequency
+  scraping on a chosen date, e.g. a sales-opening day, not just an actual
+  game day) — see `isGameDayWindowNow`/`warnOnPastWatchDates` in
+  `scripts/lib/gameWindow.js`.
 - `data/autoclass.json` is **scraper-owned and write-once**: an existing
   entry is never modified, even by a later, different candidate match
-  (`setAutoclassIfAbsent` in `scripts/lib/dataStore.js`).
+  (`setAutoclassIfAbsent` in `scripts/lib/dataStore.js`). Classification is
+  retried every run until an entry exists here (or `overrides.json` sets
+  `gameType` for that event) — see `scripts/fetch.js`.
 - Everything else under `data/` (`events.json`, `events/*/latest.json`,
-  `events/*/history.json`, `events/*/seats.json`, `capacities/`) is
-  machine-owned, written by `scripts/fetch.js`.
+  `events/*/history.json`, `events/*/sectionHistory.json`,
+  `events/*/seats.json`, `capacities/`) is machine-owned, written by
+  `scripts/fetch.js`.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never
