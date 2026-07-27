@@ -93,6 +93,26 @@ export function warnOnOrphanRowLevelDisabled(disabledList, logger = console) {
   }
 }
 
+// Whole-section entries in map.disabled are matched against known capacity
+// keys (see isSectionDisabled above). If the shop ever closes a section
+// under an identifier we don't recognize — e.g. the standing terrace under
+// something other than literally "seisomakatsomo" — that closure silently
+// never applies anywhere: the section keeps reporting full availability
+// with no signal anything's wrong. This is the only way we'd ever learn
+// the real identifier.
+export function warnOnUnmatchedDisabledSection(disabledList, capacities, logger = console) {
+  const knownKeys = new Set(Object.keys(capacities));
+  for (const entry of disabledList) {
+    if (entry.includes("-")) continue; // row-level entry, covered by warnOnOrphanRowLevelDisabled
+    if (!knownKeys.has(entry)) {
+      logger.warn(
+        `map.disabled contains whole-section entry "${entry}" matching no known capacity key — ` +
+          "this section's closure will not be reflected anywhere (sold/available/hold unaffected)."
+      );
+    }
+  }
+}
+
 export function buildSectionTable({ soldCounts, capacities, disabled, standingSold, wheelchairSold, aitioSold = 0 }) {
   const rows = [];
   let aitiotTotal = 0;
@@ -110,13 +130,21 @@ export function buildSectionTable({ soldCounts, capacities, disabled, standingSo
 
     if (key === "seisomakatsomo") {
       const sold = standingSold ?? 0;
-      rows.push({ section: "seisomakatsomo", sold, available: total - sold, hold: 0, total });
+      if (isSectionDisabled(key, disabled)) {
+        rows.push({ section: "seisomakatsomo", sold, available: 0, hold: total - sold, total, disabled: true });
+      } else {
+        rows.push({ section: "seisomakatsomo", sold, available: total - sold, hold: 0, total, disabled: false });
+      }
       continue;
     }
 
     if (key === "invalid") {
       const sold = wheelchairSold ?? 0;
-      rows.push({ section: "invalid", sold, available: total - sold, hold: 0, total });
+      if (isSectionDisabled(key, disabled)) {
+        rows.push({ section: "invalid", sold, available: 0, hold: total - sold, total, disabled: true });
+      } else {
+        rows.push({ section: "invalid", sold, available: total - sold, hold: 0, total, disabled: false });
+      }
       continue;
     }
 

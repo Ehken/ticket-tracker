@@ -11,6 +11,7 @@ import {
   buildSectionTable,
   computeTotals,
   warnOnOrphanRowLevelDisabled,
+  warnOnUnmatchedDisabledSection,
   extractSoldSeatIds,
   warnOnSeatCountMismatch,
 } from "./lib/sections.js";
@@ -89,6 +90,7 @@ export async function run({
       });
 
       const mergedCapacities = { ...capacities, ...map.status.capacities };
+      warnOnUnmatchedDisabledSection(map.disabled, mergedCapacities, log);
       const soldCounts = countSoldPerSection(map.status.usages);
       const { standing, wheelchair } = extractAggregateSold(map.status.usages);
       const { sold: aitioSold, soldAitioIds } = extractAitioSold(map.status.usages);
@@ -135,8 +137,11 @@ export async function run({
         available: totals.available,
         hold: totals.hold,
         // Deterministic order matters both for the content comparison above
-        // and for clean git diffs. press/aitiot/seisomakatsomo/invalid rows
-        // have no `disabled` flag at all, so they're correctly excluded here.
+        // and for clean git diffs. seisomakatsomo/invalid participate here
+        // too now (buildSectionTable sets disabled: true/false on them the
+        // same as seated sections) — a closed standing/wheelchair area
+        // correctly shows up in this list. press/aitiot are the only rows
+        // with no `disabled` flag at all, so they're the only ones excluded.
         closed: rows.filter((r) => r.disabled).map((r) => r.section).sort(),
       });
       await writeJsonIfChanged(historyPath(dataDir, id), updatedHistory);

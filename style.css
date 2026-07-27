@@ -25,6 +25,14 @@
   --seat-aitio-myyty: #7b4fb5;
   --seat-vapaa: #f3ead1;
   --seat-ei-myynnissa: rgba(163, 163, 163, 0.55);
+  /* Opaque equivalent of --seat-ei-myynnissa (rgba(163,163,163,0.55) over
+     white ≈ #cccccc) — for SVG gradient stop-color specifically. A
+     semi-transparent stop-color composites against whatever sits behind
+     the wedge rather than the map's light base, and renders inconsistently
+     across engines; an opaque value sidesteps both. Plain fills (seat
+     dots, wheelchair slots) sit directly on the map's own light surface
+     and use --seat-ei-myynnissa itself, unaffected by this. */
+  --seat-ei-myynnissa-opaque: #cccccc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -713,6 +721,12 @@ header.site-header h1 {
   stop-color: var(--seat-kausikortti);
 }
 
+/* A closed standing area's unsold remainder — uses the opaque equivalent
+   of --seat-ei-myynnissa, not the var itself (see its definition above). */
+.seatmap-standing-stop--ei-myynnissa {
+  stop-color: var(--seat-ei-myynnissa-opaque);
+}
+
 .seatmap-baked-label--hidden {
   display: none;
 }
@@ -770,6 +784,14 @@ header.site-header h1 {
   fill: #8a8474;
 }
 
+/* A closed zone's own count — a darkened tone of its grey background,
+   same "darkened tone of what it sits on" convention as --vapaa's #8a8474
+   (not --irtolippu's near-black, which exists for contrast against bright
+   yellow specifically — grey doesn't need that much contrast). */
+.seatmap-zone-count--ei-myynnissa {
+  fill: #5a5a5a;
+}
+
 /* The wheelchair area's WHEELCHAIR_SLOT_COUNT discrete slots — a count
    visualization (this data has no individual seat ids), not seat
    identities. Border is a fixed light-mode tone, not var(--border): these
@@ -792,6 +814,13 @@ header.site-header h1 {
 
 .seatmap-wheelchair-slot--vapaa {
   fill: var(--seat-vapaa);
+}
+
+/* A closed wheelchair area's remainder slots — plain fill on the map's own
+   light surface, same as the seat dots' own ei-myynnissa rule, so the var
+   itself (with its alpha) is fine here, unlike the gradient stop above. */
+.seatmap-wheelchair-slot--ei-myynnissa {
+  fill: var(--seat-ei-myynnissa);
 }
 
 .seatmap-reset-button {
