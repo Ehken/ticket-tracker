@@ -15,7 +15,7 @@ import {
   extractSoldSeatIds,
   warnOnSeatCountMismatch,
 } from "./lib/sections.js";
-import { findScheduleMatch } from "./lib/schedule.js";
+import { findScheduleMatch, findNearMissCandidates, toHelsinkiDateString } from "./lib/schedule.js";
 import {
   eventDirId,
   eventsIndexPath,
@@ -25,6 +25,7 @@ import {
   sectionHistoryPath,
   schedulePath,
   autoclassPath,
+  overridesPath,
   readJson,
   writeJsonIfChanged,
   writeSectionHistoryIfChanged,
@@ -38,6 +39,25 @@ import {
 
 const SHOP_BASE_URL = "https://elippu.net/saipa";
 const EVENT_DELAY_MS = 1500;
+
+// One line per unmatched event per run — this IS the whole diagnosis: the
+// two candidate lists tell you immediately whether it's a naming problem
+// (schedule.json has the right date, wrong opponent) or a date problem
+// (right opponent, wrong date), without needing to open schedule.json
+// yourself to check.
+function logUnclassifiedWarning(event, schedule, logger) {
+  const dateStr = toHelsinkiDateString(event.start.toISOString());
+  const { sameDateDifferentOpponent, sameOpponentDifferentDate } = findNearMissCandidates(schedule, {
+    name: event.name,
+    startIso: event.start.toISOString(),
+  });
+  const sameDateStr = sameDateDifferentOpponent.map((f) => f.opponent).join(", ") || "none";
+  const sameOpponentStr = sameOpponentDifferentDate.map((f) => f.date).join(", ") || "none";
+  logger.warn(
+    `[autoclass] ${event.id} "${event.name}" (${dateStr}) did not match any schedule.json fixture — ` +
+      `same date, different opponent: [${sameDateStr}]; same opponent, different date: [${sameOpponentStr}]`
+  );
+}
 
 export async function run({
   dataDir,
@@ -55,14 +75,14 @@ export async function run({
   let index = await readJson(eventsIndexPath(dataDir), []);
   const schedule = await readJson(schedulePath(dataDir), []);
   let autoclass = await readJson(autoclassPath(dataDir), {});
+  // Read-only — overrides.json is human-owned; nothing here ever writes to
+  // it (CLAUDE.md). Needed to know whether a manual override already
+  // supplies gameType, in which case a schedule-match retry is pointless.
+  const overrides = await readJson(overridesPath(dataDir), {});
 
   // Must run before any writes: a suspiciously empty listing must never look
   // like "every event disappeared" and mass-archive the whole index.
   assertListingNotSuspiciouslyEmpty(index, presentIds);
-
-  // Ids known before this run's upserts — the "first seen ever" signal for
-  // auto-classification. Must be captured before the loop mutates `index`.
-  const existingIds = new Set(index.map((e) => e.id));
 
   let hadFailure = false;
 
@@ -75,13 +95,32 @@ export async function run({
 
       warnOnOrphanRowLevelDisabled(map.disabled, log);
 
-      if (!existingIds.has(event.id)) {
+      // Retried every run until classified, not just on the run where the
+      // event first appears — a schedule.json naming/date mismatch on first
+      // sight used to leave the event permanently "(luokittelematon)" with
+      // no signal anywhere (the event is no longer "new" on the next run,
+      // so the old guard skipped it forever). setAutoclassIfAbsent's
+      // write-once semantics mean a *successful* match still never gets
+      // overwritten — only a failed attempt gets retried.
+      //
+      // Skipped when overrides.json already sets gameType for this event: a
+      // manual override is a deliberate human decision, and a schedule
+      // match can never change what's displayed once gameType is
+      // overridden (mergeClassification: override.gameType ?? auto.gameType
+      // ?? "muu"). An override entry that sets some *other* field (note,
+      // hidden, displayName) but not gameType does NOT count as classified
+      // here — that event still needs (and gets) a retry.
+      const dashId = eventDirId(event.id);
+      const alreadyClassified = dashId in autoclass || overrides[dashId]?.gameType != null;
+      if (!alreadyClassified) {
         const match = findScheduleMatch(schedule, {
           name: event.name,
           startIso: event.start.toISOString(),
         });
         if (match) {
-          autoclass = setAutoclassIfAbsent(autoclass, eventDirId(event.id), match);
+          autoclass = setAutoclassIfAbsent(autoclass, dashId, match);
+        } else {
+          logUnclassifiedWarning(event, schedule, log);
         }
       }
 

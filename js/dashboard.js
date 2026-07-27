@@ -3,6 +3,7 @@
 // — verified via the browser instead.
 import { getHistory } from "./fetchData.js";
 import { filterBySeason, gameTypeLabel } from "./grouping.js";
+import { computeUnclassifiedEvents } from "./dashboardUnclassified.js";
 import { buildBaselineIndex, baselineForEvent, seasonForEvent } from "./dashboardBaseline.js";
 import { computeTopMovers, computeSelloutEstimate } from "./dashboardTrends.js";
 import {
@@ -296,7 +297,42 @@ function buildSection6(matchInScope, baselineIndex) {
   return panel;
 }
 
-export async function renderDashboard({ kausikortti, matchEvents, kausi }) {
+function buildSection7(unclassified) {
+  const panel = buildPanel("Luokittelemattomat");
+
+  if (unclassified.length === 0) {
+    panel.append(buildPlaceholder("Ei luokittelemattomia otteluita."));
+    return panel;
+  }
+
+  for (const { event, sameDateDifferentOpponent, sameOpponentDifferentDate } of unclassified) {
+    const row = document.createElement("div");
+    row.className = "rank-row";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "rank-row__label";
+    labelEl.textContent = `${event.name} (${formatHelsinkiDate(event.start)})`;
+    row.append(labelEl);
+
+    const sameDateText =
+      sameDateDifferentOpponent.length > 0
+        ? sameDateDifferentOpponent.map((f) => f.opponent).join(", ")
+        : "ei osumia";
+    const sameOpponentText =
+      sameOpponentDifferentDate.length > 0 ? sameOpponentDifferentDate.map((f) => f.date).join(", ") : "ei osumia";
+
+    const valueEl = document.createElement("span");
+    valueEl.className = "rank-row__value";
+    valueEl.textContent = `sama pvm, eri vastustaja: ${sameDateText} · sama vastustaja, eri pvm: ${sameOpponentText}`;
+    row.append(valueEl);
+
+    panel.append(row);
+  }
+
+  return panel;
+}
+
+export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule }) {
   const container = document.getElementById("dashboard-container");
   container.hidden = false;
   container.replaceChildren();
@@ -346,6 +382,12 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi }) {
 
   const opponentDemand = computeOpponentDemand(matchInScope, baselineIndex);
 
+  // Unclassified events: intentionally computed from the full, unfiltered
+  // universe (not *InScope), never hidden by kausi/season selection — an
+  // unclassified event has no reliable season of its own, so hiding it
+  // behind a season filter would defeat the point of surfacing it at all.
+  const unclassified = computeUnclassifiedEvents([...kausikortti, ...matchEvents], schedule);
+
   const grid = document.createElement("div");
   grid.className = "dashboard-grid";
   grid.append(
@@ -354,7 +396,8 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi }) {
     buildSection3(matchInScope, baselineIndex, nowIso),
     buildSection4(opponentDemand),
     buildSection5(matchInScope, baselineIndex, opponentDemand),
-    buildSection6(matchInScope, baselineIndex)
+    buildSection6(matchInScope, baselineIndex),
+    buildSection7(unclassified)
   );
   container.append(grid);
 }

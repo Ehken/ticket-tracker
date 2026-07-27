@@ -5,12 +5,15 @@ name: Fetch SaiPa ticket data
 # show up to ~55 minutes of delay (and outright missed slots) at :00.
 "on":
   schedule:
-    - cron: "17 * * * *"       # hourly baseline
-    - cron: "*/10 11-19 * * *" # game-day intensive mode candidate window (UTC 11-19
-                                # comfortably brackets 15-21 Europe/Helsinki across both
-                                # DST offsets; the actual gating is done in Node below).
-                                # Note: GitHub's cron scheduler can run several minutes
-                                # late under load — this design tolerates that.
+    - cron: "17 * * * *"      # hourly baseline
+    - cron: "*/10 5-19 * * *" # game-day/watch-date intensive mode candidate window.
+                               # UTC 5-19 brackets both the evening game-day window
+                               # (15-21 Europe/Helsinki: 12-18 UTC summer, 13-19 UTC
+                               # winter) and the default watch-date window (8-20
+                               # Europe/Helsinki: 5-17 UTC summer, 6-18 UTC winter) —
+                               # the actual gating is done in Node below. Note:
+                               # GitHub's cron scheduler can run several minutes late
+                               # under load — this design tolerates that.
   workflow_dispatch: {}
 
 concurrency:
@@ -35,7 +38,15 @@ jobs:
 
       - name: Game-day window check (only gates the 10-min cron)
         id: gate
-        if: github.event_name == 'schedule' && github.event.schedule == '*/10 11-19 * * *'
+        # Inverted comparison (not "== the 10-min cron's own literal") so
+        # this can never silently drift out of sync with that cron's hours
+        # again: any schedule that ISN'T the hourly baseline gets gated,
+        # whatever its own bracket is. Getting this wrong is a real risk,
+        # not a hypothetical — if the two ever mismatch, this condition is
+        # false, `steps.gate.outputs.proceed` stays unset (empty string),
+        # and the fetch/commit steps below (both gated on `!= 'false'`)
+        # would then run unconditionally on every 10-minute tick.
+        if: github.event_name == 'schedule' && github.event.schedule != '17 * * * *'
         run: |
           result=$(node scripts/checkGameWindow.js)
           if [ "$result" = "proceed" ]; then

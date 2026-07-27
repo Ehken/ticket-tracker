@@ -49,6 +49,14 @@ export function autoclassPath(dataDir) {
   return path.join(dataDir, "autoclass.json");
 }
 
+export function overridesPath(dataDir) {
+  return path.join(dataDir, "overrides.json");
+}
+
+export function watchDatesPath(dataDir) {
+  return path.join(dataDir, "watchDates.json");
+}
+
 export async function readJson(filePath, fallback) {
   try {
     const content = await readFile(filePath, "utf8");

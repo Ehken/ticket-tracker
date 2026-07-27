@@ -89,7 +89,7 @@ async function main() {
     // normal view (incl. ?mock=1), but renders a completely separate page
     // instead. No visible link to it from the normal UI.
     const kausi = resolveKausi(readUrlState().kausi, seasons, rest);
-    await renderDashboard({ kausikortti, matchEvents: rest, kausi });
+    await renderDashboard({ kausikortti, matchEvents: rest, kausi, schedule });
     return;
   }
 

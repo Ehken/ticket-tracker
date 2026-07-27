@@ -44,3 +44,23 @@ export function findScheduleMatch(schedule, { name, startIso }) {
 
   return fixture ? { gameType: fixture.gameType, season: fixture.season } : null;
 }
+
+// The diagnosis for a failed findScheduleMatch: two candidate lists that
+// tell you immediately whether it's a naming problem (same date, different
+// opponent recorded) or a date problem (same opponent, different date
+// recorded) — used both by scripts/fetch.js's unmatched-event warning and
+// by js/dashboardUnclassified.js's ?dashboard=1 list, so the diagnosis is
+// identical wherever it's surfaced. Pure and Node-free — reused directly by
+// the frontend (see the browser-safety guard test in schedule.test.js).
+export function findNearMissCandidates(schedule, { name, startIso }) {
+  const opponent = extractOpponent(name);
+  const dateStr = toHelsinkiDateString(startIso);
+
+  const sameDateDifferentOpponent = schedule.filter(
+    (row) => row.date === dateStr && (opponent === null || normalizeName(row.opponent) !== opponent)
+  );
+  const sameOpponentDifferentDate =
+    opponent === null ? [] : schedule.filter((row) => row.date !== dateStr && normalizeName(row.opponent) === opponent);
+
+  return { sameDateDifferentOpponent, sameOpponentDifferentDate };
+}
