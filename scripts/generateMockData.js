@@ -284,38 +284,34 @@ export function groupSeatIdsBySection(seatIds) {
   return bySection;
 }
 
+function pinnedSectionRow(section, total, pinnedBySection) {
+  const { sold = 0, disabled = false } = pinnedBySection.get(section) ?? {};
+  return {
+    section,
+    sold,
+    available: disabled ? 0 : total - sold,
+    hold: disabled ? total - sold : 0,
+    total,
+    disabled,
+  };
+}
+
 // Builds a kausikortti event's own `sections` directly from a pinned real
 // snapshot's per-section sold counts, instead of buildSections's rng-driven
-// soldWithBaseline draw. disabled is always false (a kausikortti event
-// itself is never disabled) and hold is always 0 — mirrors buildSections's
-// shape exactly, just deterministic. press/aitiot aren't in the snapshot
-// (see refreshMockBaseline.js) so they default to their fixed capacities.
-export function buildPinnedKausikorttiSections(pinnedSoldBySection) {
+// soldWithBaseline draw. Mirrors buildSections's/sections.js's disabled
+// handling exactly (available: 0, hold: total - sold when disabled) — the
+// real kausikortti event demonstrably can have closed sections (e.g.
+// C2/C7/C8/D2 today), so disabled is read from the pinned data, not
+// hardcoded false. press/aitiot aren't in the snapshot (see
+// refreshMockBaseline.js) so they default to their fixed capacities, never
+// disabled.
+export function buildPinnedKausikorttiSections(pinnedBySection) {
   const sections = [];
   for (const [section, total] of Object.entries(SEATED_CAPACITIES)) {
-    const sold = pinnedSoldBySection.get(section) ?? 0;
-    sections.push({ section, sold, available: total - sold, hold: 0, total, disabled: false });
+    sections.push(pinnedSectionRow(section, total, pinnedBySection));
   }
-
-  const standingSold = pinnedSoldBySection.get("seisomakatsomo") ?? 0;
-  sections.push({
-    section: "seisomakatsomo",
-    sold: standingSold,
-    available: STANDING_CAPACITY - standingSold,
-    hold: 0,
-    total: STANDING_CAPACITY,
-    disabled: false,
-  });
-
-  const wheelchairSold = pinnedSoldBySection.get("invalid") ?? 0;
-  sections.push({
-    section: "invalid",
-    sold: wheelchairSold,
-    available: WHEELCHAIR_CAPACITY - wheelchairSold,
-    hold: 0,
-    total: WHEELCHAIR_CAPACITY,
-    disabled: false,
-  });
+  sections.push(pinnedSectionRow("seisomakatsomo", STANDING_CAPACITY, pinnedBySection));
+  sections.push(pinnedSectionRow("invalid", WHEELCHAIR_CAPACITY, pinnedBySection));
 
   sections.push({ section: "press", sold: 0, available: 0, hold: PRESS_CAPACITY, total: PRESS_CAPACITY });
   sections.push({ section: "aitiot", sold: 0, available: 0, hold: AITIOT_CAPACITY, total: AITIOT_CAPACITY });
@@ -493,7 +489,7 @@ async function main() {
   assertBaselineSnapshotValid(baselineSnapshot, realLatest.capacitiesHash);
   const seatPoolBySection = parseSeatmapSeatIds(realSvg);
   const pinned2026_27Baseline = {
-    sectionsMap: new Map(baselineSnapshot.sections.map((s) => [s.section, s.sold])),
+    sectionsMap: new Map(baselineSnapshot.sections.map((s) => [s.section, { sold: s.sold, disabled: s.disabled }])),
     soldSeatIds: baselineSnapshot.soldSeatIds,
   };
 

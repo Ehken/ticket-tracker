@@ -120,11 +120,11 @@ test("groupSeatIdsBySection returns an empty object for an empty seat-id list", 
   assert.deepEqual(groupSeatIdsBySection([]), {});
 });
 
-test("buildPinnedKausikorttiSections sources sold from the pinned map, disabled always false, hold always 0", () => {
+test("buildPinnedKausikorttiSections sources sold from the pinned map, hold always 0 when not disabled", () => {
   const pinned = new Map([
-    ["A1", 42],
-    ["seisomakatsomo", 1015],
-    ["invalid", 5],
+    ["A1", { sold: 42, disabled: false }],
+    ["seisomakatsomo", { sold: 1015, disabled: false }],
+    ["invalid", { sold: 5, disabled: false }],
   ]);
   const sections = buildPinnedKausikorttiSections(pinned);
 
@@ -144,6 +144,22 @@ test("buildPinnedKausikorttiSections sources sold from the pinned map, disabled 
   const c1 = sections.find((s) => s.section === "C1");
   assert.equal(c1.sold, 0);
   assert.equal(c1.available, c1.total);
+});
+
+test("buildPinnedKausikorttiSections: a disabled section gets available 0, hold = total - sold, mirroring buildSections/sections.js", () => {
+  const pinned = new Map([
+    ["C2", { sold: 4, disabled: true }],
+    ["A1", { sold: 42, disabled: false }],
+  ]);
+  const sections = buildPinnedKausikorttiSections(pinned);
+
+  const c2 = sections.find((s) => s.section === "C2");
+  assert.deepEqual(c2, { section: "C2", sold: 4, available: 0, hold: c2.total - 4, total: c2.total, disabled: true });
+
+  const a1 = sections.find((s) => s.section === "A1");
+  assert.equal(a1.disabled, false);
+  assert.equal(a1.hold, 0);
+  assert.equal(a1.available, a1.total - 42);
 });
 
 test("buildPinnedKausikorttiSections always includes press (0 sold) and aitiot (0 sold) at their fixed capacities", () => {

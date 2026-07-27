@@ -46,10 +46,13 @@ async function main() {
   // press is always 0 with no baseline concept; aitiot is driven per-event
   // by soldAitioIds, not a season baseline — neither is ever read via
   // baseline.get(...) in generateMockData.js's buildSections, so neither
-  // belongs in the snapshot.
+  // belongs in the snapshot. disabled is carried through too — the real
+  // kausikortti event itself can have closed sections (e.g. C2/C7/C8/D2
+  // today), and Boolean(...) normalizes press/aitiot's already-filtered-out,
+  // otherwise-absent flag cleanly for any section that does keep it.
   const sections = latest.sections
     .filter((s) => s.section !== "press" && s.section !== "aitiot")
-    .map((s) => ({ section: s.section, sold: s.sold }));
+    .map((s) => ({ section: s.section, sold: s.sold, disabled: Boolean(s.disabled) }));
 
   const snapshot = {
     sourceEventId: dashId,
