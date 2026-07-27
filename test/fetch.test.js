@@ -167,6 +167,17 @@ test("run() completes end-to-end for a single healthy event using fixtures", asy
 
   const svgPath = path.join(dataDir, "capacities", `${latest.capacitiesHash}.svg`);
   assert.equal(await readFile(svgPath, "utf8"), seatmapSvg);
+
+  const sectionHistory = JSON.parse(
+    await readFile(path.join(dataDir, "events", "53-575", "sectionHistory.json"), "utf8")
+  );
+  assert.equal(sectionHistory.length, 1);
+  assert.equal(sectionHistory[0].capacitiesHash, latest.capacitiesHash);
+  assert.deepEqual(sectionHistory[0].sections, latest.sections.map((s) => s.section));
+  assert.equal(sectionHistory[0].points.length, 1);
+  assert.equal(sectionHistory[0].points[0].t, "2026-07-23T18:00:00.000Z");
+  assert.equal(sectionHistory[0].points[0].sold.length, latest.sections.length);
+  assert.deepEqual(sectionHistory[0].points[0].sold, latest.sections.map((s) => s.sold));
 });
 
 test("run() writes an autoclass.json entry when a first-seen event matches a schedule.json fixture", async () => {
@@ -249,4 +260,86 @@ test("run() never rewrites an existing autoclass.json entry on a later run, even
 
   const autoclass = JSON.parse(await readFile(path.join(dataDir, "autoclass.json"), "utf8"));
   assert.deepEqual(autoclass, { "53-601": { gameType: "runkosarja", season: "2026-27" } });
+});
+
+test("run() twice with unchanged data appends no new sectionHistory point", async () => {
+  const { dataDir } = await seedDataDir([]);
+  const httpClient = {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => listingHtml };
+      if (url.includes("53:575")) return { text: async () => eventPageHtml };
+      if (url.includes("seatmap.svg")) return { text: async () => seatmapSvg };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+  const listingHtml = `<a href="/saipa/53:575">SaiPa kausikortit 2026-2027</a>`;
+
+  for (const nowIso of ["2026-07-23T18:00:00.000Z", "2026-07-23T19:00:00.000Z"]) {
+    await run({
+      dataDir,
+      baseUrl: "https://elippu.net/saipa",
+      httpClient,
+      now: () => new Date(nowIso),
+      sleep: async () => {},
+      log: silentLog,
+    });
+  }
+
+  const sectionHistory = JSON.parse(
+    await readFile(path.join(dataDir, "events", "53-575", "sectionHistory.json"), "utf8")
+  );
+  assert.equal(sectionHistory.length, 1);
+  assert.equal(sectionHistory[0].points.length, 1); // same sold/closed both runs — no new point
+});
+
+test("run() starts a new sectionHistory generation when the capacities SVG changes between runs, preserving the old generation", async () => {
+  const { dataDir } = await seedDataDir([]);
+  const listingHtml = `<a href="/saipa/53:575">SaiPa kausikortit 2026-2027</a>`;
+  let svgToServe = seatmapSvg;
+  const httpClient = {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => listingHtml };
+      if (url.includes("53:575")) return { text: async () => eventPageHtml };
+      if (url.includes("seatmap.svg")) return { text: async () => svgToServe };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-23T18:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const firstLatest = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "latest.json"), "utf8"));
+
+  // Same seats, same capacities-per-section — only the SVG's bytes (and so
+  // its content hash) differ, e.g. a re-export of an unchanged arena map.
+  svgToServe = seatmapSvg + "\n<!-- re-exported -->";
+
+  const warnings = [];
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-23T19:00:00.000Z"),
+    sleep: async () => {},
+    log: { ...silentLog, warn: (msg) => warnings.push(msg) },
+  });
+
+  const secondLatest = JSON.parse(await readFile(path.join(dataDir, "events", "53-575", "latest.json"), "utf8"));
+  assert.notEqual(secondLatest.capacitiesHash, firstLatest.capacitiesHash);
+
+  const sectionHistory = JSON.parse(
+    await readFile(path.join(dataDir, "events", "53-575", "sectionHistory.json"), "utf8")
+  );
+  assert.equal(sectionHistory.length, 2);
+  assert.equal(sectionHistory[0].capacitiesHash, firstLatest.capacitiesHash);
+  assert.equal(sectionHistory[0].points.length, 1); // untouched
+  assert.equal(sectionHistory[1].capacitiesHash, secondLatest.capacitiesHash);
+  assert.equal(sectionHistory[1].points.length, 1);
+  assert.ok(warnings.some((w) => w.includes("[sectionHistory]") && w.includes("new generation")));
 });

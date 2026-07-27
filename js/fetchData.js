@@ -45,6 +45,14 @@ export function getHistory(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/history.json`, { fallbackOn404: [] });
 }
 
+// Per-section sold history — a generations array (see
+// scripts/lib/dataStore.js's appendSectionHistoryPointIfChanged). Not
+// consumed anywhere yet; a brand-new event has no file at all, hence the
+// empty-array fallback rather than treating a 404 as an error.
+export function getSectionHistory(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/sectionHistory.json`, { fallbackOn404: [] });
+}
+
 export function getSeats(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seats.json`, { fallbackOn404: null });
 }

@@ -10,6 +10,7 @@ import { parseSeatmapSeatIds } from "./lib/seatmap.js";
 import { compareAitioIds } from "./lib/sections.js";
 import { sectionOfSeatId } from "../js/seatMapClassify.js";
 import { mergeClassification } from "../js/classify.js";
+import { appendSectionHistoryPointIfChanged, writeSectionHistoryIfChanged } from "./lib/dataStore.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -345,20 +346,14 @@ export function assertBaselineSnapshotValid(snapshot, realCapacitiesHash) {
   }
 }
 
-function buildHistory(
-  rng,
-  {
-    finalSold,
-    finalStanding,
-    finalHold,
-    grandTotal,
-    firstSeenIso,
-    lastPointIso,
-    pointCount,
-    pinRecentToFinal = false,
-    closed = [],
-  }
-) {
+// Shared progress/timestamp grid for both buildHistory (aggregate) and
+// buildSectionHistory (per-section) — same points in time, so the two series
+// describe the same synthetic timeline, just at different granularity.
+// Splices in denser points close to "now" (the tracked window's end) so
+// 24h/7d deltas have real data to compute on — only for events with enough
+// tracked history for these offsets to fall inside their range — and
+// guarantees an exact final point at progress 1.
+function generateProgressPoints(firstSeenIso, lastPointIso, pointCount) {
   const startTime = new Date(firstSeenIso).getTime();
   const endTime = new Date(lastPointIso).getTime();
   const spanDays = (endTime - startTime) / 86400000;
@@ -366,9 +361,6 @@ function buildHistory(
   const progresses = [];
   for (let i = 0; i < pointCount; i++) progresses.push(i / (pointCount - 1));
 
-  // Splice in denser points close to "now" (the tracked window's end) so
-  // 24h/7d deltas have real data to compute on — only for events with
-  // enough tracked history for these offsets to fall inside their range.
   const recentProgressSet = new Set();
   if (spanDays >= 7) {
     for (const offsetDays of [7, 3, 1, 0.25]) {
@@ -383,15 +375,35 @@ function buildHistory(
   const uniqueSortedProgresses = [...new Set(progresses)].sort((a, b) => a - b);
   uniqueSortedProgresses[uniqueSortedProgresses.length - 1] = 1; // guarantee an exact final point
 
+  return uniqueSortedProgresses.map((progress, i) => ({
+    progress,
+    t: new Date(startTime + (endTime - startTime) * progress).toISOString(),
+    isLast: i === uniqueSortedProgresses.length - 1,
+    isRecent: recentProgressSet.has(progress),
+  }));
+}
+
+function buildHistory(
+  rng,
+  {
+    finalSold,
+    finalStanding,
+    finalHold,
+    grandTotal,
+    firstSeenIso,
+    lastPointIso,
+    pointCount,
+    pinRecentToFinal = false,
+    closed = [],
+  }
+) {
+  const progressPoints = generateProgressPoints(firstSeenIso, lastPointIso, pointCount);
+
   const points = [];
   let prevSold = 0;
-  for (let i = 0; i < uniqueSortedProgresses.length; i++) {
-    const progress = uniqueSortedProgresses[i];
-    const t = startTime + (endTime - startTime) * progress;
-    const isLast = i === uniqueSortedProgresses.length - 1;
-
+  for (const { t, progress, isLast, isRecent } of progressPoints) {
     let sold;
-    if (pinRecentToFinal && (recentProgressSet.has(progress) || isLast)) {
+    if (pinRecentToFinal && (isRecent || isLast)) {
       // Sales have plateaued over the recent window — a deliberately "flat"
       // mock game, so top-movers/sellout-estimate have a real zero-velocity
       // case to exclude, not just synthetic unit-test fixtures.
@@ -412,7 +424,7 @@ function buildHistory(
     // its latest.json exactly) — not empty, just never changing; no release
     // scenario is invented here (that belongs to a later PR).
     points.push({
-      t: new Date(t).toISOString(),
+      t,
       sold,
       soldSeated: sold - soldStanding,
       soldStanding,
@@ -424,6 +436,47 @@ function buildHistory(
 
   // Same "only append when sold changed" rule as production's real history.json.
   return points.filter((p, i) => i === 0 || p.sold !== points[i - 1].sold);
+}
+
+// Per-section counterpart to buildHistory — same progress/timestamp grid,
+// but each section's sold ramps independently with the same shape buildHistory
+// already uses (just per-section), and the result is built by calling the
+// real appendSectionHistoryPointIfChanged once per progress point, so this
+// mock fixture is produced by the exact accumulation logic production uses,
+// not a reimplementation of it. Every mock event's own disabled set and
+// capacitiesHash are constant across its timeline (no transitions in this
+// PR — that fixture gap is a later PR's job), so this always yields exactly
+// one generation.
+function buildSectionHistory(rng, { sections, capacitiesHash, firstSeenIso, lastPointIso, pointCount, pinRecentToFinal = false }) {
+  const progressPoints = generateProgressPoints(firstSeenIso, lastPointIso, pointCount);
+  const sectionNames = sections.map((s) => s.section);
+  const closed = sections.filter((s) => s.disabled).map((s) => s.section).sort();
+  const prevSold = new Array(sections.length).fill(0);
+
+  let generations = [];
+  for (const { t, progress, isLast, isRecent } of progressPoints) {
+    const sold = sections.map((s, idx) => {
+      let value;
+      if (pinRecentToFinal && (isRecent || isLast)) {
+        value = s.sold;
+      } else {
+        value = clamp(Math.round(s.sold * progress * (0.85 + rng() * 0.3)), prevSold[idx], s.sold);
+      }
+      if (isLast) value = s.sold;
+      prevSold[idx] = Math.max(prevSold[idx], value);
+      return value;
+    });
+
+    generations = appendSectionHistoryPointIfChanged(generations, {
+      capacitiesHash,
+      sections: sectionNames,
+      tISO: t,
+      sold,
+      closed,
+    });
+  }
+
+  return generations;
 }
 
 // Deterministic seeded pick of `count` items from `pool`, sorted in the
@@ -496,6 +549,7 @@ async function main() {
   const events = [];
   const latestById = new Map();
   const historyById = new Map();
+  const sectionHistoryById = new Map();
   const seatsById = new Map();
   const overrides = {};
   const autoclass = {};
@@ -514,7 +568,7 @@ async function main() {
     stopIsoOverride, // e.g. kausikortti's "stop" is end-of-season, not start+durationHours
     status,
     firstSeenDaysBefore = 45,
-    nowIso, // shared per-season "as of" instant (SEASON_2026_27_NOW etc.) — ignored if the event hasn't gone on sale yet as of that instant
+    nowIso, // shared per-season "as of" instant (SEASON_2026_27_NOW etc.) — used as lastPointIso for any non-past event; firstSeenIso is clamped below so it's never after this
     popularity,
     disabledSections = [],
     historyPoints = 10,
@@ -526,16 +580,25 @@ async function main() {
   }) {
     const startIso = helsinkiLocalToUtcIso(dateStr, hour, minute);
     const stopIso = stopIsoOverride ?? new Date(new Date(startIso).getTime() + durationHours * 3600 * 1000).toISOString();
-    const firstSeenIso = new Date(new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000).toISOString();
+    const lastPointIso =
+      status === "past" ? new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString() : nowIso ?? startIso;
 
-    let lastPointIso;
-    if (status === "past") {
-      lastPointIso = new Date(new Date(stopIso).getTime() + 3600 * 1000).toISOString();
-    } else if (nowIso && new Date(nowIso).getTime() > new Date(firstSeenIso).getTime()) {
-      lastPointIso = nowIso;
-    } else {
-      lastPointIso = nowIso ?? startIso;
-    }
+    // firstSeen must never be after the last tracked point, or the
+    // synthetic timeline runs backwards (sold decreasing as "time"
+    // advances). A game more than firstSeenDaysBefore days after its
+    // season's nowIso would otherwise get a firstSeen in the future
+    // relative to lastPointIso — clamp to a short but valid tracked window
+    // ending at lastPointIso instead: every upcoming event keeps a
+    // plausible short history rather than an inverted one, and no event
+    // drops out of the dataset.
+    const naturalFirstSeenIso = new Date(
+      new Date(startIso).getTime() - firstSeenDaysBefore * 86400 * 1000
+    ).toISOString();
+    const MIN_TRACKED_WINDOW_DAYS = 3;
+    const firstSeenIso =
+      new Date(naturalFirstSeenIso).getTime() <= new Date(lastPointIso).getTime()
+        ? naturalFirstSeenIso
+        : new Date(new Date(lastPointIso).getTime() - MIN_TRACKED_WINDOW_DAYS * 86400 * 1000).toISOString();
 
     const rng = makeRng(id);
     const baselineBySection = gameType === "kausikortti" ? null : baselineBySeason.get(season);
@@ -604,6 +667,21 @@ async function main() {
         pointCount: historyPoints,
         pinRecentToFinal,
         closed,
+      })
+    );
+
+    // Called after buildHistory so it doesn't disturb buildSections'/
+    // assignSeatIds'/buildHistory's existing relative rng-draw order for
+    // this event — this is purely additional rng consumption at the end.
+    sectionHistoryById.set(
+      id,
+      buildSectionHistory(rng, {
+        sections,
+        capacitiesHash: "mock-fixture",
+        firstSeenIso,
+        lastPointIso,
+        pointCount: historyPoints,
+        pinRecentToFinal,
       })
     );
 
@@ -950,6 +1028,83 @@ async function main() {
     }
   }
 
+  // --- Verify sectionHistory.json's shape: every mock event's own disabled
+  // set and capacitiesHash are constant across its timeline (no
+  // open/closed transitions in this PR), so every mock event must produce
+  // exactly one generation, whose sections match latest.json's row order,
+  // with every point's sold array the same length as that section list. ---
+  for (const event of events) {
+    const generations = sectionHistoryById.get(event.id);
+    const latestSections = latestById.get(event.id).sections.map((s) => s.section);
+
+    if (generations.length !== 1) {
+      invariantViolations.push(
+        `${event.id}: expected exactly 1 sectionHistory generation (no mock event transitions in this PR), ` +
+          `got ${generations.length}`
+      );
+      continue;
+    }
+
+    const [generation] = generations;
+    if (JSON.stringify(generation.sections) !== JSON.stringify(latestSections)) {
+      invariantViolations.push(`${event.id}: sectionHistory sections don't match latest.json's row order`);
+    }
+    for (const point of generation.points) {
+      if (point.sold.length !== generation.sections.length) {
+        invariantViolations.push(
+          `${event.id} @ ${point.t}: sectionHistory sold array length (${point.sold.length}) != ` +
+            `sections length (${generation.sections.length})`
+        );
+      }
+    }
+  }
+
+  // --- Verify every event's timeline runs forward: history.json and
+  // sectionHistory.json points must be strictly ascending in time, and
+  // firstSeen must never be after the first point of either series. This
+  // is exactly what would have caught the backwards-timeline bug where an
+  // upcoming event's game date fell more than firstSeenDaysBefore days
+  // after its season's nowIso, giving it a firstSeen in the future
+  // relative to lastPointIso. ---
+  for (const event of events) {
+    const history = historyById.get(event.id);
+    for (let i = 1; i < history.length; i++) {
+      if (new Date(history[i].t).getTime() <= new Date(history[i - 1].t).getTime()) {
+        invariantViolations.push(
+          `${event.id}: history.json point ${i} (${history[i].t}) is not strictly after point ${i - 1} ` +
+            `(${history[i - 1].t})`
+        );
+      }
+    }
+    if (history.length > 0 && new Date(event.firstSeen).getTime() > new Date(history[0].t).getTime()) {
+      invariantViolations.push(
+        `${event.id}: firstSeen (${event.firstSeen}) is after history.json's first point (${history[0].t})`
+      );
+    }
+
+    const [firstGeneration] = sectionHistoryById.get(event.id);
+    for (const generation of sectionHistoryById.get(event.id)) {
+      for (let i = 1; i < generation.points.length; i++) {
+        if (new Date(generation.points[i].t).getTime() <= new Date(generation.points[i - 1].t).getTime()) {
+          invariantViolations.push(
+            `${event.id}: sectionHistory.json point ${i} (${generation.points[i].t}) is not strictly after ` +
+              `point ${i - 1} (${generation.points[i - 1].t})`
+          );
+        }
+      }
+    }
+    if (
+      firstGeneration &&
+      firstGeneration.points.length > 0 &&
+      new Date(event.firstSeen).getTime() > new Date(firstGeneration.points[0].t).getTime()
+    ) {
+      invariantViolations.push(
+        `${event.id}: firstSeen (${event.firstSeen}) is after sectionHistory.json's first point ` +
+          `(${firstGeneration.points[0].t})`
+      );
+    }
+  }
+
   if (invariantViolations.length > 0) {
     throw new Error(
       `generateMockData: ${invariantViolations.length} invariant violation(s):\n` + invariantViolations.join("\n")
@@ -976,6 +1131,7 @@ async function main() {
     await writeFile(path.join(dir, "latest.json"), JSON.stringify(latestById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "history.json"), JSON.stringify(historyById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "seats.json"), JSON.stringify(seatsById.get(event.id), null, 2) + "\n");
+    await writeSectionHistoryIfChanged(path.join(dir, "sectionHistory.json"), sectionHistoryById.get(event.id));
   }
 
   console.log(`Generated ${events.length} mock events under ${path.relative(repoRoot, mockDir)}/`);

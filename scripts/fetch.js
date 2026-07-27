@@ -22,14 +22,17 @@ import {
   latestPath,
   historyPath,
   seatsPath,
+  sectionHistoryPath,
   schedulePath,
   autoclassPath,
   readJson,
   writeJsonIfChanged,
+  writeSectionHistoryIfChanged,
   upsertEventIndexEntry,
   archiveMissingEvents,
   assertListingNotSuspiciouslyEmpty,
   appendHistoryPointIfChanged,
+  appendSectionHistoryPointIfChanged,
   setAutoclassIfAbsent,
 } from "./lib/dataStore.js";
 
@@ -145,6 +148,27 @@ export async function run({
         closed: rows.filter((r) => r.disabled).map((r) => r.section).sort(),
       });
       await writeJsonIfChanged(historyPath(dataDir, id), updatedHistory);
+
+      // Per-section sold history — a separate file from history.json (which
+      // stays a light, chart-hot-path totals series) so it can grow without a
+      // ceiling. See appendSectionHistoryPointIfChanged for the generations
+      // format. closed is duplicated here from history.json on purpose: the
+      // two files have different change gates and their timestamps won't line
+      // up, so joining them by timestamp would be fragile — this file must be
+      // self-contained and authoritative for per-section analysis on its own.
+      const sectionHistoryGenerations = await readJson(sectionHistoryPath(dataDir, id), []);
+      const updatedSectionHistory = appendSectionHistoryPointIfChanged(
+        sectionHistoryGenerations,
+        {
+          capacitiesHash: hash,
+          sections: rows.map((r) => r.section),
+          tISO: nowISO,
+          sold: rows.map((r) => r.sold),
+          closed: rows.filter((r) => r.disabled).map((r) => r.section).sort(),
+        },
+        log
+      );
+      await writeSectionHistoryIfChanged(sectionHistoryPath(dataDir, id), updatedSectionHistory);
 
       index = upsertEventIndexEntry(index, {
         id: event.id,
