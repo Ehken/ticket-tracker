@@ -58,21 +58,29 @@ function buildPriceCell(row, prices) {
     return td;
   }
 
-  const headline = document.createElement("span");
-  headline.className = "price-headline";
-  headline.textContent = formatPrice(resolved.headlinePrice);
-  td.append(headline);
+  td.textContent = formatPrice(resolved.headlinePrice);
 
+  // A price group is shared across several sections (e.g. one group can
+  // cover five to seven of them), so a visible per-row discount line would
+  // repeat the same string five to seven times down this column — with
+  // every cell already set to nowrap, that's what was driving the section
+  // table into horizontal scroll. The title attribute surfaces the exact,
+  // per-group discount detail on hover at zero layout cost, and stays
+  // accurate even though different groups' discounts differ in kind (an
+  // age-based discount in one group, a club-membership rate in another) —
+  // a single blanket summary couldn't state a specific number without
+  // either repeating this same per-group detail or being misleadingly
+  // vague. Known tradeoff: title attributes aren't reliably exposed to
+  // touch/screen-reader users; [title] gets a dotted-underline hint
+  // in CSS so a mouse user notices there's more here.
+  //
   // Strictly cheaper than the headline, not merely "every other product" —
   // stays correct even if a group ever has two products tied at the max,
   // since a second full-price product isn't a discount and shouldn't be
   // listed as one.
   const discounts = resolved.products.filter((p) => p.price < resolved.headlinePrice);
   if (discounts.length > 0) {
-    const detail = document.createElement("div");
-    detail.className = "price-detail";
-    detail.textContent = discounts.map((p) => `${p.name}: ${formatPrice(p.price)}`).join(", ");
-    td.append(detail);
+    td.title = discounts.map((p) => `${p.name}: ${formatPrice(p.price)}`).join(", ");
   }
 
   return td;
