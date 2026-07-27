@@ -1,5 +1,6 @@
 import { formatThousands, formatPercent } from "./format.js";
 import { sectionLabel as translateSectionLabel } from "./sectionLabels.js";
+import { resolveSectionPrice, formatPrice } from "./prices.js";
 
 function sectionLabel(row) {
   const base = translateSectionLabel(row.section);
@@ -47,7 +48,37 @@ function buildFillCell(sold, total, row) {
   return td;
 }
 
-function buildRow(row) {
+function buildPriceCell(row, prices) {
+  const td = document.createElement("td");
+  td.className = "section-row__price";
+
+  const resolved = prices ? resolveSectionPrice(row.section, prices) : null;
+  if (!resolved) {
+    td.textContent = "–";
+    return td;
+  }
+
+  const headline = document.createElement("span");
+  headline.className = "price-headline";
+  headline.textContent = formatPrice(resolved.headlinePrice);
+  td.append(headline);
+
+  // Strictly cheaper than the headline, not merely "every other product" —
+  // stays correct even if a group ever has two products tied at the max,
+  // since a second full-price product isn't a discount and shouldn't be
+  // listed as one.
+  const discounts = resolved.products.filter((p) => p.price < resolved.headlinePrice);
+  if (discounts.length > 0) {
+    const detail = document.createElement("div");
+    detail.className = "price-detail";
+    detail.textContent = discounts.map((p) => `${p.name}: ${formatPrice(p.price)}`).join(", ");
+    td.append(detail);
+  }
+
+  return td;
+}
+
+function buildRow(row, prices) {
   const tr = document.createElement("tr");
   tr.className = "section-row";
 
@@ -58,7 +89,8 @@ function buildRow(row) {
   tr.append(
     katsomoCell,
     ...buildValueCells([row.sold, row.available, row.hold, row.total]),
-    buildFillCell(row.sold, row.total, row)
+    buildFillCell(row.sold, row.total, row),
+    buildPriceCell(row, prices)
   );
   return tr;
 }
@@ -70,10 +102,14 @@ function buildTotalRow(totals) {
   const label = document.createElement("td");
   label.textContent = "Yhteensä";
 
+  const priceTd = document.createElement("td");
+  priceTd.className = "section-row__price";
+
   tr.append(
     label,
     ...buildValueCells([totals.sold, totals.available, totals.hold, totals.total]),
-    buildFillCell(totals.sold, totals.total, totals)
+    buildFillCell(totals.sold, totals.total, totals),
+    priceTd
   );
   return tr;
 }
@@ -87,7 +123,7 @@ export function buildSectionTable(latest) {
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  for (const label of ["Katsomo", "Myyty", "Ostettavissa", "Ei myynnissä", "Kapasiteetti", "Täyttö"]) {
+  for (const label of ["Katsomo", "Myyty", "Ostettavissa", "Ei myynnissä", "Kapasiteetti", "Täyttö", "Hinta"]) {
     const th = document.createElement("th");
     th.textContent = label;
     headRow.append(th);
@@ -97,7 +133,7 @@ export function buildSectionTable(latest) {
   const tbody = document.createElement("tbody");
   const sortedRows = [...latest.sections].sort((a, b) => fillFraction(b) - fillFraction(a));
   for (const row of sortedRows) {
-    tbody.append(buildRow(row));
+    tbody.append(buildRow(row, latest.prices));
   }
   tbody.append(buildTotalRow(latest.totals));
 

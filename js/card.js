@@ -4,6 +4,24 @@ import { buildChart } from "./chart.js";
 import { getHistory } from "./fetchData.js";
 import { gameTypeLabel } from "./grouping.js";
 import { buildSeatMapToggle } from "./seatMap.js";
+import { findCheapestAvailableSection, formatPrice } from "./prices.js";
+import { sectionLabel } from "./sectionLabels.js";
+
+// Omitted for kausikortti events: a season-ticket price (e.g. 852 €) shown
+// in this same "Halvin vapaa paikka" phrasing could be misread as a
+// per-match ticket price, and the line's value is mainly about match-day
+// browsing anyway.
+function buildCheapestAvailableLine(mergedEvent, latest) {
+  if (mergedEvent.gameType === "kausikortti") return null;
+
+  const cheapest = findCheapestAvailableSection(latest.sections, latest.prices);
+  if (!cheapest) return null;
+
+  const p = document.createElement("p");
+  p.className = "card__cheapest-available";
+  p.textContent = `Halvin vapaa paikka: ${sectionLabel(cheapest.section)}, ${formatPrice(cheapest.price)}`;
+  return p;
+}
 
 function buildStat(label, value) {
   const span = document.createElement("span");
@@ -170,6 +188,9 @@ export function buildCard(
     }
 
     body.append(buildSeatMapToggle(mergedEvent, latest, { kausikorttiEvents }));
+
+    const cheapestLine = buildCheapestAvailableLine(mergedEvent, latest);
+    if (cheapestLine) body.append(cheapestLine);
   }
 
   async function setExpanded(next) {
