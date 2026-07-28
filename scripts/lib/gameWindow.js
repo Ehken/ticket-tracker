@@ -23,6 +23,21 @@ const GAME_DAY_END_HOUR = 21;
 const DEFAULT_WATCH_START_HOUR = 8;
 const DEFAULT_WATCH_END_HOUR = 20;
 
+// eventsIndex entries are expected to carry a merged gameType (see
+// scripts/checkGameWindow.js, which merges classification onto the raw
+// index before calling this) — kept optional/pure here rather than read
+// here, matching how this function already just receives the index.
+//
+// Excluded by blacklist ("is it kausikortti?"), not a whitelist of known
+// game types: a whitelist would silently stop opening the window the day
+// a new gameType appears (e.g. playoffs), which is the far worse failure.
+// An event with no gameType at all (unclassified — gameType "muu", or the
+// caller passed a plain index with no classification merged in at all)
+// still counts as a potential game day — on a day a batch of new events
+// arrives unclassified, the gate must not go blind just because
+// classification hasn't caught up yet. This also keeps the function
+// backwards compatible: an event object with no gameType field is
+// unaffected by this check.
 export function isGameDayWindowNow(eventsIndex, now = new Date(), watchDates = []) {
   const hour = getHelsinkiHour(now);
   const today = toHelsinkiDateString(now);
@@ -30,7 +45,12 @@ export function isGameDayWindowNow(eventsIndex, now = new Date(), watchDates = [
   const isGameDayEvening =
     hour >= GAME_DAY_START_HOUR &&
     hour < GAME_DAY_END_HOUR &&
-    eventsIndex.some((event) => event.status === "upcoming" && toHelsinkiDateString(event.start) === today);
+    eventsIndex.some(
+      (event) =>
+        event.status === "upcoming" &&
+        event.gameType !== "kausikortti" &&
+        toHelsinkiDateString(event.start) === today
+    );
 
   const isWatchWindow = watchDates.some((entry) => {
     if (entry.date !== today) return false;
