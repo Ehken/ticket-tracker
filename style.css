@@ -4,22 +4,25 @@
   --muted: #5a5a5a;
   --border: #d8d8d8;
   --card-bg: #ffffff;
-  --sold: #1a5d1a;
-  --available: #cfe8cf;
-  --hold: #b0b0b0;
   --accent: #c0392b;
   --hover-bg: rgba(0, 0, 0, 0.035);
   --text-secondary: #5a5a5a;
-  /* Seat map only — deliberately independent of --sold/--available/--hold,
-     which stay reserved for the table's fill-bar. SaiPa-themed: black
-     (kausikortti) and SaiPa yellow (irtolippu) are both "sold", pale sand
-     is the unlit/vapaa state (sales visually light the arena up), aitio
-     purple is its own separate channel, ei-myynnissä is the one neutral.
-     One set of values for both color schemes — the map's own surface
-     (.seatmap-svg-container below) is deliberately always-light, like the
-     rink graphic already baked into the SVG, so these never need a
-     dark-mode variant and near-black kausikortti dots never need a
-     readability workaround. */
+  /* One palette for every fill bar on the site — the seat map, the
+     section table, the card header, and the seat-map tooltip — not map-
+     only. This used to be map-only by design (--sold/--available/--hold
+     were a separate green vocabulary reserved for the table), justified
+     by the map's surface being always-light so these never need a
+     dark-mode variant. That justified the map palette's VALUES, not the
+     fill-bar speaking a different color language for the same fact —
+     the tooltip sits pixels from the seats it describes, so a green bar
+     next to yellow-and-sand dots read as two systems disagreeing about
+     one number. "Sales light the arena yellow-and-black" is the site's
+     whole metaphor; every fill bar now speaks it.
+     One set of values for both color schemes, everywhere they're used —
+     the map's own surface is deliberately always-light, like the rink
+     graphic already baked into the SVG, so these never need a dark-mode
+     variant and near-black kausikortti dots never need a readability
+     workaround. */
   --seat-kausikortti: #1a1a1a;
   --seat-irtolippu: #ffd400;
   --seat-aitio-myyty: #7b4fb5;
@@ -42,9 +45,6 @@
     --muted: #a0a0a0;
     --border: #3a3d42;
     --card-bg: #1c1f24;
-    --sold: #4caf50;
-    --available: #2e4a2e;
-    --hold: #55585d;
     --accent: #e57373;
     --hover-bg: rgba(255, 255, 255, 0.05);
     --text-secondary: #a0a0a0;
@@ -228,9 +228,12 @@ header.site-header h1 {
 
 @media (prefers-reduced-motion: reduce) {
   /* Seat map pan/zoom itself is driven by direct SVG viewBox attribute
-     changes, not a CSS transition, so there's nothing to disable there —
-     .card__tab and .seatmap-tooltip have their own reduced-motion guards
-     next to their own transitions instead of being listed here too. */
+     changes, not a CSS transition, so there's nothing to disable there.
+     .seatmap-tooltip deliberately has no transition of its own, on
+     purpose, not just by omission — hover can rewrite its content many
+     times a second, and anything animated would feel broken rather than
+     polished. .card__tab has its own reduced-motion guard next to its
+     own transition instead of being listed here too. */
   .card__chevron {
     transition: none;
   }
@@ -321,26 +324,92 @@ header.site-header h1 {
   color: var(--accent);
 }
 
-/* Fill bar */
-
+/* Fill bar — three zones, not the map's four. Deliberately no
+   kausikortti-black zone here: the map's colors are designed for
+   separated dots (or, for the standing wedge, a shape large enough to
+   afford real detail), and a solid black area in a 6px bar reads as
+   dead weight rather than filled seats. Season tickets are the bulk of
+   sold, so a nearly-sold section's bar would be mostly black — inverting
+   "sales light the arena up" exactly where the metaphor should be
+   strongest. Kausikortti and irtolippu are both --seat-irtolippu
+   (yellow) here; the split still exists, just not as bar color — see
+   the tooltip's row list (js/seatMap.js) for where it lives instead.
+   The bar answers "how full," rows answer "of what kind."
+   Mechanic: the container's own background IS the free zone
+   (--seat-vapaa), not a drawn segment — only sold (left) and
+   not-on-sale (right) are drawn, and whatever gap remains between them
+   is the free zone showing through. Exactly zero width when
+   `available` is 0, which is permanent for an aitio box (never
+   publicly purchasable, even occupied via another channel — see
+   buildFillBar) and possible for a closed section.
+   The one exception to "one palette": an aitio row's sold zone is
+   --seat-aitio-myyty (purple), not yellow — yellow would assert those
+   seats were sold as individual tickets, which is false; aitio is sold
+   via a separate channel entirely and has no irtolippu concept at all
+   (see AITIO_STATE, seatMapClassify.js). buildFillBar picks this from
+   row.section === "aitiot"; the aggregate totals object has no
+   .section field, so the card header and the table's own total row are
+   unaffected and always render plain yellow.
+   --seat-vapaa (sand, #f3ead1) against a white card measures ~1.18:1
+   contrast, well under the 3:1 non-text UI wants and by eye
+   indistinguishable — on a mostly-empty section the bar would look like
+   a stub floating in nothing, with no visible extent to read a
+   proportion against, in every light-mode context this bar is used in
+   (table, header, and the tooltip's own fixed-light surface).
+   A real border, not an inset box-shadow (tried first, rejected): an
+   inset shadow paints above the background but below content, so the
+   two segments — which ARE content — cover it wherever either one
+   sits, leaving it visible only over the free-zone gap. That fades out
+   along the bar's length as a section fills, reading as a rendering
+   glitch rather than a design. A border doesn't have this problem:
+   box-sizing is border-box globally (see below), and overflow: hidden
+   clips both segments to the padding box, so with border-box sizing
+   the segments can never physically reach the border's own pixels in
+   the first place — no paint-order trick needed, just geometry that
+   keeps them apart.
+   rgba(0, 0, 0, 0.25), not a flat grey: #5a5a5a (light mode's own
+   --muted, tried first) measures ~5.75:1 against sand and ~6.9:1
+   against white — comfortably solves the contrast problem on paper —
+   but at a real 1px/6px size it reads as a heavy dark capsule fighting
+   the pale palette it's meant to just outline, not a crisp line (looked
+   at zoomed screenshots of both a nearly-empty and a nearly-full bar
+   before deciding, not just the contrast math). Translucent black
+   composites with whatever's beneath instead of sitting flatly on top —
+   lighter and warmer over the saturated yellow sold zone, firmer over
+   the paler sand — which is the asymmetry actually wanted here, and
+   reads noticeably softer at both this bar's 6px and the tooltip's 8px.
+   Not adjusted per color scheme either way — dark mode never had the
+   contrast problem to begin with (sand is always far brighter than a
+   dark card regardless), so the same value is a harmless refinement
+   there rather than something to recalculate. */
 .fill-bar {
   display: flex;
+  justify-content: space-between;
   height: 6px;
   border-radius: 3px;
   overflow: hidden;
-  background: var(--hold);
+  background: var(--seat-vapaa);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.fill-bar__segment {
+  /* flex-shrink: 0, not the default 1 — sold% + hold% can legitimately
+     sum to exactly 100% (aitio, press, a closed section), and without
+     this, sub-pixel rounding is the only thing standing between that
+     and a segment being shrunk slightly. */
+  flex: 0 0 auto;
 }
 
 .fill-bar__segment--sold {
-  background: var(--sold);
+  background: var(--seat-irtolippu);
 }
 
-.fill-bar__segment--available {
-  background: var(--available);
+.fill-bar__segment--sold.fill-bar__segment--aitio {
+  background: var(--seat-aitio-myyty);
 }
 
 .fill-bar__segment--hold {
-  background: var(--hold);
+  background: var(--seat-ei-myynnissa);
 }
 
 .fill-pct {
@@ -1085,10 +1154,20 @@ header.site-header h1 {
   pointer-events: none;
   max-width: 260px; /* same bound as .seatmap-legend__info-popover, for the same reason: bodies this size shouldn't dominate a phone-width map */
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--card-bg);
   font-size: 0.85rem;
+  /* Fixed light-surface colors, not theme variables — same reasoning
+     and same values as .seatmap-reset-button: this floats inside
+     .seatmap-svg-container, over the map's own always-light surface,
+     alongside that button, not on the page's own themed surface (the
+     legend's info popover, by contrast, sits outside the map and
+     correctly stays theme-following). Reinforced by this content
+     specifically speaking the map's own palette now — pairing that
+     with a surface that flips dark in dark mode would undo the reason
+     that palette never needed a dark-mode variant in the first place. */
+  border: 1px solid #d8d8d8;
+  border-radius: 4px;
+  background: #fdfcfa;
+  color: #1a1a1a;
   /* Floats over varied map content — same shadow already used by
      .seatmap-legend__info-popover and .seatmap-reset-button for the
      same reason. */
@@ -1097,13 +1176,78 @@ header.site-header h1 {
 
 .seatmap-tooltip strong {
   display: block;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 
-.seatmap-tooltip p {
-  margin: 0.3rem 0 0;
+.seatmap-tooltip__headline {
+  margin: 0 0 0.4rem;
 }
 
-.seatmap-tooltip__split {
-  color: var(--muted);
+.seatmap-tooltip__headline-number {
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Slightly taller than the table/header's 6px — this bar is the
+   tooltip's own headline visual, with room to spend that a dense table
+   row or header stat line doesn't have. Same .fill-bar mechanic and
+   inset outline apply unchanged; only the height differs. */
+.seatmap-tooltip .fill-bar {
+  height: 8px;
+}
+
+.seatmap-tooltip__rows {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 0.4rem;
+  row-gap: 0.25rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.seatmap-tooltip__row-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.seatmap-tooltip__swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px; /* rounded rect, not a circle — same reason as the legend's swatches: a circle beside a label reads as a radio input */
+  border: 1px solid #d8d8d8;
+}
+
+.seatmap-tooltip__swatch--irtolippu {
+  background: var(--seat-irtolippu);
+}
+
+.seatmap-tooltip__swatch--aitio {
+  background: var(--seat-aitio-myyty);
+}
+
+.seatmap-tooltip__swatch--vapaa {
+  background: var(--seat-vapaa);
+}
+
+.seatmap-tooltip__swatch--ei-myynnissa {
+  background: var(--seat-ei-myynnissa);
+  /* Mirrors the legend's own smaller ei-myynnissä swatch — separates by
+     shape, not just color, same as the map's own smaller seat-dot radius. */
+  width: 0.42rem;
+  height: 0.42rem;
+}
+
+/* The denominator, not a "kind" — deliberately not a row in
+   __rows above (no bar zone corresponds to it), set apart with a
+   divider and muted weight rather than a swatch-less grid row. */
+.seatmap-tooltip__capacity {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid #d8d8d8;
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
 }
