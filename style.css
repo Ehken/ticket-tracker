@@ -355,19 +355,33 @@ header.site-header h1 {
    indistinguishable — on a mostly-empty section the bar would look like
    a stub floating in nothing, with no visible extent to read a
    proportion against, in every light-mode context this bar is used in
-   (table, header, and the tooltip's own fixed-light surface). Fixed
-   with an inset outline: #5a5a5a is light mode's own --muted value,
-   reused as a fixed constant (not var(--muted), which flips to a
-   lighter, weaker grey in dark mode — this doesn't need to follow the
-   scheme, since dark mode's own dark surface already makes sand pop
-   without help). #d8d8d8 (var(--border)) was tried first and rejected:
-   it measures almost the same ~1.19:1 against sand, since a light grey
-   and a light cream are close in luminance regardless of hue. An inset
-   shadow, not a real border, so it costs zero layout space at either
-   this bar's 6px or the tooltip's own taller variant below, and it
-   outlines the container itself rather than a segment — still defines
-   the bar's shape when the free zone is exactly 0% wide, where a
-   border relying on a visible gap would have nothing to draw. */
+   (table, header, and the tooltip's own fixed-light surface).
+   A real border, not an inset box-shadow (tried first, rejected): an
+   inset shadow paints above the background but below content, so the
+   two segments — which ARE content — cover it wherever either one
+   sits, leaving it visible only over the free-zone gap. That fades out
+   along the bar's length as a section fills, reading as a rendering
+   glitch rather than a design. A border doesn't have this problem:
+   box-sizing is border-box globally (see below), and overflow: hidden
+   clips both segments to the padding box, so with border-box sizing
+   the segments can never physically reach the border's own pixels in
+   the first place — no paint-order trick needed, just geometry that
+   keeps them apart.
+   rgba(0, 0, 0, 0.25), not a flat grey: #5a5a5a (light mode's own
+   --muted, tried first) measures ~5.75:1 against sand and ~6.9:1
+   against white — comfortably solves the contrast problem on paper —
+   but at a real 1px/6px size it reads as a heavy dark capsule fighting
+   the pale palette it's meant to just outline, not a crisp line (looked
+   at zoomed screenshots of both a nearly-empty and a nearly-full bar
+   before deciding, not just the contrast math). Translucent black
+   composites with whatever's beneath instead of sitting flatly on top —
+   lighter and warmer over the saturated yellow sold zone, firmer over
+   the paler sand — which is the asymmetry actually wanted here, and
+   reads noticeably softer at both this bar's 6px and the tooltip's 8px.
+   Not adjusted per color scheme either way — dark mode never had the
+   contrast problem to begin with (sand is always far brighter than a
+   dark card regardless), so the same value is a harmless refinement
+   there rather than something to recalculate. */
 .fill-bar {
   display: flex;
   justify-content: space-between;
@@ -375,7 +389,7 @@ header.site-header h1 {
   border-radius: 3px;
   overflow: hidden;
   background: var(--seat-vapaa);
-  box-shadow: inset 0 0 0 1px #5a5a5a;
+  border: 1px solid rgba(0, 0, 0, 0.25);
 }
 
 .fill-bar__segment {
