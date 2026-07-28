@@ -19,7 +19,9 @@ eri kadenssia varten:
   aikaleimat näyttivät jopa ~55 minuutin viiveitä ja kokonaan väliin
   jääneitä ajoja tasatunnilla). Ei koskaan portitoitu.
 - **`.github/workflows/fetch-intensive.yml`** — 10 minuutin välein klo
-  15–21 (Europe/Helsinki, molemmat kesäaika-tilanteet huomioiden) sekä
+  8–20 (Europe/Helsinki, molemmat kesäaika-tilanteet huomioiden;
+  tarkoituksella väliaikainen leveä ikkuna, ks. `scripts/lib/gameWindow.js`)
+  sekä
   `data/watchDates.json`:iin merkittyinä päivinä (esim. lipunmyynnin
   avautumispäivä — ei ole otteluohjelman fixture, siksi oma
   tiedostonsa). `scripts/checkGameWindow.js` päättää portitoinnin

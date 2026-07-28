@@ -7,11 +7,13 @@ name: Fetch SaiPa ticket data (intensive — game day/watch date only)
 # scrape, use "Fetch SaiPa ticket data" (fetch.yml) instead, which is never
 # gated.
 #
-# UTC 5-19 brackets both the evening game-day window (15-21 Europe/Helsinki:
-# 12-18 UTC summer, 13-19 UTC winter) and the default watch-date window
-# (8-20 Europe/Helsinki: 5-17 UTC summer, 6-18 UTC winter) — the actual
-# gating is done in Node below, this cron bracket only has to be wide
-# enough to contain it.
+# UTC 5-17 brackets the 8:00-19:59 Europe/Helsinki window (shared, by
+# choice, by both the game-day and default watch-date gates — see
+# scripts/lib/gameWindow.js) across both DST offsets: window open (8:00
+# Helsinki) is 5:00 UTC summer / 6:00 UTC winter; window close boundary
+# (19:59 Helsinki, i.e. hour 19) is 16:59 UTC summer / 17:59 UTC winter —
+# the actual gating is done in Node below, this cron bracket only has to
+# be wide enough to contain it.
 #
 # GitHub's own scheduler delivers scheduled events unreliably under load —
 # denser schedules are hit harder than sparser ones. Observed directly: 4
@@ -22,7 +24,7 @@ name: Fetch SaiPa ticket data (intensive — game day/watch date only)
 # README.md/CLAUDE.md.
 "on":
   schedule:
-    - cron: "*/10 5-19 * * *"
+    - cron: "*/10 5-17 * * *"
   workflow_dispatch: {}
   repository_dispatch:
     types: [scrape-intensive]
