@@ -20,8 +20,9 @@ import {
 import { computeStackedFillZones, clampZoneSpansToMinimum } from "./seatMapStackedFill.js";
 import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
 import { generateZoneCountPlacementCandidates } from "./seatMapZoneCountPlacement.js";
+import { computeTooltipPosition } from "./seatMapTooltipPosition.js";
 
-const INFO_ROW_PLACEHOLDER = "Kosketa katsomoa nähdäksesi tarkat luvut.";
+const TOOLTIP_GAP = 10; // px, screen space — gap between a tooltip and whatever it's anchored to
 
 const EI_MYYNNISSA_INFO =
   "Ei myynnissä: paikat on varattu esim. vieraskannattajille, ryhmille tai muuhun käyttöön. SaiPa voi vapauttaa niitä myyntiin lähempänä ottelua.";
@@ -198,10 +199,28 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   mapControls.append(resetButton);
   svgWrapper.append(mapControls);
 
-  const infoRow = document.createElement("div");
-  infoRow.className = "seatmap-info-row";
-  infoRow.setAttribute("aria-live", "polite"); // tap-to-inspect selection changes are announced for pointer users
-  infoRow.textContent = INFO_ROW_PLACEHOLDER;
+  // Two separate elements, not one shared between hover and pin — a
+  // pinned section's tooltip must stay visible while a *different*
+  // section is hovered (see attachInteraction), and keeping their
+  // content-mutations apart is what makes "hover never announces" a
+  // structural property rather than a flag that could be gotten wrong:
+  // only the pin tooltip carries aria-live, so only pin/unpin changes
+  // ever touch a live region. pointer-events: none on both (style.css) —
+  // neither may become its own hit-test obstacle for the map underneath.
+  const pinTooltip = document.createElement("div");
+  pinTooltip.className = "seatmap-tooltip";
+  pinTooltip.setAttribute("aria-live", "polite");
+  pinTooltip.hidden = true;
+
+  const hoverTooltip = document.createElement("div");
+  hoverTooltip.className = "seatmap-tooltip";
+  hoverTooltip.setAttribute("aria-hidden", "true");
+  hoverTooltip.hidden = true;
+
+  // Absolutely positioned (see .seatmap-tooltip), so both live inside the
+  // same position: relative container as .seatmap-map-controls — showing,
+  // hiding, and repositioning either one is never in normal flow.
+  svgWrapper.append(pinTooltip, hoverTooltip);
 
   const legend = buildLegend(mapContainer, {
     hasBaseline: baseline.soldSet !== null,
@@ -211,7 +230,6 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   const cta = buildCta(mergedEvent, latest);
   const children = [legend, svgWrapper];
   if (cta) children.push(cta);
-  children.push(infoRow);
   mapContainer.replaceChildren(...children);
 
   // Layout-independent — no getBBox calls, so safe regardless of whether
@@ -246,7 +264,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
     registerOnShow(placeLayoutDependentContent);
   }
 
-  attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton });
+  attachInteraction(svg, mapContainer, { latest, baseline, resetButton, pinTooltip, hoverTooltip, svgContainer: svgWrapper });
 }
 
 // The standing area (seisomakatsomo) keeps the full stacked fill exactly as
@@ -1016,7 +1034,7 @@ function buildLegendItem({ cls, label, info }, togglePopover) {
   return item;
 }
 
-function updateInfoRow(infoRow, sectionId, latest, baseline) {
+function renderTooltipContent(container, sectionId, latest, baseline) {
   const lookupKey = sectionId.startsWith("aitio_") ? "aitiot" : sectionId;
   const row = latest.sections.find((r) => r.section === lookupKey);
   if (!row) return;
@@ -1035,23 +1053,112 @@ function updateInfoRow(infoRow, sectionId, latest, baseline) {
   if (baseline.sectionSold) {
     const baselineSold = baseline.sectionSold.get(lookupKey) ?? 0;
     const split = document.createElement("p");
-    split.className = "seatmap-info-row__split";
+    split.className = "seatmap-tooltip__split";
     split.textContent = `josta irtolippuja: ${formatThousands(irtoliput(row.sold, baselineSold))}`;
     children.push(split);
   }
 
-  infoRow.replaceChildren(...children);
+  container.replaceChildren(...children);
 }
 
-function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton }) {
+// Converts a section's SVG-space bbox into CSS pixels relative to
+// svgContainer's own top-left — the forward direction of the same
+// getScreenCTM-based mapping clientToSvgPoint (below) already uses for the
+// inverse, and required for the same reason: the container can letterbox
+// the SVG, so a naive linear scale would drift, exactly as it would there.
+function sectionScreenRect(svg, svgContainer, sectionEl) {
+  const bbox = sectionEl.getBBox();
+  const ctm = svg.getScreenCTM();
+  const corners = [
+    [bbox.x, bbox.y],
+    [bbox.x + bbox.width, bbox.y],
+    [bbox.x, bbox.y + bbox.height],
+    [bbox.x + bbox.width, bbox.y + bbox.height],
+  ].map(([x, y]) => {
+    const pt = svg.createSVGPoint();
+    pt.x = x;
+    pt.y = y;
+    return pt.matrixTransform(ctm);
+  });
+  const containerRect = svgContainer.getBoundingClientRect();
+  const xs = corners.map((p) => p.x - containerRect.left);
+  const ys = corners.map((p) => p.y - containerRect.top);
+  const left = Math.min(...xs);
+  const top = Math.min(...ys);
+  const right = Math.max(...xs);
+  const bottom = Math.max(...ys);
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+// Unhides, sizes, and places a tooltip against a section — synchronous, so
+// nothing ever paints the intermediate, unpositioned frame. `pointer` is
+// the container-relative {x, y} of the hover/tap that triggered this call;
+// computeTooltipPosition only falls back to it once the section's own
+// visible portion (see there) leaves no room above or below, which is the
+// routine case once zoomed in, not a rare one.
+function positionTooltip(tooltipEl, svg, svgContainer, sectionEl, pointer) {
+  tooltipEl.hidden = false;
+  const containerRect = svgContainer.getBoundingClientRect();
+  const tooltipRect = tooltipEl.getBoundingClientRect();
+  const result = computeTooltipPosition({
+    sectionRect: sectionScreenRect(svg, svgContainer, sectionEl),
+    tooltipSize: { width: tooltipRect.width, height: tooltipRect.height },
+    containerSize: { width: containerRect.width, height: containerRect.height },
+    gap: TOOLTIP_GAP,
+    pointer,
+  });
+  tooltipEl.style.left = `${result.left}px`;
+  tooltipEl.style.top = `${result.top}px`;
+}
+
+function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, pinTooltip, hoverTooltip, svgContainer }) {
   const originalViewBox = parseViewBox(svg.getAttribute("viewBox"));
   const bounds = { original: originalViewBox, maxZoom: MAX_ZOOM };
   let currentViewBox = { ...originalViewBox };
+
+  // pinnedEl (tap, sticky) and hoveredEl (mouse only, transient) are
+  // independent — a reader can hover a second section while one stays
+  // pinned, which is why there are two tooltip elements, not a shared one.
+  // The *Pointer values are each tooltip's last known trigger point
+  // (container-relative), reused when repositioning on pan/zoom below,
+  // since that has no fresh hover/tap event of its own to draw one from.
+  let pinnedEl = null;
+  let hoveredEl = null;
+  let pinnedPointer = null;
+  let hoveredPointer = null;
+
+  function clientToContainerPoint(clientX, clientY) {
+    const rect = svgContainer.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  function showTooltip(tooltipEl, sectionEl, pointer) {
+    renderTooltipContent(tooltipEl, sectionEl.id, latest, baseline);
+    positionTooltip(tooltipEl, svg, svgContainer, sectionEl, pointer);
+  }
+
+  function hideTooltip(tooltipEl) {
+    tooltipEl.hidden = true;
+  }
+
+  // Pan/zoom is a continuous view change here, not a mode that exits a
+  // pin — a pinned tooltip follows its section through both. Runs on
+  // every wheel tick and every drag/pinch frame, each a getBBox +
+  // getScreenCTM + getBoundingClientRect read (forced layout). Plausible
+  // on desktop; if this janks on a real phone dragging this ~2,600-
+  // element SVG, hide the visible tooltip(s) while activePointers.size >
+  // 0 instead and reposition once on gesture end — the pin itself would
+  // still survive, only this continuous follow would be dropped.
+  function repositionVisibleTooltips() {
+    if (pinnedEl) positionTooltip(pinTooltip, svg, svgContainer, pinnedEl, pinnedPointer);
+    if (hoveredEl) positionTooltip(hoverTooltip, svg, svgContainer, hoveredEl, hoveredPointer);
+  }
 
   function applyViewBox(vb) {
     currentViewBox = vb;
     svg.setAttribute("viewBox", serializeViewBox(vb));
     resetButton.hidden = viewBoxesEqual(currentViewBox, bounds.original);
+    repositionVisibleTooltips();
   }
 
   // Capture can throw (e.g. NotFoundError if the pointer was already
@@ -1184,20 +1291,90 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
     }
   });
 
-  let selectedEl = null;
+  // Mouse-only hover tracking — gated on pointerType so a touch tap's own
+  // incidental pointer events never trigger it (touch has its own path:
+  // tap-to-pin below). Skipped entirely while a gesture is active
+  // (activePointers.size > 0) so panning/pinching never fights with it.
+  // Resolves via elementFromPoint + .closest(".section"), the same
+  // hit-testing handleTap already uses, and only touches the DOM when the
+  // *resolved section* actually changes — not on every pixel of movement —
+  // which is what avoids a flicker on a sweep across several sections
+  // without needing an artificial delay.
+  svg.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "mouse" || activePointers.size > 0) return;
+
+    const el = document.elementFromPoint(event.clientX, event.clientY);
+    const sectionEl = el?.closest(".section");
+    const resolved = sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
+    if (resolved === hoveredEl) return;
+
+    hoveredEl?.classList.remove("section--hovered");
+    hoveredEl = resolved;
+
+    if (!hoveredEl) {
+      hideTooltip(hoverTooltip);
+      return;
+    }
+    if (hoveredEl === pinnedEl) {
+      // Already shown by the pin tooltip — a second one on the same
+      // section would just be a redundant duplicate.
+      hideTooltip(hoverTooltip);
+      return;
+    }
+
+    hoveredEl.classList.add("section--hovered");
+    hoveredPointer = clientToContainerPoint(event.clientX, event.clientY);
+    showTooltip(hoverTooltip, hoveredEl, hoveredPointer);
+  });
+
+  svg.addEventListener("pointerleave", () => {
+    hoveredEl?.classList.remove("section--hovered");
+    hoveredEl = null;
+    hideTooltip(hoverTooltip);
+  });
+
   function handleTap(clientX, clientY) {
     // setPointerCapture retargets event.target to the capturing element on
     // subsequent events, so hit-test by screen position rather than trust
     // the pointer event's own target/closest chain.
     const el = document.elementFromPoint(clientX, clientY);
     const sectionEl = el?.closest(".section");
-    if (!sectionEl || !mapContainer.contains(sectionEl)) return;
+    const tappedEl = sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
 
-    if (selectedEl) selectedEl.classList.remove("section--selected");
-    sectionEl.classList.add("section--selected");
-    selectedEl = sectionEl;
+    if (tappedEl && tappedEl === pinnedEl) {
+      // Tapping the pinned section again unpins it.
+      pinnedEl.classList.remove("section--pinned");
+      pinnedEl = null;
+      pinnedPointer = null;
+      hideTooltip(pinTooltip);
+      return;
+    }
 
-    updateInfoRow(infoRow, sectionEl.id, latest, baseline);
+    if (pinnedEl) {
+      pinnedEl.classList.remove("section--pinned");
+      pinnedEl = null;
+      pinnedPointer = null;
+      hideTooltip(pinTooltip);
+    }
+
+    // Tapping empty map background (no section under the tap) unpins and
+    // stops there — a deliberate behavior change from the old info row,
+    // which had no such background-tap affordance.
+    if (!tappedEl) return;
+
+    tappedEl.classList.add("section--pinned");
+    pinnedEl = tappedEl;
+    pinnedPointer = clientToContainerPoint(clientX, clientY);
+    showTooltip(pinTooltip, pinnedEl, pinnedPointer);
+
+    // The newly pinned section may already be the hovered one (the
+    // ordinary mouse-click case) — clean up its hover state immediately
+    // rather than waiting for the next pointermove, or a reader who taps
+    // and doesn't move the mouse again would see a redundant duplicate.
+    if (hoveredEl === pinnedEl) {
+      hoveredEl.classList.remove("section--hovered");
+      hideTooltip(hoverTooltip);
+    }
   }
 
   function endPointer(event) {
@@ -1234,11 +1411,15 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
   svg.addEventListener("pointercancel", endPointer);
 
   resetButton.addEventListener("click", () => {
-    applyViewBox(originalViewBox);
-    if (selectedEl) {
-      selectedEl.classList.remove("section--selected");
-      selectedEl = null;
+    // Unpin before repositioning — applyViewBox's own reposition would
+    // otherwise briefly recompute a placement for a pin that's about to be
+    // cleared anyway.
+    if (pinnedEl) {
+      pinnedEl.classList.remove("section--pinned");
+      pinnedEl = null;
+      pinnedPointer = null;
     }
-    infoRow.textContent = INFO_ROW_PLACEHOLDER;
+    hideTooltip(pinTooltip);
+    applyViewBox(originalViewBox);
   });
 }
