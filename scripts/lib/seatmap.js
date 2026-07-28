@@ -50,9 +50,22 @@ async function writeFileIfAbsent(filePath, content) {
   }
 }
 
-export async function resolveCapacities({ mapUrl, eventBaseUrl, httpClient, dataDir }) {
+// svgCache: an optional Map, scoped to a single fetch.js run (created once
+// per `run()` call, never persisted across runs — a genuine map change
+// must still be detected on the next run). Every SaiPa home game uses the
+// same arena map, so without this, a run with ~40 events downloads the
+// identical SVG 40 times before the content-addressed cache below is even
+// consulted — the hash that cache is keyed by can only be computed from
+// the bytes, so the network fetch always had to happen first. Keyed by
+// the resolved svgUrl, not the hash (the hash isn't known until after the
+// fetch this is trying to avoid).
+export async function resolveCapacities({ mapUrl, eventBaseUrl, httpClient, dataDir, svgCache }) {
   const fetchFn = httpClient?.fetchWithRetry ?? fetchWithRetry;
   const svgUrl = resolveUrl(mapUrl, eventBaseUrl);
+
+  if (svgCache?.has(svgUrl)) {
+    return svgCache.get(svgUrl);
+  }
 
   const res = await fetchFn(svgUrl, {});
   const svgText = await res.text();
@@ -67,15 +80,17 @@ export async function resolveCapacities({ mapUrl, eventBaseUrl, httpClient, data
   // capacities cache, so re-fetching an unchanged map never rewrites it.
   await writeFileIfAbsent(svgPath, svgText);
 
+  let result;
   try {
     const cached = await readFile(cachePath, "utf8");
-    return { hash, capacities: JSON.parse(cached) };
+    result = { hash, capacities: JSON.parse(cached) };
   } catch (err) {
     if (err.code !== "ENOENT") throw err;
+    const capacities = parseSeatmapSvg(svgText);
+    await writeFile(cachePath, JSON.stringify(capacities, null, 2) + "\n");
+    result = { hash, capacities };
   }
 
-  const capacities = parseSeatmapSvg(svgText);
-  await writeFile(cachePath, JSON.stringify(capacities, null, 2) + "\n");
-
-  return { hash, capacities };
+  svgCache?.set(svgUrl, result);
+  return result;
 }

@@ -115,3 +115,80 @@ test("resolveCapacities never overwrites an already-persisted SVG for the same h
 
   assert.equal(await readFile(svgPath, "utf8"), "TAMPERED");
 });
+
+test("resolveCapacities with a shared svgCache fetches the same svgUrl only once", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "seatmap-test-"));
+  let fetchCount = 0;
+  const httpClient = {
+    fetchWithRetry: async () => {
+      fetchCount++;
+      return { text: async () => fixtureSvg };
+    },
+  };
+  const svgCache = new Map();
+
+  const first = await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+    svgCache,
+  });
+  const second = await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:601", // different event, same map URL after resolution
+    httpClient,
+    dataDir,
+    svgCache,
+  });
+
+  assert.equal(fetchCount, 1);
+  assert.deepEqual(second, first);
+});
+
+test("resolveCapacities's svgCache is keyed by the resolved svgUrl, not blind to different maps", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "seatmap-test-"));
+  const otherSvg = fixtureSvg.replace(`id="A1-1-001"`, `id="A1-1-999"`); // different bytes, different hash
+  let call = 0;
+  const httpClient = {
+    fetchWithRetry: async () => {
+      call++;
+      return { text: async () => (call === 1 ? fixtureSvg : otherSvg) };
+    },
+  };
+  const svgCache = new Map();
+
+  const first = await resolveCapacities({
+    mapUrl: "/seatmap.svg",
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+    svgCache,
+  });
+  const second = await resolveCapacities({
+    mapUrl: "/other-seatmap.svg", // genuinely different URL — must not hit the first entry
+    eventBaseUrl: "https://elippu.net/saipa/53:575",
+    httpClient,
+    dataDir,
+    svgCache,
+  });
+
+  assert.equal(call, 2);
+  assert.notEqual(second.hash, first.hash);
+});
+
+test("resolveCapacities without a svgCache fetches every time (no cache passed = no caching, existing behavior)", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "seatmap-test-"));
+  let fetchCount = 0;
+  const httpClient = {
+    fetchWithRetry: async () => {
+      fetchCount++;
+      return { text: async () => fixtureSvg };
+    },
+  };
+
+  await resolveCapacities({ mapUrl: "/seatmap.svg", eventBaseUrl: "https://elippu.net/saipa/53:575", httpClient, dataDir });
+  await resolveCapacities({ mapUrl: "/seatmap.svg", eventBaseUrl: "https://elippu.net/saipa/53:575", httpClient, dataDir });
+
+  assert.equal(fetchCount, 2);
+});

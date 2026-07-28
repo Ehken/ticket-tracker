@@ -111,6 +111,103 @@ test("fetchWithRetry respects a caller-supplied signal instead of layering its o
   );
 });
 
+test("fetchWithRetry defaults to 3 retries: succeeds on the 4th attempt after 3 failures", async () => {
+  let attempts = 0;
+  await withStubbedFetch(
+    [
+      () => {
+        attempts++;
+        throw new Error("fail 1");
+      },
+      () => {
+        attempts++;
+        throw new Error("fail 2");
+      },
+      () => {
+        attempts++;
+        throw new Error("fail 3");
+      },
+      () => {
+        attempts++;
+        return { ok: true, status: 200 };
+      },
+    ],
+    async () => {
+      // retries not overridden — proves the default, not a passed-in value.
+      const res = await fetchWithRetry("https://example.test/", {}, { backoffMs: 1 });
+      assert.equal(res.ok, true);
+    }
+  );
+  assert.equal(attempts, 4);
+});
+
+test("fetchWithRetry defaults to 3 retries: throws after exactly 4 failed attempts", async () => {
+  let attempts = 0;
+  await withStubbedFetch(
+    [
+      () => {
+        attempts++;
+        throw new Error("fail");
+      },
+      () => {
+        attempts++;
+        throw new Error("fail");
+      },
+      () => {
+        attempts++;
+        throw new Error("fail");
+      },
+      () => {
+        attempts++;
+        throw new Error("fail");
+      },
+    ],
+    async () => {
+      await assert.rejects(
+        () => fetchWithRetry("https://example.test/", {}, { backoffMs: 1 }),
+        /Failed to fetch .* after 4 attempt\(s\)/
+      );
+    }
+  );
+  assert.equal(attempts, 4);
+});
+
+test("fetchWithRetry's backoff grows between attempts (doubling), not a constant gap", async () => {
+  const timestamps = [];
+  await withStubbedFetch(
+    [
+      () => {
+        timestamps.push(Date.now());
+        throw new Error("fail 1");
+      },
+      () => {
+        timestamps.push(Date.now());
+        throw new Error("fail 2");
+      },
+      () => {
+        timestamps.push(Date.now());
+        throw new Error("fail 3");
+      },
+      () => {
+        timestamps.push(Date.now());
+        return { ok: true, status: 200 };
+      },
+    ],
+    async () => {
+      await fetchWithRetry("https://example.test/", {}, { retries: 3, backoffMs: 20 });
+    }
+  );
+
+  const gap1 = timestamps[1] - timestamps[0]; // expected ~20ms
+  const gap2 = timestamps[2] - timestamps[1]; // expected ~40ms
+  const gap3 = timestamps[3] - timestamps[2]; // expected ~80ms
+
+  // Ratios, not exact milliseconds — robust to CI timing jitter, same
+  // spirit as the existing timeout test's small-value approach.
+  assert.ok(gap2 > gap1 * 1.5, `gap2 (${gap2}ms) should be notably larger than gap1 (${gap1}ms)`);
+  assert.ok(gap3 > gap2 * 1.5, `gap3 (${gap3}ms) should be notably larger than gap2 (${gap2}ms)`);
+});
+
 test("fetchWithRetry sends a custom User-Agent header", async () => {
   let seenHeaders;
   await withStubbedFetch(

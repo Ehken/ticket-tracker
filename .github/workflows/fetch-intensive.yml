@@ -1,0 +1,93 @@
+name: Fetch SaiPa ticket data (intensive — game day/watch date only)
+
+# Game-day/watch-date intensive cadence: every 10 minutes, always gated by
+# checkGameWindow.js (data/events.json + data/watchDates.json) regardless
+# of what triggered this run — including workflow_dispatch. A manual run
+# of THIS workflow on an ordinary day does nothing; for an on-demand
+# scrape, use "Fetch SaiPa ticket data" (fetch.yml) instead, which is never
+# gated.
+#
+# UTC 5-19 brackets both the evening game-day window (15-21 Europe/Helsinki:
+# 12-18 UTC summer, 13-19 UTC winter) and the default watch-date window
+# (8-20 Europe/Helsinki: 5-17 UTC summer, 6-18 UTC winter) — the actual
+# gating is done in Node below, this cron bracket only has to be wide
+# enough to contain it.
+#
+# GitHub's own scheduler delivers scheduled events unreliably under load —
+# denser schedules are hit harder than sparser ones. Observed directly: 4
+# of ~90 expected 10-minute runs on 27.7 (~4% of expected). An external
+# scheduler now drives the intended cadence via repository_dispatch (event
+# type "scrape-intensive") instead; this cron is a fallback for when that
+# external service is down — see the "External trigger" section in
+# README.md/CLAUDE.md.
+"on":
+  schedule:
+    - cron: "*/10 5-19 * * *"
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [scrape-intensive]
+
+concurrency:
+  # Same group as fetch.yml, deliberately — the two workflows can never
+  # push over each other. GitHub keeps at most one *pending* run per
+  # concurrency group; a queued run past that is dropped by design. Correct
+  # here (a redundant run finding nothing new writes/commits nothing
+  # anyway — writeJsonIfChanged and the append-if-changed gates make that
+  # safe by construction), but it does mean overlapping triggers only help
+  # each other while runs stay fast, not as an unbounded backlog.
+  group: fetch-and-commit
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Game-day window check
+        id: gate
+        run: |
+          result=$(node scripts/checkGameWindow.js)
+          if [ "$result" = "proceed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+          # This step always exits 0 regardless of $result — being outside the
+          # game-day window is a normal, intentional no-op, never a failure.
+
+      - name: Fetch ticket data
+        id: fetch
+        if: steps.gate.outputs.proceed != 'false'
+        run: node scripts/fetch.js
+        continue-on-error: true # so a per-event failure still lets the commit step
+        # below preserve whatever other events DID succeed
+
+      - name: Commit and push data changes
+        if: steps.gate.outputs.proceed != 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update ticket data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git pull --rebase "$remote" "$GITHUB_REF_NAME"
+            git push "$remote" "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Fail the run if fetch.js reported a failure
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1

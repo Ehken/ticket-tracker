@@ -11,16 +11,23 @@ ei build-vaihetta, ei ulkoisia ajonaikaisia riippuvuuksia.
 
 ## Arkkitehtuuri
 
-`.github/workflows/fetch.yml` ajaa `scripts/fetch.js`:n kahdella ajastuksella:
+`scripts/fetch.js`:ää ajaa kaksi erillistä GitHub Actions -työnkulkua, kaksi
+eri kadenssia varten:
 
-- **Tunneittain**, klo `:17` (ei `:00` — GitHubin jaettu ajastin on
-  ruuhkautunut tasatunnin kohdalla; oikean datan aikaleimat näyttivät jopa
-  ~55 minuutin viiveitä ja kokonaan väliin jääneitä ajoja tasatunnilla).
-- **10 minuutin välein klo 15–21** (Europe/Helsinki, molemmat
-  kesäaika-tilanteet huomioiden) — mutta vain kun jokin seurattu ottelu on
-  todella käynnissä sinä päivänä. `scripts/checkGameWindow.js` päättää tämän
-  `data/events.json`:n perusteella ja portitoi ajon; muina päivinä tämä
-  ajastus on käytännössä no-op.
+- **`.github/workflows/fetch.yml`** — tunneittain, klo `:17` (ei `:00` —
+  GitHubin jaettu ajastin on ruuhkautunut tasatunnin kohdalla; oikean datan
+  aikaleimat näyttivät jopa ~55 minuutin viiveitä ja kokonaan väliin
+  jääneitä ajoja tasatunnilla). Ei koskaan portitoitu.
+- **`.github/workflows/fetch-intensive.yml`** — 10 minuutin välein klo
+  15–21 (Europe/Helsinki, molemmat kesäaika-tilanteet huomioiden) sekä
+  `data/watchDates.json`:iin merkittyinä päivinä (esim. lipunmyynnin
+  avautumispäivä — ei ole otteluohjelman fixture, siksi oma
+  tiedostonsa). `scripts/checkGameWindow.js` päättää portitoinnin
+  `data/events.json`:n ja `data/watchDates.json`:n perusteella
+  (`scripts/lib/gameWindow.js`); muina hetkinä tämä ajo on käytännössä
+  no-op — myös silloin kun se käynnistetään käsin ("Run workflow").
+  **Manuaaliseen kertahakuun käytä `fetch.yml`:ää** — se ei ole koskaan
+  portitoitu.
 
 Ajo hakee jokaisen `elippu.net/saipa`:n listalla olevan tapahtuman erikseen,
 eristäen yhden tapahtuman virheen (parametrivirhe, tilapäinen verkko-ongelma)
@@ -30,6 +37,40 @@ committoidaan ja pushataan `data/`-kansioon `github-actions[bot]`-identiteetill�
 askel (`persist-credentials: false`), ja komento käyttää ajon oman
 `GITHUB_TOKEN`:in kanssa muodostettua etätunnusta vain silloin kun sitä
 tarvitaan.
+
+### Ulkoinen käynnistin
+
+GitHubin oma ajastin ei toimittanut kumpaakaan yllä olevaa kadenssia
+luotettavasti: ensimmäisen 24h aikana `:17`-ajastuksen käyttöönotosta
+(27.7.) odotetuista 24 ajosta toteutui 9 (aukot 1h35min–3h48min, hajallaan
+läpi vuorokauden); 10 minuutin ajastuksesta odotetuista ~90:stä toteutui 4
+(~4 %). GitHub dokumentoi tämän itse: ajastetut tapahtumat voivat
+viivästyä tai jäädä kokonaan pois kuormituksen alla, ja tiheämmät
+ajastukset kärsivät pahemmin. Molempien yllä kuvattujen ajastusten
+`cron`-rivit ovat siis tästä lähtien vain varajärjestely — varsinaisen
+kadenssin ajaa ulkoinen palvelu lähettämällä
+[`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch)-tapahtumia:
+
+- `scrape` → käynnistää `fetch.yml`:n (tunneittainen kadenssi)
+- `scrape-intensive` → käynnistää `fetch-intensive.yml`:n (10 min
+  kadenssi, silti aina portitoitu samoin kuin ajastettunakin)
+
+Kumpikin osoittaa samaan `concurrency`-ryhmään (`fetch-and-commit`), joten
+ne eivät koskaan pushaa päällekkäin.
+
+Ulkoinen palvelu tunnistautuu tähän repoon rajatulla ("fine-grained")
+henkilökohtaisella tokenilla, jolla on vain `Contents: write` -oikeus tähän
+yhteen repoon. Token on olemassa vain ulkoisen palvelun päässä — **ei tässä
+repossa** — ja sillä on vanhenemispäivä, joka pitää muistaa uusia siellä
+ennen erääntymistä (repo itsessään ei tarvitse mitään toimenpiteitä sen
+vuoksi, paitsi jos käynnistin lakkaa toimimasta — ks. alla).
+
+**Tarkista että käynnistin on hengissä:** `gh run list --event
+repository_dispatch` (tai GitHubin Actions-välilehti, suodatettuna
+"Event"-sarakkeen mukaan) näyttää viimeisimmät ulkoisen käynnistimen
+laukaisemat ajot. Jos näitä ei näy odotetulla tiheydellä, käynnistin on
+lakannut toimimasta ja `:17`/10 min -ajastukset ovat ainoa jäljellä oleva
+kadenssi (epäluotettavana, yllä kuvatulla tavalla) kunnes se korjataan.
 
 ## Datalähde
 

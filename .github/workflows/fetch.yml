@@ -1,20 +1,31 @@
 name: Fetch SaiPa ticket data
 
-# Hourly cron runs at :17, not :00 — GitHub's shared scheduler is heavily
-# oversubscribed at the top of the hour, and real history.json timestamps
-# show up to ~55 minutes of delay (and outright missed slots) at :00.
+# Baseline cadence: hourly at :17 (not :00 — GitHub's shared scheduler is
+# heavily oversubscribed at the top of the hour). Never gated — this
+# workflow always fetches and commits.
+#
+# GitHub's own scheduler delivers scheduled events unreliably under load
+# (documented: can be delayed, or dropped entirely — denser schedules are
+# hit harder). Observed directly: 9 of 24 expected hourly runs in the first
+# 24h after this cron went live (27.7), gaps 1h35m-3h48m spread through the
+# day. An external scheduler now drives the intended cadence via
+# repository_dispatch (event type "scrape") instead; this cron is a
+# fallback for when that external service is down — see the "External
+# trigger" section in README.md/CLAUDE.md for what it is and how to verify
+# it's alive. Exactly one baseline cron, deliberately not duplicated as
+# redundancy: once the external trigger is reliable, extra crons only mean
+# extra full scrapes on days when several happen to coincide.
+#
+# workflow_dispatch here (not on fetch-intensive.yml) is the one to use for
+# an on-demand manual scrape — fetch-intensive.yml's own manual run is
+# gated exactly like its scheduled one and does nothing outside a game
+# day/watch date.
 "on":
   schedule:
-    - cron: "17 * * * *"      # hourly baseline
-    - cron: "*/10 5-19 * * *" # game-day/watch-date intensive mode candidate window.
-                               # UTC 5-19 brackets both the evening game-day window
-                               # (15-21 Europe/Helsinki: 12-18 UTC summer, 13-19 UTC
-                               # winter) and the default watch-date window (8-20
-                               # Europe/Helsinki: 5-17 UTC summer, 6-18 UTC winter) —
-                               # the actual gating is done in Node below. Note:
-                               # GitHub's cron scheduler can run several minutes late
-                               # under load — this design tolerates that.
+    - cron: "17 * * * *"
   workflow_dispatch: {}
+  repository_dispatch:
+    types: [scrape]
 
 concurrency:
   group: fetch-and-commit
@@ -26,7 +37,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,36 +47,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Game-day window check (only gates the 10-min cron)
-        id: gate
-        # Inverted comparison (not "== the 10-min cron's own literal") so
-        # this can never silently drift out of sync with that cron's hours
-        # again: any schedule that ISN'T the hourly baseline gets gated,
-        # whatever its own bracket is. Getting this wrong is a real risk,
-        # not a hypothetical — if the two ever mismatch, this condition is
-        # false, `steps.gate.outputs.proceed` stays unset (empty string),
-        # and the fetch/commit steps below (both gated on `!= 'false'`)
-        # would then run unconditionally on every 10-minute tick.
-        if: github.event_name == 'schedule' && github.event.schedule != '17 * * * *'
-        run: |
-          result=$(node scripts/checkGameWindow.js)
-          if [ "$result" = "proceed" ]; then
-            echo "proceed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "proceed=false" >> "$GITHUB_OUTPUT"
-          fi
-          # This step always exits 0 regardless of $result — being outside the
-          # game-day window is a normal, intentional no-op, never a failure.
-
       - name: Fetch ticket data
         id: fetch
-        if: steps.gate.outputs.proceed != 'false'
         run: node scripts/fetch.js
         continue-on-error: true # so a per-event failure still lets the commit step
         # below preserve whatever other events DID succeed
 
       - name: Commit and push data changes
-        if: steps.gate.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -75,12 +63,13 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore: update ticket data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
             remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            # $GITHUB_REF_NAME (not a hardcoded "main"): scheduled runs always
-            # execute on the default branch, so this is "main" in production —
-            # but it also means a workflow_dispatch run against a feature
-            # branch (e.g. to verify this credential change pre-merge) pulls
-            # and pushes that same branch instead of silently rebasing the
-            # whole branch onto, and pushing it to, main.
+            # $GITHUB_REF_NAME (not a hardcoded "main"): scheduled and
+            # repository_dispatch runs always execute on the default
+            # branch, so this is "main" in production — but it also means
+            # a workflow_dispatch run against a feature branch (e.g. to
+            # verify this credential change pre-merge) pulls and pushes
+            # that same branch instead of silently rebasing the whole
+            # branch onto, and pushing it to, main.
             git pull --rebase "$remote" "$GITHUB_REF_NAME"
             git push "$remote" "HEAD:$GITHUB_REF_NAME"
           fi
