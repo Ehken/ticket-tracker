@@ -93,3 +93,44 @@ function rebuildSpans(zones, finalShares) {
     return { ...z, start, end: cursor };
   });
 }
+
+// Sentinel state for a gradient stop that belongs to a separator band,
+// not a real zone — distinct from every SEAT_STATE value.
+export const SEPARATOR_STATE = "separator";
+
+// The wedge's hard-cut gradient (two stops at the same offset = an
+// instant color change, no blend) produces zero *visible* boundary when
+// the two adjacent zones are both pale — irtolippu/vapaa measure
+// 1.19:1, well under the 3:1 non-text UI needs. Same problem as the
+// fill bar's own zones, in gradient form, with the same fix: a thin
+// separator band at every boundary between two zones that both
+// genuinely have width, and none at the outer 0%/100% edges (already
+// bounded by the shape's own outline) or next to a zero-share zone
+// (nothing real to separate from — clampZoneSpansToMinimum already
+// leaves those at zero rather than inventing a phantom span for them).
+// Filtering zero-span zones out first and treating the survivors as
+// simply adjacent handles every real shape uniformly: a single real
+// zone (sold-out or fully-free) produces no separator at all; a
+// zero-share zone sitting between two real ones (e.g. no irtolippu
+// sold, all kausikortti) correctly makes its neighbors adjacent to each
+// other instead of leaving a stray boundary around an invisible zone.
+export function buildGradientStopOffsets(zones, separatorHalfBandPct) {
+  const realZones = zones.filter((zone) => zone.end > zone.start);
+  const stops = [];
+
+  realZones.forEach((zone, i) => {
+    const hasSeparatorBefore = i > 0;
+    const hasSeparatorAfter = i < realZones.length - 1;
+    const start = hasSeparatorBefore ? zone.start + separatorHalfBandPct : zone.start;
+    const end = hasSeparatorAfter ? zone.end - separatorHalfBandPct : zone.end;
+
+    if (hasSeparatorBefore) {
+      stops.push({ offset: zone.start - separatorHalfBandPct, state: SEPARATOR_STATE });
+      stops.push({ offset: zone.start + separatorHalfBandPct, state: SEPARATOR_STATE });
+    }
+    stops.push({ offset: start, state: zone.state });
+    stops.push({ offset: end, state: zone.state });
+  });
+
+  return stops;
+}
