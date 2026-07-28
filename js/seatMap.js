@@ -51,62 +51,68 @@ function findById(root, id) {
   return root.querySelector(`[id="${id}"]`);
 }
 
-export function buildSeatMapToggle(mergedEvent, latest, { kausikorttiEvents = [] } = {}) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "card__seatmap-wrapper";
-
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "card__seatmap-toggle";
-  toggle.textContent = "Näytä istumakartta";
-  wrapper.append(toggle);
-
+// Returns { panel, onShow } rather than a bare element — the panel's own
+// visibility is controlled externally (buildTabs in card.js), not by this
+// function, but the getBBox-based layout work inside renderSeatMap can only
+// run correctly once the panel is actually visible (see there). onShow lets
+// the caller notify this panel every time it might have become visible —
+// on tab selection, but also on re-expanding a card that was collapsed
+// mid-load (a hidden ANCESTOR, not just this panel's own hidden attribute,
+// is just as fatal to getBBox — see isVisible below). It's a no-op once
+// the pending layout work has already run, so calling it repeatedly, or
+// speculatively, is always safe.
+export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] } = {}) {
   const mapContainer = document.createElement("div");
   mapContainer.className = "card__seatmap-container";
-  mapContainer.hidden = true;
-  wrapper.append(mapContainer);
+  mapContainer.textContent = "Ladataan karttaa…";
 
-  let built = false;
+  let pendingLayout = null;
 
-  toggle.addEventListener("click", async () => {
-    if (built) {
-      mapContainer.hidden = !mapContainer.hidden;
-      toggle.textContent = mapContainer.hidden ? "Näytä istumakartta" : "Piilota istumakartta";
-      return;
-    }
-    built = true;
-    toggle.disabled = true;
-    toggle.textContent = "Ladataan…";
-    // Shown (not hidden) before content loads: getBBox()-based overlay
-    // placement below needs the container actually rendered/laid out.
-    mapContainer.hidden = false;
-    mapContainer.textContent = "Ladataan karttaa…";
+  function onShow() {
+    if (!pendingLayout) return;
+    const run = pendingLayout;
+    pendingLayout = null;
+    run();
+  }
 
+  (async () => {
     try {
       const seats = await getSeats(mergedEvent.id);
       if (!seats) {
-        // Missing/old data — the toggle disappears, rest of the card is unaffected.
-        wrapper.remove();
+        // Missing/old data — a calm message, the Taulukko tab stays usable.
+        mapContainer.textContent = "Istumakarttaa ei ole saatavilla.";
         return;
       }
 
       const baseline = await resolveBaseline(mergedEvent, seats, kausikorttiEvents);
       const svgText = await getCapacitiesSvg(seats.svgHash);
-      renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svgText });
-
-      toggle.disabled = false;
-      toggle.textContent = "Piilota istumakartta";
+      renderSeatMap({
+        mapContainer,
+        mergedEvent,
+        latest,
+        seats,
+        baseline,
+        svgText,
+        // offsetParent is null both when this panel's own hidden attribute
+        // is set (the tab-switch case) and when a display:none ANCESTOR is
+        // hiding it (e.g. the card itself got collapsed while this load was
+        // in flight) or the panel isn't in the document at all yet — a
+        // plain !mapContainer.hidden check would miss both of those.
+        isVisible: () => mapContainer.offsetParent !== null,
+        registerOnShow: (fn) => {
+          pendingLayout = fn;
+        },
+      });
     } catch (err) {
       console.error(`Failed to load seat map for ${mergedEvent.id}:`, err);
       const errorEl = document.createElement("p");
       errorEl.className = "card__error";
       errorEl.textContent = "Istumakarttaa ei voitu ladata.";
       mapContainer.replaceChildren(errorEl);
-      toggle.remove();
     }
-  });
+  })();
 
-  return wrapper;
+  return { panel: mapContainer, onShow };
 }
 
 async function resolveBaseline(mergedEvent, seats, kausikorttiEvents) {
@@ -142,7 +148,7 @@ async function resolveBaseline(mergedEvent, seats, kausikorttiEvents) {
   return { soldSet: new Set(baselineSeats.soldSeatIds), sectionSold };
 }
 
-function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svgText }) {
+function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svgText, isVisible, registerOnShow }) {
   const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
   if (doc.querySelector("parsererror")) throw new Error("Failed to parse seatmap SVG");
 
@@ -177,6 +183,10 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   resetButton.type = "button";
   resetButton.className = "seatmap-reset-button";
   resetButton.textContent = "Palauta näkymä";
+  // Only meaningful once the view has actually been zoomed/panned — the
+  // viewBox starts equal to its own original, so nothing to reset yet.
+  // attachInteraction's applyViewBox keeps this in sync from here on.
+  resetButton.hidden = true;
 
   const infoRow = document.createElement("div");
   infoRow.className = "seatmap-info-row";
@@ -194,17 +204,37 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   children.push(infoRow);
   mapContainer.replaceChildren(...children);
 
-  // The container is already visible (see buildSeatMapToggle) so getBBox()
-  // below reflects real layout, not a display:none zero-box.
-  addSectionHitAreas(svg);
+  // Layout-independent — no getBBox calls, so safe regardless of whether
+  // this container is currently visible.
   colorSeats(svg, mergedEvent, latest, seats, baseline);
   colorAitioBoxes(svg, seats);
   findById(svg, "press")?.classList.add("ei-myynnissa");
 
-  const bands = computeLabelBands(svg);
-  renderStandingWedge(svg, latest, baseline);
-  renderWheelchairSlots(svg, latest, baseline, bands);
-  replaceSectionLabels(svg, latest, bands);
+  // Layout-dependent (getBBox-based) overlay placement — only correct once
+  // this container is actually laid out, not display:none/hidden, whether
+  // that's this panel's own hidden attribute (tab switched away) or an
+  // ancestor's (the whole card got collapsed) — isVisible checks real
+  // layout for exactly that reason. Card.js also re-fires onShow whenever
+  // a card is (re-)expanded, in case this resolved while collapsed and
+  // nothing else would ever call it.
+  //
+  // Visibility here can change while the fetches above were still in
+  // flight — if it's hidden right now, park this work and run it once,
+  // the next time the panel is actually shown (see onShow in
+  // buildSeatMapPanel).
+  function placeLayoutDependentContent() {
+    addSectionHitAreas(svg);
+    const bands = computeLabelBands(svg);
+    renderStandingWedge(svg, latest, baseline);
+    renderWheelchairSlots(svg, latest, baseline, bands);
+    replaceSectionLabels(svg, latest, bands);
+  }
+
+  if (isVisible()) {
+    placeLayoutDependentContent();
+  } else {
+    registerOnShow(placeLayoutDependentContent);
+  }
 
   attachInteraction(svg, mapContainer, { latest, baseline, infoRow, resetButton });
 }
@@ -1011,6 +1041,7 @@ function attachInteraction(svg, mapContainer, { latest, baseline, infoRow, reset
   function applyViewBox(vb) {
     currentViewBox = vb;
     svg.setAttribute("viewBox", serializeViewBox(vb));
+    resetButton.hidden = viewBoxesEqual(currentViewBox, bounds.original);
   }
 
   // Capture can throw (e.g. NotFoundError if the pointer was already
