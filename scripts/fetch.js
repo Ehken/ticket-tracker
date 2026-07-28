@@ -84,6 +84,11 @@ export async function run({
   // like "every event disappeared" and mass-archive the whole index.
   assertListingNotSuspiciouslyEmpty(index, presentIds);
 
+  // Scoped to this run only (see resolveCapacities in lib/seatmap.js) —
+  // every SaiPa home game shares the same arena map, so this takes a
+  // ~40-event run's SVG requests from ~40 down to ~1.
+  const svgCache = new Map();
+
   let hadFailure = false;
 
   for (let i = 0; i < presentEvents.length; i++) {
@@ -129,6 +134,7 @@ export async function run({
         eventBaseUrl: url,
         httpClient,
         dataDir,
+        svgCache,
       });
 
       const mergedCapacities = { ...capacities, ...map.status.capacities };
