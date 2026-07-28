@@ -36,7 +36,7 @@ const SEAT_RADIUS = "4";
 // Outer radius (r + stroke/2) matches SEAT_RADIUS exactly — see the
 // hollow-ring reasoning in style.css (.seatmap-svg .seat). Free reads as
 // a different shape, not a different size.
-const SEAT_RADIUS_VAPAA = "2.5";
+const SEAT_RADIUS_VAPAA = "3";
 const SEAT_RADIUS_EI_MYYNNISSA = "2.4"; // smaller, not just a different color — separates by shape too
 
 // Keep in sync with .seatmap-svg-container's aspect-ratio in style.css

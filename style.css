@@ -781,34 +781,40 @@ header.site-header h1 {
    would invert the "sales light the arena" metaphor the palette exists
    for). ei-myynnissä already solves the same problem its own way, with
    size (r="2.4"); this is the state that never got a cue.
-   stroke-width: 3 (user units) is derived, not picked, and derived
-   against this project's own actual maximum render width, not an
-   illustrative round number — body's own max-width: 960px caps the map
-   container at ~894px on any desktop, however wide the monitor
-   (measured directly, not assumed: a rendered free seat's own
-   getBoundingClientRect was 2.807px across at r=3, i.e. diameter
-   6 units, giving a scale of 2.807/6 ≈ 0.468). Seats are r: 4 against
-   the *rendered* viewBox (1905 wide, after expandViewBox's label
-   margins), so 894 / 1905 ≈ 0.469 (matches the direct measurement). A
-   1-unit stroke would land at ~0.47 device px — antialiased into a
-   smudge, not a ring, which reads as "faintly there" rather than
-   "hollow," a different cue with a different meaning; a first pass at
-   2 units (~0.94 device px) confirmed by eye that it *still* wasn't
-   enough — checked as an actual cropped screenshot of a real free seat
-   at 1:1, not zoomed in, since zoom makes any ring look fine and proves
-   nothing about the default view. 3 units (~1.41 device px) is the
-   value that actually reads as a deliberate line at this project's
-   real maximum width, not a hypothetical wider one.
-   r: 2.5, not 4, compensates for the stroke being centered on the
-   path: left at 4, a 3-unit stroke would push the outer edge to
-   4+1.5=5.5, rendering free seats nearly 40% larger than solid ones at
-   exactly the point size is otherwise a meaningful cue here. 4 -
-   stroke/2 = 2.5 keeps the outer radius at 4, matching solid seats
-   exactly — free reads as a different SHAPE, not a different SIZE. (Its
-   own inner radius, 2.5, lands close to ei-myynnissä's solid r="2.4" —
-   coincidental and harmless: the comparison that matters is outer
-   silhouette, where free's ring at 4 stays clearly bigger than
-   ei-myynnissä's solid dot at 2.4, same as every other state.)
+   Two bounds on the stroke, not one, and they pull against each other:
+   it has to resolve to something visible (roughly ≥1 device px) at the
+   real desktop scale — body's own max-width: 960px caps the map
+   container at ~894px on any desktop however wide the monitor (measured
+   directly, not assumed, via a rendered seat's own
+   getBoundingClientRect), giving ~894/1905 ≈ 0.469 against the
+   *rendered* viewBox — but it also has to stay a MINORITY of the outer
+   radius, or the hole it's supposed to leave open fills back in and the
+   "ring" is just a heavier solid dot. An earlier pass optimized only for
+   the first bound (stroke-width: 3, r: 2.5) and got exactly that wrong:
+   outer radius 4 was right, but the hole (radius 1) was only 25% of the
+   outer diameter — 6% of the disc's area — which reads as a filled
+   mid-grey dot, not hollow. Free became LIGHTNESS-coded again
+   (#6b6b6b vs #1a1a1a, 3.27:1 — better than the 1.19:1 this fix started
+   from, but the same kind of cue) and, worse, visually heavier than the
+   sand it replaced, inverting "sales light the arena up" in the
+   direction of a fuller-looking empty section.
+   Fixed by solving for both bounds with the outer radius still pinned
+   at 4 (`r + stroke/2 = 4`, unchanged — this is what keeps the size cue
+   owned by ei-myynnissä): a hole of at least half the outer diameter
+   needs `stroke ≤ 2` (hole diameter = 8 − 2×stroke ≥ 4 ⟺ stroke ≤ 2),
+   so **stroke-width: 2, r: 3** is the most visible stroke the hole-size
+   floor allows — hole exactly 50% of the outer diameter (radius 2 of
+   4), stroke ≈ 0.94 device px at the reference scale. Checked, not
+   assumed, both ways: a pixel-level scan through an actual rendered
+   free seat at 1:1 (not zoomed — zoom proves nothing about the default
+   view) shows a real, distinctly sand-colored pixel at the center,
+   flanked by the stroke — a genuine hole, not a uniform blend — though
+   at strict 1x pixel density the ring reads as subtle rather than bold;
+   at a realistic 2x (most current displays), the same geometry renders
+   as an unambiguous ring. This is the ceiling of what device-pixel math
+   and a hole-size floor both allow at this map's real rendered size —
+   going thicker to make the 1x case bolder is exactly the tradeoff
+   already rejected above.
    #6b6b6b is fixed, not var(--muted) — same reasoning as every other
    map-surface accent in this file: the map's own surface doesn't follow
    the color scheme, so the accent on it shouldn't either. Measures
@@ -816,10 +822,10 @@ header.site-header h1 {
    #fdfcfa background, comfortably above the 3:1 this whole fix is
    about; #8a8a8a was rejected at a measured 2.88:1 against sand. */
 .seatmap-svg .seat {
-  r: 2.5px;
+  r: 3px;
   fill: var(--seat-vapaa); /* default: vapaa */
   stroke: #6b6b6b;
-  stroke-width: 3px;
+  stroke-width: 2px;
 }
 
 .seatmap-svg .seat.kausikortti,
