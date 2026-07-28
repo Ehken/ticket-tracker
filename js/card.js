@@ -136,7 +136,11 @@ let tabsIdCounter = 0;
 // here since switching to an already-built tab is just a `hidden` flip.
 // onShow fires every time a tab is selected, not just once — buildSeatMapPanel
 // relies on that to run its deferred, visibility-dependent layout work on
-// first (and only) actual display.
+// first (and only) actual display. The returned notifyShown re-fires the
+// currently active entry's onShow on demand — needed because selecting a
+// tab isn't the only way a panel can go from hidden back to visible: the
+// whole card can be collapsed and re-expanded while a panel's own load is
+// still in flight, and nothing about that touches the tablist at all.
 function buildTabs(entries) {
   const instanceId = ++tabsIdCounter;
 
@@ -168,7 +172,10 @@ function buildTabs(entries) {
     return tab;
   });
 
+  let selectedIndex = 0;
+
   function selectTab(index) {
+    selectedIndex = index;
     entries.forEach((entry, i) => {
       const selected = i === index;
       tabButtons[i].setAttribute("aria-selected", String(selected));
@@ -192,7 +199,7 @@ function buildTabs(entries) {
   selectTab(0);
 
   wrapper.append(tablist, ...entries.map((entry) => entry.panel));
-  return wrapper;
+  return { wrapper, notifyShown: () => entries[selectedIndex].onShow?.() };
 }
 
 export function buildCard(
@@ -220,6 +227,7 @@ export function buildCard(
   body.hidden = !expanded;
 
   let bodyBuilt = false;
+  let notifyTabsShown = null;
   async function ensureBodyBuilt() {
     if (bodyBuilt) return;
     bodyBuilt = true;
@@ -229,12 +237,12 @@ export function buildCard(
     // behind the chart's getHistory() call.
     const tablePanel = buildSectionTable(latest);
     const { panel: mapPanel, onShow: mapOnShow } = buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents });
-    body.append(
-      buildTabs([
-        { label: "Kartta", panel: mapPanel, onShow: mapOnShow },
-        { label: "Taulukko", panel: tablePanel },
-      ])
-    );
+    const tabs = buildTabs([
+      { label: "Kartta", panel: mapPanel, onShow: mapOnShow },
+      { label: "Taulukko", panel: tablePanel },
+    ]);
+    notifyTabsShown = tabs.notifyShown;
+    body.append(tabs.wrapper);
 
     const chartWrapper = document.createElement("div");
     chartWrapper.className = "card__chart-wrapper";
@@ -262,7 +270,16 @@ export function buildCard(
     expanded = next;
     header.setAttribute("aria-expanded", String(expanded));
     body.hidden = !expanded;
-    if (expanded) await ensureBodyBuilt();
+    if (expanded) {
+      await ensureBodyBuilt();
+      // Re-expanding is also how a card recovers from having been
+      // collapsed while the map's own load was still in flight — that
+      // load may have resolved while hidden and parked its layout work
+      // rather than run it (see isVisible in seatMap.js). Selecting a tab
+      // isn't the only way back to visible, so re-fire the active tab's
+      // onShow here too; it's a no-op if there's nothing pending.
+      notifyTabsShown?.();
+    }
   }
 
   header.addEventListener("click", () => setExpanded(!expanded));

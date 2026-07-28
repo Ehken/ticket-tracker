@@ -55,9 +55,12 @@ function findById(root, id) {
 // visibility is controlled externally (buildTabs in card.js), not by this
 // function, but the getBBox-based layout work inside renderSeatMap can only
 // run correctly once the panel is actually visible (see there). onShow lets
-// the caller notify this panel every time it's selected; it's a no-op once
-// the pending layout work has already run, so calling it on every selection
-// (not just the first) is safe.
+// the caller notify this panel every time it might have become visible —
+// on tab selection, but also on re-expanding a card that was collapsed
+// mid-load (a hidden ANCESTOR, not just this panel's own hidden attribute,
+// is just as fatal to getBBox — see isVisible below). It's a no-op once
+// the pending layout work has already run, so calling it repeatedly, or
+// speculatively, is always safe.
 export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] } = {}) {
   const mapContainer = document.createElement("div");
   mapContainer.className = "card__seatmap-container";
@@ -90,7 +93,12 @@ export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] 
         seats,
         baseline,
         svgText,
-        isVisible: () => !mapContainer.hidden,
+        // offsetParent is null both when this panel's own hidden attribute
+        // is set (the tab-switch case) and when a display:none ANCESTOR is
+        // hiding it (e.g. the card itself got collapsed while this load was
+        // in flight) or the panel isn't in the document at all yet — a
+        // plain !mapContainer.hidden check would miss both of those.
+        isVisible: () => mapContainer.offsetParent !== null,
         registerOnShow: (fn) => {
           pendingLayout = fn;
         },
@@ -203,11 +211,17 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   findById(svg, "press")?.classList.add("ei-myynnissa");
 
   // Layout-dependent (getBBox-based) overlay placement — only correct once
-  // this container is actually laid out, not display:none/hidden. Under
-  // tabs, this panel's visibility is controlled externally (buildTabs in
-  // card.js) and can change while the fetches above were still in flight —
-  // if it's hidden right now, park this work and run it once, the first
-  // time the panel is actually shown (see onShow in buildSeatMapPanel).
+  // this container is actually laid out, not display:none/hidden, whether
+  // that's this panel's own hidden attribute (tab switched away) or an
+  // ancestor's (the whole card got collapsed) — isVisible checks real
+  // layout for exactly that reason. Card.js also re-fires onShow whenever
+  // a card is (re-)expanded, in case this resolved while collapsed and
+  // nothing else would ever call it.
+  //
+  // Visibility here can change while the fetches above were still in
+  // flight — if it's hidden right now, park this work and run it once,
+  // the next time the panel is actually shown (see onShow in
+  // buildSeatMapPanel).
   function placeLayoutDependentContent() {
     addSectionHitAreas(svg);
     const bands = computeLabelBands(svg);
