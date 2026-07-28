@@ -188,6 +188,16 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   // attachInteraction's applyViewBox keeps this in sync from here on.
   resetButton.hidden = true;
 
+  // Floats over the map (see .seatmap-map-controls/.seatmap-svg-container
+  // in style.css) rather than sitting below it in flow, so its
+  // appearance/disappearance on zoom doesn't reflow the chart or anything
+  // else on the card. Appended after the SVG so DOM/keyboard order still
+  // reads map-then-control; a future zoom control would join it here.
+  const mapControls = document.createElement("div");
+  mapControls.className = "seatmap-map-controls";
+  mapControls.append(resetButton);
+  svgWrapper.append(mapControls);
+
   const infoRow = document.createElement("div");
   infoRow.className = "seatmap-info-row";
   infoRow.setAttribute("aria-live", "polite"); // tap-to-inspect selection changes are announced for pointer users
@@ -199,7 +209,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   });
 
   const cta = buildCta(mergedEvent, latest);
-  const children = [legend, svgWrapper, resetButton];
+  const children = [legend, svgWrapper];
   if (cta) children.push(cta);
   children.push(infoRow);
   mapContainer.replaceChildren(...children);

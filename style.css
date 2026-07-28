@@ -538,35 +538,90 @@ header.site-header h1 {
 
 /* Card tabs (Kartta / Taulukko) */
 
+/* One bordered track, sized to its own content (not stretched to the
+   card's full width — a segmented control is sized to its labels, not
+   its container, or it reads as a giant toggle switch). --hover-bg (an
+   existing translucent overlay, not a new color) composites over
+   --card-bg to read as a faint recess in both themes; --bg would be
+   invisible here since --bg === --card-bg in light mode. */
 .card__tablist {
-  display: flex;
-  gap: 0.4rem;
+  display: inline-flex;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
 }
 
 .card__tab {
   font: inherit;
   font-style: normal;
   padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--card-bg);
-  color: var(--fg);
+  /* Transparent, not none — the dark-mode selected chip below adds a real
+     border of the same width, and this keeps every tab's box the same
+     size regardless of state, so selecting one doesn't nudge its own
+     label by a pixel. */
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.card__tab:hover {
+@media (prefers-reduced-motion: reduce) {
+  .card__tab {
+    transition: none;
+  }
+}
+
+/* Scoped to the unselected tab only — the active one already has its own
+   solid chip below and shouldn't visually double up with a hover tint. */
+.card__tab:not([aria-selected="true"]):hover {
   background: var(--hover-bg);
 }
 
+/* The selected segment is a solid --card-bg chip inset in the tinted
+   track — "this is the current selection," not "this is a primary
+   action" (unlike --accent, which is reserved for that vocabulary
+   elsewhere on the card, e.g. "Osta liput"). */
 .card__tab[aria-selected="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--card-bg);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* In light mode --card-bg (the chip) is lighter than --hover-bg-over-
+   --card-bg (the track), so the chip reads as raised/selected. In dark
+   mode --hover-bg is a WHITE tint, so that relationship inverts — the
+   plain --card-bg chip would sit darker than the track around it, i.e.
+   recessed, which conventionally reads as pressed-in/off rather than
+   current. Countered by lightening the chip beyond the track's own
+   single tint (two stacked --hover-bg layers vs. the track's one) plus a
+   border, so the direction of contrast matches light mode instead of
+   just accepting the inversion. */
+@media (prefers-color-scheme: dark) {
+  .card__tab[aria-selected="true"] {
+    background: linear-gradient(var(--hover-bg), var(--hover-bg)), linear-gradient(var(--hover-bg), var(--hover-bg)),
+      var(--card-bg);
+    border: 1px solid var(--border);
+  }
 }
 
 .card__tab:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  /* The extra tap target genuinely helps at touch sizes — fill the width
+     here, but only here; the default is content-sized (see above). */
+  .card__tablist {
+    display: flex;
+  }
+
+  .card__tab {
+    flex: 1 1 0;
+  }
 }
 
 /* Shared by both tabpanels (map, table) — .section-table-wrapper has no
@@ -587,6 +642,10 @@ header.site-header h1 {
   aspect-ratio: 1905 / 1376;
   max-height: 70vh;
   overflow: hidden;
+  /* Anchors .seatmap-map-controls (the floating reset button, and any
+     future zoom control) — floating over the map instead of sitting
+     below it in flow means toggling it costs zero reflow. */
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 6px; /* matches .card */
   /* Always light, in both color schemes — the map is a paper-like
@@ -844,19 +903,45 @@ header.site-header h1 {
   fill: var(--seat-ei-myynnissa);
 }
 
+/* Floats over the map (inside .seatmap-svg-container, itself
+   position: relative — see there) instead of sitting below it in flow,
+   so appearing/disappearing on zoom costs zero reflow of the chart or
+   anything else on the card. A second child (e.g. a future zoom control)
+   slots in here with no positioning changes. */
+.seatmap-map-controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  /* Inset from the true corner, not flush — .seatmap-svg-container's own
+     overflow: hidden would clip a flush button's focus-visible outline. */
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* Fixed light-surface colors, not theme variables — the map's own base
+   is deliberately always-light in both color schemes (see
+   .seatmap-svg-container above), and this button floats directly over
+   it, so it needs to read as part of that fixed surface rather than
+   flip with the page. #fdfcfa is the map's own background value;
+   #d8d8d8 is the same fixed border already used by
+   .seatmap-wheelchair-slot's stroke, for the same reason. */
 .seatmap-reset-button {
   font: inherit;
-  margin-top: 0.5rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--card-bg);
-  color: var(--fg);
+  padding: 0.55rem 1rem;
+  min-height: 2.75rem; /* ~44px — comfortable touch target for a floating control */
+  border: 1px solid #d8d8d8;
+  border-radius: 999px; /* a floating pill reads as an overlay control, not an inline form button */
+  background: #fdfcfa;
+  color: #1a1a1a;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* same recipe as .seatmap-legend__info-popover, for the same reason: it floats over varied content */
 }
 
 .seatmap-reset-button:hover {
-  background: var(--hover-bg);
+  background: #f3f2f0; /* fixed, one step darker than the button's own #fdfcfa */
 }
 
 .seatmap-reset-button:focus-visible,
@@ -876,14 +961,19 @@ header.site-header h1 {
 .seatmap-legend__item {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   position: relative;
 }
 
 .seatmap-legend__swatch {
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 50%;
+  width: 0.7rem;
+  height: 0.7rem;
+  /* Rounded rect, not a circle — a circular swatch next to a label reads
+     as a radio input (every OS renders radio buttons as circles), and
+     this legend selects nothing. A rounded rect doesn't carry that
+     association. Generalizes what --aitio-myyty already did below,
+     rather than adding a second shape to the legend. */
+  border-radius: 3px;
   display: inline-block;
   flex: 0 0 auto;
   /* The legend sits on the page's own (theme-following) surface, not the
@@ -909,14 +999,14 @@ header.site-header h1 {
 .seatmap-legend__swatch--ei-myynnissa {
   background: var(--seat-ei-myynnissa);
   /* Mirrors the smaller r="2.4" (vs. the normal r="4") seat dots on the
-     map itself — ei-myynnissä separates by shape, not just color. */
-  width: 0.54rem;
-  height: 0.54rem;
+     map itself — ei-myynnissä separates by shape, not just color. Same
+     ~0.6 ratio against the (now smaller) base swatch size. */
+  width: 0.42rem;
+  height: 0.42rem;
 }
 
 .seatmap-legend__swatch--aitio-myyty {
   background: var(--seat-aitio-myyty);
-  border-radius: 3px;
 }
 
 .seatmap-legend__fallback-numbers {
