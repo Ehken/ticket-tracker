@@ -227,9 +227,10 @@ header.site-header h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The chevron rotation is the only CSS transition in this file — seat
-     map pan/zoom is driven by direct SVG viewBox attribute changes, not a
-     CSS transition, so there's nothing else to disable here. */
+  /* Seat map pan/zoom itself is driven by direct SVG viewBox attribute
+     changes, not a CSS transition, so there's nothing to disable there —
+     .card__tab and .seatmap-tooltip have their own reduced-motion guards
+     next to their own transitions instead of being listed here too. */
   .card__chevron {
     transition: none;
   }
@@ -302,7 +303,12 @@ header.site-header h1 {
 }
 
 .card__chart-wrapper {
-  margin-top: 1rem;
+  /* Slightly more than the 1rem this used everywhere else — the seat
+     map's own info row used to sit directly above this and its border
+     was carrying part of the visual separation from the map/table panel
+     above; removing that row (replaced by the section tooltips) left a
+     flatter transition than before, without a bordered box to cap it. */
+  margin-top: 1.25rem;
   max-width: 100%;
 }
 
@@ -728,11 +734,20 @@ header.site-header h1 {
   fill: var(--seat-aitio-myyty);
 }
 
-.seatmap-svg .section--selected {
+.seatmap-svg .section--pinned {
   /* Fixed, not var(--accent) — drawn on the map's always-light surface,
      which doesn't follow the page theme. */
   stroke: #c0392b;
   stroke-width: 2;
+}
+
+/* Same hue as pinned, deliberately lighter/thinner — transient (mouse
+   hover) has to read as visibly less emphatic than deliberate (tap-to-
+   pin), not identical to it. */
+.seatmap-svg .section--hovered {
+  stroke: #c0392b;
+  stroke-width: 1;
+  stroke-opacity: 0.5;
 }
 
 /* The SVG's baked-in ".section-label" paths are NOT just small text glyphs —
@@ -1054,24 +1069,41 @@ header.site-header h1 {
   font-weight: 600;
 }
 
-.seatmap-info-row {
-  margin-top: 0.6rem;
+/* Shared by the pin and hover tooltips (js/seatMap.js) — two elements,
+   not one, so a pinned section's tooltip can stay up while a different
+   one is hovered, and so a mouse sweep's hover updates can never touch
+   the pin tooltip's own aria-live region (see there). Positioned via
+   inline left/top from computeTooltipPosition (seatMapTooltipPosition.js)
+   — absolute, so showing/hiding/repositioning either one is never in
+   normal flow and never reflows anything else on the card. */
+.seatmap-tooltip {
+  position: absolute;
+  z-index: 2; /* above .seatmap-map-controls (1), which it can appear beside near the same corner */
+  /* Must never itself become a hit-test obstacle — hovering "through" a
+     tooltip to the map underneath (e.g. when it briefly sits over an
+     adjacent section) has to keep working. */
+  pointer-events: none;
+  max-width: 260px; /* same bound as .seatmap-legend__info-popover, for the same reason: bodies this size shouldn't dominate a phone-width map */
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--card-bg);
   font-size: 0.85rem;
+  /* Floats over varied map content — same shadow already used by
+     .seatmap-legend__info-popover and .seatmap-reset-button for the
+     same reason. */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.seatmap-info-row strong {
+.seatmap-tooltip strong {
   display: block;
   margin-bottom: 0.3rem;
 }
 
-.seatmap-info-row p {
+.seatmap-tooltip p {
   margin: 0.3rem 0 0;
 }
 
-.seatmap-info-row__split {
+.seatmap-tooltip__split {
   color: var(--muted);
 }
