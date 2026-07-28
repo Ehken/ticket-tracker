@@ -10,7 +10,9 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
 
 ## Zero runtime dependencies
 
-- `node:test` only, ES modules, Node ≥ 20. Do not add npm packages (runtime
+- `node:test` only, ES modules, Node ≥ 24 (current Active LTS; matches
+  `package.json`'s `engines.node` and the fetch workflows' `setup-node`
+  version — keep all three in sync). Do not add npm packages (runtime
   or dev). If a task seems to need one, stop and ask first.
 - Frontend libraries (Chart.js, Luxon, chartjs-adapter-luxon) are
   self-hosted under `vendor/` — see `vendor/README.md` before touching

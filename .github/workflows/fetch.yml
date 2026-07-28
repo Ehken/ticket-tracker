@@ -39,13 +39,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # The branch's CURRENT tip, not the SHA pinned when this run was
+          # queued. actions/checkout with no ref checks out github.sha,
+          # fixed at run-creation time — a run queued when GitHub's own
+          # (occasionally ~30min-late) cron fires can start well after a
+          # same-minute external-trigger run has already pushed, do its
+          # work on a base that predates that push, then fail to rebase a
+          # data commit onto files the other run rewrote line-for-line.
+          # github.ref_name, not a hardcoded "main": resolves to the
+          # default branch for schedule and repository_dispatch alike
+          # (both always run against it — confirmed against GitHub's own
+          # docs, not assumed) and to whichever branch/tag a
+          # workflow_dispatch run was pointed at, e.g. a feature branch
+          # for testing this exact change — hardcoding "main" would
+          # silently make those verification runs operate on main instead.
+          ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # Current Active LTS — Node 20 reached end of security support
+          # 2026-04-30. Matches package.json's engines.node; also matches
+          # the Node 24 runtime the runner already forces every action
+          # onto regardless of what an action itself declares, so this and
+          # the actions/checkout bump above are the same fix from two
+          # sides: our own script's declared runtime and the actions'.
+          node-version: "24"
 
       - name: Fetch ticket data
         id: fetch
@@ -70,6 +91,21 @@ jobs:
             # verify this credential change pre-merge) pulls and pushes
             # that same branch instead of silently rebasing the whole
             # branch onto, and pushing it to, main.
+            #
+            # KEEP this failing loudly on conflict — do not add automatic
+            # conflict resolution for these files (e.g. always taking
+            # "ours" or "theirs" because every run regenerates them
+            # wholesale). That reasoning is wrong: this run's working copy
+            # was built from whatever base its own checkout saw (see the
+            # ref: fix on the checkout step above, which closes the one
+            # known way that base could already be stale), and a conflict
+            # here means the OTHER run's push contains a data point this
+            # run's copy never had. Resolving in either direction discards
+            # it silently. A red "Commit and push data changes" step that
+            # costs one sample is strictly better than a green one that
+            # quietly loses a data point. If this conflicts again after
+            # the fix above, that's a fault we don't understand yet, and
+            # it should stay loud, not get papered over.
             git pull --rebase "$remote" "$GITHUB_REF_NAME"
             git push "$remote" "HEAD:$GITHUB_REF_NAME"
           fi
