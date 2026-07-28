@@ -11,22 +11,28 @@ function fillFraction(row) {
   return row.total > 0 ? row.sold / row.total : 0;
 }
 
+// Two drawn segments, not three — the free zone is the bar's own
+// background (--seat-vapaa), not a span (see the .fill-bar comment in
+// style.css for the full reasoning, including why this reads correctly
+// even when `available` is 0). row.section === "aitiot" is the one case
+// that changes the sold segment's color (purple, not yellow) rather than
+// its size — everything else about the row (aggregate totals, which
+// carry no .section field at all) renders identically either way.
 export function buildFillBar(row) {
   const bar = document.createElement("div");
   bar.className = "fill-bar";
   const total = row.total || 1;
 
-  for (const [cls, value] of [
-    ["sold", row.sold],
-    ["available", row.available],
-    ["hold", row.hold],
-  ]) {
-    const span = document.createElement("span");
-    span.className = `fill-bar__segment fill-bar__segment--${cls}`;
-    span.style.flexBasis = `${(value / total) * 100}%`;
-    bar.append(span);
-  }
+  const sold = document.createElement("span");
+  sold.className = "fill-bar__segment fill-bar__segment--sold";
+  if (row.section === "aitiot") sold.classList.add("fill-bar__segment--aitio");
+  sold.style.width = `${(row.sold / total) * 100}%`;
 
+  const hold = document.createElement("span");
+  hold.className = "fill-bar__segment fill-bar__segment--hold";
+  hold.style.width = `${(row.hold / total) * 100}%`;
+
+  bar.append(sold, hold);
   return bar;
 }
 

@@ -1034,31 +1034,82 @@ function buildLegendItem({ cls, label, info }, togglePopover) {
   return item;
 }
 
+// Aitiot and press are excluded even where baseline.sectionSold happens
+// to hold an entry for either — an aitio box's sold count is a separate
+// channel entirely, unrelated to season tickets, and press never sells
+// at all. Showing a kausikortti/irtolippu split for either would be a
+// real number that means something false, not just an omission.
+const TOOLTIP_SPLIT_EXCLUDED_SECTIONS = new Set(["aitiot", "press"]);
+
+// One row = one swatch + label + value, three consecutive children in
+// the __rows grid (see style.css) — grid auto-placement lines every
+// row's value into the same column without a wrapper element per row.
+// Every row here always corresponds to a real bar zone; Kapasiteetti
+// (the denominator, not a "kind") deliberately isn't one of these — see
+// its own paragraph below instead of a swatch-less row in this grid.
+function buildTooltipRow(label, value, swatchKind) {
+  const swatch = document.createElement("span");
+  swatch.className = `seatmap-tooltip__swatch seatmap-tooltip__swatch--${swatchKind}`;
+
+  const labelEl = document.createElement("span");
+  labelEl.className = "seatmap-tooltip__row-label";
+  labelEl.textContent = label;
+
+  const valueEl = document.createElement("span");
+  valueEl.className = "seatmap-tooltip__row-value";
+  valueEl.textContent = value;
+
+  return [swatch, labelEl, valueEl];
+}
+
 function renderTooltipContent(container, sectionId, latest, baseline) {
   const lookupKey = sectionId.startsWith("aitio_") ? "aitiot" : sectionId;
   const row = latest.sections.find((r) => r.section === lookupKey);
   if (!row) return;
 
+  const isAitio = lookupKey === "aitiot";
+  const soldSwatch = isAitio ? "aitio" : "irtolippu";
+
   const title = document.createElement("strong");
   title.textContent = sectionLabel(lookupKey);
 
-  const numbers = document.createElement("p");
-  numbers.textContent =
-    `Myyty ${formatThousands(row.sold)} · Ostettavissa ${formatThousands(row.available)} · ` +
-    `Ei myynnissä ${formatThousands(row.hold)} · Kapasiteetti ${formatThousands(row.total)} ` +
-    `(${formatPercent(row.sold, row.total)})`;
+  // The actionable figure — "how many can I still get" — not fill
+  // percent, which moves to context next to Kapasiteetti below instead.
+  const headline = document.createElement("p");
+  headline.className = "seatmap-tooltip__headline";
+  const headlineNumber = document.createElement("span");
+  headlineNumber.className = "seatmap-tooltip__headline-number";
+  headlineNumber.textContent = formatThousands(row.available);
+  headline.append(headlineNumber, " ostettavissa");
 
-  const children = [title, buildFillBar(row), numbers];
+  const rows = document.createElement("div");
+  rows.className = "seatmap-tooltip__rows";
 
-  if (baseline.sectionSold) {
-    const baselineSold = baseline.sectionSold.get(lookupKey) ?? 0;
-    const split = document.createElement("p");
-    split.className = "seatmap-tooltip__split";
-    split.textContent = `josta irtolippuja: ${formatThousands(irtoliput(row.sold, baselineSold))}`;
-    children.push(split);
+  const baselineSold = TOOLTIP_SPLIT_EXCLUDED_SECTIONS.has(lookupKey) ? undefined : baseline.sectionSold?.get(lookupKey);
+  if (baselineSold != null) {
+    // Together these two rows ARE the bar's one sold zone — both get its
+    // swatch, reinforcing that split rather than leaving either bare.
+    rows.append(
+      ...buildTooltipRow("Kausikortti", formatThousands(baselineSold), soldSwatch),
+      ...buildTooltipRow("Irtolippu", formatThousands(irtoliput(row.sold, baselineSold)), soldSwatch)
+    );
+  } else {
+    rows.append(...buildTooltipRow("Myyty", formatThousands(row.sold), soldSwatch));
   }
+  rows.append(
+    ...buildTooltipRow("Ostettavissa", formatThousands(row.available), "vapaa"),
+    ...buildTooltipRow("Ei myynnissä", formatThousands(row.hold), "ei-myynnissa")
+  );
 
-  container.replaceChildren(...children);
+  const capacity = document.createElement("p");
+  capacity.className = "seatmap-tooltip__capacity";
+  const capacityLabel = document.createElement("span");
+  capacityLabel.textContent = "Kapasiteetti";
+  const capacityValue = document.createElement("span");
+  capacityValue.textContent = `${formatThousands(row.total)} (${formatPercent(row.sold, row.total)})`;
+  capacity.append(capacityLabel, capacityValue);
+
+  container.replaceChildren(title, headline, buildFillBar(row), rows, capacity);
 }
 
 // Converts a section's SVG-space bbox into CSS pixels relative to
