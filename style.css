@@ -315,6 +315,11 @@ header.site-header h1 {
   max-width: 100%;
 }
 
+.card__cheapest-available {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
 .card__error {
   color: var(--accent);
 }
@@ -402,6 +407,13 @@ header.site-header h1 {
 
 .section-row__fill {
   min-width: 90px;
+}
+
+.section-row__price[title] {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 2px;
 }
 
 @media (max-width: 480px) {
