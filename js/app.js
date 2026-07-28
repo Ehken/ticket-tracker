@@ -141,7 +141,6 @@ async function main() {
       kausikorttiContainer.append(
         buildCard(event, event.latest, {
           preExpanded: autoExpand,
-          compactSummary: true,
           showSeasonBadge: kausi === "kaikki",
           kausikorttiEvents: kausikortti,
         })

@@ -48,7 +48,15 @@ function buildChevron() {
   return chevron;
 }
 
+// mergedEvent.gameType === "kausikortti" changes three things below, all
+// derived from this single check rather than caller-supplied flags: a
+// flag per difference would make an inconsistent state representable (a
+// kausikortti card showing "Osuus kapasiteetista" but still displaying a
+// raw date, because some future call site forgot to pass a flag) where
+// deriving all three from one condition makes that unrepresentable.
 function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, showGameTypeLabel = false } = {}) {
+  const isKausikortti = mergedEvent.gameType === "kausikortti";
+
   const header = document.createElement("button");
   header.type = "button";
   header.className = "card__header";
@@ -64,9 +72,13 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
   title.append(nameSpan, buildChevron());
 
   if (mergedEvent.status === "past") {
+    // For a match, "past" means played. For a kausikortti listing,
+    // archiveMissingEvents (scripts/lib/dataStore.js) sets the same
+    // status when it disappears from the shop listing — i.e. sales
+    // closed, not "the date has passed".
     const pelattuTag = document.createElement("span");
     pelattuTag.className = "card__pelattu-tag";
-    pelattuTag.textContent = "Pelattu";
+    pelattuTag.textContent = isKausikortti ? "Myynti päättynyt" : "Pelattu";
     title.append(pelattuTag);
   }
 
@@ -84,10 +96,17 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
     title.append(badge);
   }
 
-  const dateSpan = document.createElement("span");
-  dateSpan.className = "card__date";
-  dateSpan.textContent = formatHelsinkiDate(mergedEvent.start);
-  title.append(dateSpan);
+  if (!isKausikortti) {
+    // mergedEvent.start for a kausikortti listing is its sales-window
+    // boundary, not a fixture date — showing it in this slot would read
+    // as "season tickets happen on this date". Omitted rather than
+    // replaced: the card's own name already carries the season, and so
+    // does the season badge above when it's shown.
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "card__date";
+    dateSpan.textContent = formatHelsinkiDate(mergedEvent.start);
+    title.append(dateSpan);
+  }
 
   const headline = document.createElement("div");
   headline.className = "card__headline";
@@ -96,36 +115,14 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
     buildStat("Ostettavissa", formatThousands(totals.available)),
     buildStat("Ei myynnissä", formatThousands(totals.hold)),
     buildStat("Kapasiteetti", formatThousands(totals.total)),
-    buildStat("Täyttö", formatPercent(totals.sold, totals.total))
+    // A match's "Täyttö" is arena fill for one game; a kausikortti
+    // listing's is the share of a whole season's capacity committed —
+    // two different quantities under one word would be compared as if
+    // they were the same scale.
+    buildStat(isKausikortti ? "Osuus kapasiteetista" : "Täyttö", formatPercent(totals.sold, totals.total))
   );
 
   header.append(title, headline, buildFillBar(totals));
-  return header;
-}
-
-function buildCompactHeader(mergedEvent, totals) {
-  const header = document.createElement("button");
-  header.type = "button";
-  header.className = "card__header card__header--compact";
-  header.setAttribute("role", "button");
-  header.setAttribute("tabindex", "0");
-  header.setAttribute("aria-expanded", "false");
-
-  const line = document.createElement("div");
-  line.className = "card__compact-line";
-  const text = `Kausikortit: ${formatThousands(totals.sold)} / ${formatThousands(totals.total)} · ${formatPercent(totals.sold, totals.total)}`;
-  line.append(document.createTextNode(text));
-
-  if (mergedEvent.status === "past") {
-    const pelattuTag = document.createElement("span");
-    pelattuTag.className = "card__pelattu-tag";
-    pelattuTag.textContent = "Pelattu";
-    line.append(pelattuTag);
-  }
-
-  line.append(buildChevron());
-
-  header.append(line, buildFillBar(totals));
   return header;
 }
 
@@ -134,7 +131,6 @@ export function buildCard(
   latest,
   {
     preExpanded = false,
-    compactSummary = false,
     showSeasonBadge = false,
     showGameTypeLabel = false,
     kausikorttiEvents = [],
@@ -145,22 +141,14 @@ export function buildCard(
 
   let expanded = preExpanded;
 
-  const standardHeader = buildHeader(mergedEvent, latest.totals, expanded, {
+  const header = buildHeader(mergedEvent, latest.totals, expanded, {
     showSeasonBadge,
     showGameTypeLabel,
   });
-  const compactHeader = compactSummary ? buildCompactHeader(mergedEvent, latest.totals) : null;
 
   const body = document.createElement("div");
   body.className = "card__body";
   body.hidden = !expanded;
-
-  function syncHeaderVisibility() {
-    if (!compactSummary) return;
-    standardHeader.hidden = !expanded;
-    compactHeader.hidden = expanded;
-  }
-  syncHeaderVisibility();
 
   let bodyBuilt = false;
   async function ensureBodyBuilt() {
@@ -195,22 +183,14 @@ export function buildCard(
 
   async function setExpanded(next) {
     expanded = next;
-    standardHeader.setAttribute("aria-expanded", String(expanded));
-    if (compactHeader) compactHeader.setAttribute("aria-expanded", String(expanded));
+    header.setAttribute("aria-expanded", String(expanded));
     body.hidden = !expanded;
-    syncHeaderVisibility();
     if (expanded) await ensureBodyBuilt();
   }
 
-  standardHeader.addEventListener("click", () => setExpanded(!expanded));
-  if (compactHeader) {
-    // The compact strip only ever expands (collapsing back happens via the
-    // standard header, once it's showing).
-    compactHeader.addEventListener("click", () => setExpanded(true));
-  }
+  header.addEventListener("click", () => setExpanded(!expanded));
 
-  if (compactHeader) article.append(compactHeader);
-  article.append(standardHeader);
+  article.append(header);
 
   if (mergedEvent.note) {
     const note = document.createElement("p");
