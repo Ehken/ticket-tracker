@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SEAT_STATE } from "../js/seatMapClassify.js";
-import { computeStackedFillZones, clampZoneSpansToMinimum } from "../js/seatMapStackedFill.js";
+import {
+  computeStackedFillZones,
+  clampZoneSpansToMinimum,
+  buildGradientStopOffsets,
+  SEPARATOR_STATE,
+} from "../js/seatMapStackedFill.js";
 
 function approxEqual(a, b, epsilon = 1e-6) {
   return Math.abs(a - b) < epsilon;
@@ -196,4 +201,63 @@ test("clampZoneSpansToMinimum: infeasible minimum (too many nonzero zones for th
     assert.ok(approxEqual(zone.end - zone.start, 100 / 3));
   }
   assertSpansSumTo100(clamped);
+});
+
+test("buildGradientStopOffsets: two real zones produce exactly one separator band at their shared boundary", () => {
+  const zones = [
+    { state: SEAT_STATE.MYYTY, start: 0, end: 40 },
+    { state: SEAT_STATE.VAPAA, start: 40, end: 100 },
+  ];
+  const stops = buildGradientStopOffsets(zones, 0.5);
+  const separatorOffsets = stops.filter((s) => s.state === SEPARATOR_STATE).map((s) => s.offset);
+  assert.deepEqual(separatorOffsets, [39.5, 40.5]);
+
+  const myytyOffsets = stops.filter((s) => s.state === SEAT_STATE.MYYTY).map((s) => s.offset);
+  assert.deepEqual(myytyOffsets, [0, 39.5]); // shrunk on its own separator-adjacent edge, untouched at the outer 0% edge
+
+  const vapaaOffsets = stops.filter((s) => s.state === SEAT_STATE.VAPAA).map((s) => s.offset);
+  assert.deepEqual(vapaaOffsets, [40.5, 100]); // same, at the outer 100% edge
+});
+
+test("buildGradientStopOffsets: three real zones produce two separator bands", () => {
+  const zones = [
+    { state: SEAT_STATE.KAUSIKORTTI, start: 0, end: 30 },
+    { state: SEAT_STATE.IRTOLIPPU, start: 30, end: 60 },
+    { state: SEAT_STATE.VAPAA, start: 60, end: 100 },
+  ];
+  const stops = buildGradientStopOffsets(zones, 0.5);
+  const separatorOffsets = stops.filter((s) => s.state === SEPARATOR_STATE).map((s) => s.offset);
+  assert.deepEqual(separatorOffsets, [29.5, 30.5, 59.5, 60.5]);
+
+  // The middle zone is shrunk on both edges — it has a real neighbor on either side.
+  const irtolippuOffsets = stops.filter((s) => s.state === SEAT_STATE.IRTOLIPPU).map((s) => s.offset);
+  assert.deepEqual(irtolippuOffsets, [30.5, 59.5]);
+});
+
+test("buildGradientStopOffsets: a single real zone (sold-out or fully-free) produces no separator at all", () => {
+  const soldOut = buildGradientStopOffsets([{ state: SEAT_STATE.MYYTY, start: 0, end: 100 }], 0.5);
+  assert.equal(soldOut.filter((s) => s.state === SEPARATOR_STATE).length, 0);
+  assert.deepEqual(soldOut, [{ offset: 0, state: SEAT_STATE.MYYTY }, { offset: 100, state: SEAT_STATE.MYYTY }]);
+
+  const fullyFree = buildGradientStopOffsets(
+    [
+      { state: SEAT_STATE.MYYTY, start: 0, end: 0 },
+      { state: SEAT_STATE.VAPAA, start: 0, end: 100 },
+    ],
+    0.5
+  );
+  assert.equal(fullyFree.filter((s) => s.state === SEPARATOR_STATE).length, 0);
+});
+
+test("buildGradientStopOffsets: a zero-share zone between two real ones makes its neighbors adjacent, not stray-bounded", () => {
+  // No irtolippu at all — every sold seat is kausikortti.
+  const zones = [
+    { state: SEAT_STATE.KAUSIKORTTI, start: 0, end: 40 },
+    { state: SEAT_STATE.IRTOLIPPU, start: 40, end: 40 },
+    { state: SEAT_STATE.VAPAA, start: 40, end: 100 },
+  ];
+  const stops = buildGradientStopOffsets(zones, 0.5);
+  assert.equal(stops.filter((s) => s.state === SEAT_STATE.IRTOLIPPU).length, 0); // the zero-share zone contributes nothing
+  const separatorOffsets = stops.filter((s) => s.state === SEPARATOR_STATE).map((s) => s.offset);
+  assert.deepEqual(separatorOffsets, [39.5, 40.5]); // exactly one band, between the two real survivors
 });

@@ -412,6 +412,22 @@ header.site-header h1 {
   background: var(--seat-ei-myynnissa);
 }
 
+/* "Where does yellow end and pale yellow begin" has to be a line, not a
+   color transition — irtolippu/vapaa measure 1.19:1, well under the 3:1
+   non-text UI needs. --separated is added in JS only where the adjacent
+   zone genuinely has width (see buildFillBar) — a border always paints
+   at its own declared width regardless of the box's own width, so an
+   unguarded border on a 0%-width segment would draw a boundary where no
+   zone exists. Same rgba(0, 0, 0, 0.25) as the bar's own outline —
+   reuses the established tone instead of introducing a second one. */
+.fill-bar__segment--sold.fill-bar__segment--separated {
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.fill-bar__segment--hold.fill-bar__segment--separated {
+  border-left: 1px solid rgba(0, 0, 0, 0.25);
+}
+
 .fill-pct {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -755,18 +771,72 @@ header.site-header h1 {
 /* Circles have no inline r/fill in the persisted SVG — the r ATTRIBUTE is
    set from JS (seatMap.js) as the baseline (CSS `r` below is Safari 16+
    progressive enhancement only; older engines need the attribute). */
+/* Free seats are hollow — solid vs. hollow is the one cue that still
+   reads at 4px without discriminating hue at all, which this palette
+   otherwise can't do: irtolippu/vapaa measure 1.19:1, vapaa/
+   ei-myynnissä 1.34:1, irtolippu/ei-myynnissä 1.12:1 — all well under
+   the 3:1 non-text UI needs, and not fixable by adjusting the colors
+   themselves (#ffd400's own luminance is 0.683, so anything readable
+   as "unlit" is necessarily lighter, and darkening free below sold
+   would invert the "sales light the arena" metaphor the palette exists
+   for). ei-myynnissä already solves the same problem its own way, with
+   size (r="2.4"); this is the state that never got a cue.
+   stroke-width: 3 (user units) is derived, not picked, and derived
+   against this project's own actual maximum render width, not an
+   illustrative round number — body's own max-width: 960px caps the map
+   container at ~894px on any desktop, however wide the monitor
+   (measured directly, not assumed: a rendered free seat's own
+   getBoundingClientRect was 2.807px across at r=3, i.e. diameter
+   6 units, giving a scale of 2.807/6 ≈ 0.468). Seats are r: 4 against
+   the *rendered* viewBox (1905 wide, after expandViewBox's label
+   margins), so 894 / 1905 ≈ 0.469 (matches the direct measurement). A
+   1-unit stroke would land at ~0.47 device px — antialiased into a
+   smudge, not a ring, which reads as "faintly there" rather than
+   "hollow," a different cue with a different meaning; a first pass at
+   2 units (~0.94 device px) confirmed by eye that it *still* wasn't
+   enough — checked as an actual cropped screenshot of a real free seat
+   at 1:1, not zoomed in, since zoom makes any ring look fine and proves
+   nothing about the default view. 3 units (~1.41 device px) is the
+   value that actually reads as a deliberate line at this project's
+   real maximum width, not a hypothetical wider one.
+   r: 2.5, not 4, compensates for the stroke being centered on the
+   path: left at 4, a 3-unit stroke would push the outer edge to
+   4+1.5=5.5, rendering free seats nearly 40% larger than solid ones at
+   exactly the point size is otherwise a meaningful cue here. 4 -
+   stroke/2 = 2.5 keeps the outer radius at 4, matching solid seats
+   exactly — free reads as a different SHAPE, not a different SIZE. (Its
+   own inner radius, 2.5, lands close to ei-myynnissä's solid r="2.4" —
+   coincidental and harmless: the comparison that matters is outer
+   silhouette, where free's ring at 4 stays clearly bigger than
+   ei-myynnissä's solid dot at 2.4, same as every other state.)
+   #6b6b6b is fixed, not var(--muted) — same reasoning as every other
+   map-surface accent in this file: the map's own surface doesn't follow
+   the color scheme, so the accent on it shouldn't either. Measures
+   4.44:1 against sand (its own fill) and 5.20:1 against the map's own
+   #fdfcfa background, comfortably above the 3:1 this whole fix is
+   about; #8a8a8a was rejected at a measured 2.88:1 against sand. */
 .seatmap-svg .seat {
-  r: 4px;
+  r: 2.5px;
   fill: var(--seat-vapaa); /* default: vapaa */
+  stroke: #6b6b6b;
+  stroke-width: 3px;
+}
+
+.seatmap-svg .seat.kausikortti,
+.seatmap-svg .seat.myyty,
+.seatmap-svg .seat.irtolippu {
+  stroke: none; /* solid states get exactly one cue each — fill color — not a stroke too */
 }
 
 .seatmap-svg .seat.kausikortti,
 .seatmap-svg .seat.myyty {
   fill: var(--seat-kausikortti);
+  r: 4px;
 }
 
 .seatmap-svg .seat.irtolippu {
   fill: var(--seat-irtolippu);
+  r: 4px;
 }
 
 .seatmap-svg .seat.vapaa {
@@ -775,7 +845,8 @@ header.site-header h1 {
 
 .seatmap-svg .seat.ei-myynnissa {
   fill: var(--seat-ei-myynnissa);
-  r: 2.4px; /* smaller, not just a different color — separates by shape too */
+  stroke: none;
+  r: 2.4px; /* smaller, not just a different color — separates by shape too. Still the smallest state either way. */
 }
 
 .seatmap-svg #seisomakatsomo {
@@ -889,6 +960,21 @@ header.site-header h1 {
    of --seat-ei-myynnissa, not the var itself (see its definition above). */
 .seatmap-standing-stop--ei-myynnissa {
   stop-color: var(--seat-ei-myynnissa-opaque);
+}
+
+/* The wedge's own hard-separator band (see buildGradientStopOffsets) —
+   solid, not the fill bar's translucent black: a gradient stop's own
+   opacity blends toward whatever's behind the *whole shape*, not
+   toward "the zone color on either side" the way a CSS border does, so
+   the fill bar's asymmetry trick doesn't transfer here. Has to read
+   against any of the four seat-state colors, since it can land between
+   any two of them depending on the data — #6b6b6b (the same fixed grey
+   already used for the hollow free-dot stroke above) is the best
+   balance found: 3.27:1 against kausikortti, 3.72:1 irtolippu, 4.44:1
+   vapaa, 3.32:1 ei-myynnissä-opaque, all comfortably above the 3:1 this
+   whole fix is about. */
+.seatmap-standing-stop--separator {
+  stop-color: #6b6b6b;
 }
 
 .seatmap-baked-label--hidden {
@@ -1028,17 +1114,47 @@ header.site-header h1 {
   background: #f3f2f0; /* fixed, one step darker than the button's own #fdfcfa */
 }
 
+/* Fixed, not var(--accent) — a pre-existing gap, found while extending
+   this same rule to the legend toggle, which the reset button's own
+   focus ring had already been quietly living with: both elements sit
+   on the fixed #fdfcfa surface, but the theme-following accent flips to
+   a lighter red in dark mode (#e57373) that measures only 2.91:1
+   against that fixed background — under the 3:1 this whole task is
+   about. #c0392b is light mode's own --accent value, reused as a fixed
+   constant for the same reason every other accent on this fixed
+   surface is fixed: 5.30:1 against #fdfcfa, in both schemes now. */
 .seatmap-reset-button:focus-visible,
 .seatmap-legend__info-toggle:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #c0392b;
   outline-offset: 2px;
 }
 
+/* A fixed light-surface chip, not the page's theme-following one — same
+   reasoning as .seatmap-reset-button above, extended past "is this
+   positioned on top of the map" to the rule that reasoning was
+   actually standing in for: a fixed surface exists because something
+   renders map-native color that needs to read correctly regardless of
+   theme, and a legend describing that color is arguably the clearest
+   case of all. Before this, --seat-kausikortti (#1a1a1a) sat directly
+   on the page's own dark-mode surface (#14161a) — the border added for
+   edge definition still worked, but the swatch's own fill was
+   indistinguishable from what was immediately outside it, so the most
+   important entry in the legend read as an empty outlined box in one
+   of two color schemes. #fdfcfa/#d8d8d8 are the same fixed values
+   already established for the reset button/tooltip, reused rather than
+   re-derived. The ⓘ popover is NOT part of this — see its own rule
+   below for why it deliberately stays theme-following. */
 .seatmap-legend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d8d8d8;
+  border-radius: 4px;
+  background: #fdfcfa;
+  color: #1a1a1a; /* explicit, not inherited var(--fg) — the same miss as the swatches would just move to the labels instead */
   font-size: 0.85rem;
 }
 
@@ -1060,11 +1176,10 @@ header.site-header h1 {
   border-radius: 3px;
   display: inline-block;
   flex: 0 0 auto;
-  /* The legend sits on the page's own (theme-following) surface, not the
-     map's always-light one — a subtle border keeps every chip's edge
-     defined regardless of how close its fill sits to the current page
-     background (e.g. near-black kausikortti against a dark page). */
-  border: 1px solid var(--border);
+  /* Fixed, not var(--border) — the legend now sits on its own fixed
+     light surface (see .seatmap-legend above), so a subtle border that
+     used to need to follow the page theme no longer does. */
+  border: 1px solid #d8d8d8;
 }
 
 .seatmap-legend__swatch--kausikortti,
@@ -1078,6 +1193,11 @@ header.site-header h1 {
 
 .seatmap-legend__swatch--vapaa {
   background: var(--seat-vapaa);
+  /* A legend describing hollow free dots has to render its own key as a
+     hollow swatch, or the key stops matching what it's a key to — same
+     thicker-border-not-a-solid-chip treatment as the map dots and the
+     tooltip's own swatch. */
+  border-width: 3px;
 }
 
 .seatmap-legend__swatch--ei-myynnissa {
@@ -1103,12 +1223,24 @@ header.site-header h1 {
   font: inherit;
   border: none;
   background: none;
-  color: var(--muted);
+  /* Fixed, not var(--muted) — sits directly on the legend's own now-fixed
+     surface (see .seatmap-legend above); the theme-following value would
+     recreate the exact bug being fixed here, just for this button
+     instead of the swatches. */
+  color: #5a5a5a;
   cursor: pointer;
   padding: 0 0.2rem;
   line-height: 1;
 }
 
+/* Deliberately still theme-following, unlike the legend it hangs off
+   of — its content is plain explanatory prose, not a rendering of any
+   --seat-* color, so it has nothing that depends on a fixed surface.
+   The legend's own fixed surface exists for a specific reason (map-
+   native color has to read right regardless of theme); applying that
+   past the reason it exists, just because this happens to be
+   positioned near something that now has it, would be following the
+   letter of the earlier reset-button/tooltip decision past its point. */
 .seatmap-legend__info-popover {
   position: absolute;
   top: 100%;
@@ -1228,6 +1360,12 @@ header.site-header h1 {
 
 .seatmap-tooltip__swatch--vapaa {
   background: var(--seat-vapaa);
+  /* A thicker border, not just the shared thin edge every other swatch
+     gets — the one swatch meant to read as a ring, matching the map's
+     own hollow free-dot treatment (see .seatmap-svg .seat), not a solid
+     chip with a defining edge. border-box keeps the outer footprint
+     identical to every other swatch; only the visible fill shrinks. */
+  border-width: 3px;
 }
 
 .seatmap-tooltip__swatch--ei-myynnissa {

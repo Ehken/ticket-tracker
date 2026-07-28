@@ -17,7 +17,7 @@ import {
   normalizeWheelDeltaY,
   expandViewBox,
 } from "./seatMapViewBox.js";
-import { computeStackedFillZones, clampZoneSpansToMinimum } from "./seatMapStackedFill.js";
+import { computeStackedFillZones, clampZoneSpansToMinimum, buildGradientStopOffsets } from "./seatMapStackedFill.js";
 import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
 import { generateZoneCountPlacementCandidates } from "./seatMapZoneCountPlacement.js";
 import { computeTooltipPosition } from "./seatMapTooltipPosition.js";
@@ -33,6 +33,10 @@ const WHEEL_ZOOM_FACTOR = 0.001;
 const MAX_ZOOM = 4;
 
 const SEAT_RADIUS = "4";
+// Outer radius (r + stroke/2) matches SEAT_RADIUS exactly — see the
+// hollow-ring reasoning in style.css (.seatmap-svg .seat). Free reads as
+// a different shape, not a different size.
+const SEAT_RADIUS_VAPAA = "2.5";
 const SEAT_RADIUS_EI_MYYNNISSA = "2.4"; // smaller, not just a different color — separates by shape too
 
 // Keep in sync with .seatmap-svg-container's aspect-ratio in style.css
@@ -283,6 +287,7 @@ let stackedFillIdCounter = 0;
 const STANDING_ZONE_FONT_SIZE = 26; // px — keep in sync with .seatmap-zone-count's font-size
 const MIN_ZONE_HEIGHT_FACTOR = 2.4; // "~2.4x the count font size" — cap height + breathing room above/below
 const STANDING_NAME_GAP = 10; // units between the wedge's left edge and the rotated name's own edge
+const SEPARATOR_HALF_BAND_PCT = 0.25; // percent of the wedge's own height — half-width of the hard-separator band at each real zone boundary (see buildGradientStopOffsets)
 
 const ZONE_TITLE_LABEL = {
   [SEAT_STATE.KAUSIKORTTI]: "Kausikortit",
@@ -346,15 +351,17 @@ function applyWedgeGradient(svg, shapeEl, zones) {
   gradient.setAttribute("x2", "0");
   gradient.setAttribute("y2", "0");
 
-  for (const zone of zones) {
-    // Two stops at the same offset per zone boundary = a hard cut, no
-    // blending — matches the section table's fill-bar convention.
-    for (const offset of [zone.start, zone.end]) {
-      const stop = document.createElementNS(svgNs, "stop");
-      stop.setAttribute("offset", `${offset}%`);
-      stop.setAttribute("class", `seatmap-standing-stop--${zone.state}`);
-      gradient.append(stop);
-    }
+  // A thin separator band at every boundary between two zones that both
+  // genuinely have width (see buildGradientStopOffsets) — the wedge's
+  // own version of the fill bar's hard-separator fix. Without it, a
+  // hard-cut boundary between two pale zones (irtolippu/vapaa measure
+  // 1.19:1) produces zero visible edge, same failure as the fill bar
+  // had before its own fix, just in gradient form.
+  for (const { offset, state } of buildGradientStopOffsets(zones, SEPARATOR_HALF_BAND_PCT)) {
+    const stop = document.createElementNS(svgNs, "stop");
+    stop.setAttribute("offset", `${offset}%`);
+    stop.setAttribute("class", `seatmap-standing-stop--${state}`);
+    gradient.append(stop);
   }
 
   let defs = svg.querySelector("defs");
@@ -823,8 +830,13 @@ function colorSeats(svg, mergedEvent, latest, seats, baseline) {
     // The persisted SVG has no inline r — this attribute is the baseline
     // (CSS `r` in style.css is Safari 16+ only; without the attribute,
     // older engines render every seat at r=0, i.e. invisible). Ei-myynnissä
-    // seats render smaller so that state separates by shape, not just color.
-    el.setAttribute("r", state === SEAT_STATE.EI_MYYNNISSA ? SEAT_RADIUS_EI_MYYNNISSA : SEAT_RADIUS);
+    // seats render smaller so that state separates by shape, not just
+    // color; vapaa's own r compensates for its stroke (see style.css) so
+    // its outer radius still matches a solid seat's.
+    let radius = SEAT_RADIUS;
+    if (state === SEAT_STATE.EI_MYYNNISSA) radius = SEAT_RADIUS_EI_MYYNNISSA;
+    else if (state === SEAT_STATE.VAPAA) radius = SEAT_RADIUS_VAPAA;
+    el.setAttribute("r", radius);
 
     if (state !== SEAT_STATE.VAPAA) el.classList.add(state); // vapaa is the CSS default; skip the no-op write
   }

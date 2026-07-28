@@ -26,10 +26,23 @@ export function buildFillBar(row) {
   const sold = document.createElement("span");
   sold.className = "fill-bar__segment fill-bar__segment--sold";
   if (row.section === "aitiot") sold.classList.add("fill-bar__segment--aitio");
+  // A hard separator on this segment's own inner edge — but only where
+  // there's a real zone on the other side of it to separate from.
+  // Without this guard, a 0%-width segment would still paint its own
+  // 1px border (a border doesn't scale to zero with its box), drawing a
+  // boundary where no zone exists — not theoretical: available is
+  // permanently 0 for aitio and press, and sold is 0 for press. See the
+  // .fill-bar__segment--separated rule in style.css.
+  if (row.sold > 0 && (row.available > 0 || row.hold > 0)) {
+    sold.classList.add("fill-bar__segment--separated");
+  }
   sold.style.width = `${(row.sold / total) * 100}%`;
 
   const hold = document.createElement("span");
   hold.className = "fill-bar__segment fill-bar__segment--hold";
+  if (row.hold > 0 && (row.available > 0 || row.sold > 0)) {
+    hold.classList.add("fill-bar__segment--separated");
+  }
   hold.style.width = `${(row.hold / total) * 100}%`;
 
   bar.append(sold, hold);
