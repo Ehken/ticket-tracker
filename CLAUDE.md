@@ -62,6 +62,39 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   unless the generation logic or `data/schedule.json` changes). Never
   hand-edit files under `data/mock/`.
 
+## Scrape workflows and the external trigger
+
+- Two workflows, two cadences: `.github/workflows/fetch.yml` (hourly
+  baseline, **never gated**) and `.github/workflows/fetch-intensive.yml`
+  (10-minute game-day/watch-date cadence, **always gated** by
+  `scripts/checkGameWindow.js` — including on `workflow_dispatch`, so a
+  manual run of that workflow on an ordinary day does nothing; use
+  `fetch.yml` for an on-demand scrape). Neither workflow's job body
+  branches on `github.event_name` or a cron-string literal — keep it that
+  way; that comparison used to silently couple the gate to one workflow's
+  own cron string and broke the moment a second trigger type needed to
+  route independently.
+- GitHub's own scheduler drops/delays scheduled runs badly under load
+  (observed: 9 of 24 expected hourly runs in the first 24h; ~4% of
+  expected 10-minute runs) — documented GitHub behavior, not a bug here.
+  An external service now drives the intended cadence via
+  `repository_dispatch` (`scrape` → `fetch.yml`, `scrape-intensive` →
+  `fetch-intensive.yml`); the crons in both workflow files are a fallback
+  for when that service is down, not the primary mechanism. Keep exactly
+  one baseline cron — don't add redundant crons "just in case," since
+  every one that fires is a full scrape.
+- The external service authenticates with a fine-grained PAT scoped to
+  `Contents: write` on this repo alone. The token lives at the external
+  service, not in this repo, and has an expiry that needs rotating there.
+  Verify it's still firing via `gh run list --event repository_dispatch`.
+  See README.md's "Ulkoinen käynnistin" section for the full write-up.
+- `resolveCapacities` (`scripts/lib/seatmap.js`) takes an optional
+  per-run `svgCache` Map (created once in `scripts/fetch.js`'s `run()`,
+  never persisted across runs) — every SaiPa home game shares the same
+  arena map, so this avoids re-downloading an identical, large SVG once
+  per event. Don't widen its scope beyond one run; a genuine map change
+  must still be detected on the next one.
+
 ## Invariants that must not regress
 
 - `firstSeen` on an `events.json` entry is never reset, even if the event
