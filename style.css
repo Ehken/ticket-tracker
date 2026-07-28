@@ -536,13 +536,14 @@ header.site-header h1 {
   flex: 0 0 auto;
 }
 
-/* Seat map */
+/* Card tabs (Kartta / Taulukko) */
 
-.card__seatmap-wrapper {
-  margin-top: 1rem;
+.card__tablist {
+  display: flex;
+  gap: 0.4rem;
 }
 
-.card__seatmap-toggle {
+.card__tab {
   font: inherit;
   font-style: normal;
   padding: 0.4rem 0.9rem;
@@ -553,13 +554,30 @@ header.site-header h1 {
   cursor: pointer;
 }
 
-.card__seatmap-toggle:hover {
+.card__tab:hover {
   background: var(--hover-bg);
 }
 
-.card__seatmap-container {
+.card__tab[aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--card-bg);
+}
+
+.card__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shared by both tabpanels (map, table) — .section-table-wrapper has no
+   margin of its own (it never needed one before this tab pair existed),
+   so this lives on the shared tabpanel selector rather than duplicated
+   per panel class. */
+.card__tabs [role="tabpanel"] {
   margin-top: 0.75rem;
 }
+
+/* Seat map */
 
 .seatmap-svg-container {
   /* Matches the render-time expanded viewBox (1780+70+55 / 1261+60+55), not

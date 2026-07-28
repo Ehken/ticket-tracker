@@ -3,9 +3,10 @@ import { buildSectionTable, buildFillBar } from "./sectionTable.js";
 import { buildChart } from "./chart.js";
 import { getHistory } from "./fetchData.js";
 import { gameTypeLabel } from "./grouping.js";
-import { buildSeatMapToggle } from "./seatMap.js";
+import { buildSeatMapPanel } from "./seatMap.js";
 import { findCheapestAvailableSection, formatPrice } from "./prices.js";
 import { sectionLabel } from "./sectionLabels.js";
+import { nextTabIndex } from "./tabs.js";
 
 // Omitted for kausikortti events: a season-ticket price (e.g. 852 €) shown
 // in this same "Halvin vapaa paikka" phrasing could be misread as a
@@ -126,6 +127,74 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
   return header;
 }
 
+let tabsIdCounter = 0;
+
+// Minimal WAI-ARIA APG tabs pattern for the map/table pair below — a
+// generic { label, panel, onShow? } array (not hardcoded to two) so a
+// future third tab (e.g. per-section history) is a one-line addition, not
+// a rewrite. Automatic activation (arrow-key focus also selects): cheap
+// here since switching to an already-built tab is just a `hidden` flip.
+// onShow fires every time a tab is selected, not just once — buildSeatMapPanel
+// relies on that to run its deferred, visibility-dependent layout work on
+// first (and only) actual display.
+function buildTabs(entries) {
+  const instanceId = ++tabsIdCounter;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "card__tabs";
+
+  const tablist = document.createElement("div");
+  tablist.className = "card__tablist";
+  tablist.setAttribute("role", "tablist");
+  tablist.setAttribute("aria-label", "Näkymä");
+
+  const tabButtons = entries.map((entry, index) => {
+    const tabId = `card-tab-${instanceId}-${index}`;
+    const panelId = `card-tabpanel-${instanceId}-${index}`;
+
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.id = tabId;
+    tab.className = "card__tab";
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", panelId);
+    tab.textContent = entry.label;
+    tablist.append(tab);
+
+    entry.panel.id = panelId;
+    entry.panel.setAttribute("role", "tabpanel");
+    entry.panel.setAttribute("aria-labelledby", tabId);
+
+    return tab;
+  });
+
+  function selectTab(index) {
+    entries.forEach((entry, i) => {
+      const selected = i === index;
+      tabButtons[i].setAttribute("aria-selected", String(selected));
+      tabButtons[i].tabIndex = selected ? 0 : -1;
+      entry.panel.hidden = !selected;
+    });
+    entries[index].onShow?.();
+  }
+
+  tabButtons.forEach((tab, index) => {
+    tab.addEventListener("click", () => selectTab(index));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = nextTabIndex(index, event.key, entries.length);
+      selectTab(next);
+      tabButtons[next].focus();
+    });
+  });
+
+  selectTab(0);
+
+  wrapper.append(tablist, ...entries.map((entry) => entry.panel));
+  return wrapper;
+}
+
 export function buildCard(
   mergedEvent,
   latest,
@@ -155,7 +224,17 @@ export function buildCard(
     if (bodyBuilt) return;
     bodyBuilt = true;
 
-    body.append(buildSectionTable(latest));
+    // Map first, table secondary (see buildTabs) — built before the chart
+    // below so the map's own fetches start immediately rather than waiting
+    // behind the chart's getHistory() call.
+    const tablePanel = buildSectionTable(latest);
+    const { panel: mapPanel, onShow: mapOnShow } = buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents });
+    body.append(
+      buildTabs([
+        { label: "Kartta", panel: mapPanel, onShow: mapOnShow },
+        { label: "Taulukko", panel: tablePanel },
+      ])
+    );
 
     const chartWrapper = document.createElement("div");
     chartWrapper.className = "card__chart-wrapper";
@@ -174,8 +253,6 @@ export function buildCard(
       chartWrapper.replaceWith(errorEl);
       console.error(`Failed to load history for ${mergedEvent.id}:`, err);
     }
-
-    body.append(buildSeatMapToggle(mergedEvent, latest, { kausikorttiEvents }));
 
     const cheapestLine = buildCheapestAvailableLine(mergedEvent, latest);
     if (cheapestLine) body.append(cheapestLine);
