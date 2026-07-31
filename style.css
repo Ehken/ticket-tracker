@@ -855,6 +855,29 @@ header.site-header h1 {
   r: 2.4px; /* smaller, not just a different color — separates by shape too. Still the smallest state either way. */
 }
 
+/* PROTOTYPE (seat-level tap-to-identify) — same pin/hover treatment as
+   .section--pinned/.section--hovered below, reused rather than a new
+   color invented for it. `.seat.seat--pinned`/`.seat.seat--hovered` (three
+   classes, not two) deliberately matches the specificity of the
+   .seat.kausikortti/.seat.irtolippu/.seat.ei-myynnissa rules above, which
+   set stroke: none for the solid states — a lower-specificity `.seat--
+   pinned` alone would lose to those regardless of source order. Placed
+   after them here so equal-specificity + later-in-file wins, overriding a
+   solid seat's own `stroke: none` (and a free seat's own grey ring) with
+   this highlight while pinned/hovered — the pin state is the dominant cue
+   at that moment, so replacing the ring rather than layering onto it is
+   deliberate, not an oversight. */
+.seatmap-svg .seat.seat--pinned {
+  stroke: #c0392b;
+  stroke-width: 2px;
+}
+
+.seatmap-svg .seat.seat--hovered {
+  stroke: #c0392b;
+  stroke-width: 1px;
+  stroke-opacity: 0.5;
+}
+
 .seatmap-svg #seisomakatsomo {
   fill: var(--seat-vapaa);
 }
