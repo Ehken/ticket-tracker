@@ -8,7 +8,20 @@
 // period, cancelled if a seat is re-entered before it elapses. The
 // scheduler is injected so this is testable with a fake one instead of
 // real timers.
-export function createHoverHysteresis(delayMs, scheduler = { setTimeout, clearTimeout }) {
+// Default scheduler wraps the globals in receiver-free closures rather
+// than passing them through directly ({ setTimeout, clearTimeout }) — a
+// browser's native setTimeout/clearTimeout are specified as Window
+// methods and throw "Illegal invocation" when called on any other
+// receiver, which is exactly what `scheduler.setTimeout(...)` does once
+// they're stored as a plain object's properties. Node's globals don't
+// enforce this, so a Node-only test run would never catch it — this was
+// only found by driving the real thing in an actual browser.
+const REAL_SCHEDULER = {
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (id) => clearTimeout(id),
+};
+
+export function createHoverHysteresis(delayMs, scheduler = REAL_SCHEDULER) {
   let timer = null;
 
   function cancel() {

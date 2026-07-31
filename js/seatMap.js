@@ -1288,6 +1288,11 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
+  function elementCenterContainerPoint(el) {
+    const rect = el.getBoundingClientRect();
+    return clientToContainerPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+
   function showTooltip(tooltipEl, targetEl, pointer) {
     if (targetEl.classList.contains("seat")) {
       renderSeatTooltipContent(tooltipEl, targetEl);
@@ -1310,7 +1315,20 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
   // 0 instead and reposition once on gesture end — the pin itself would
   // still survive, only this continuous follow would be dropped.
   function repositionVisibleTooltips() {
-    if (pinnedEl) positionTooltip(pinTooltip, svg, svgContainer, pinnedEl, pinnedPointer);
+    if (pinnedEl) {
+      // For a pinned SEAT, refresh the stored pointer to the seat's own
+      // live center on every reposition, rather than reusing the frozen
+      // tap-time point. That stale point is only ever read by
+      // computeTooltipPosition's own last-resort fallback (fired when the
+      // element's visible area has dropped to zero) — for a section that
+      // was already rare (a large target rarely pans fully off-screen),
+      // but a tiny pinned seat panned even slightly out of view hits it
+      // routinely, and anchoring to where the seat WAS is visibly wrong
+      // for a target this small, not just imprecise. Sections keep the
+      // original frozen-pointer behavior — nothing to fix there.
+      if (pinnedEl.classList.contains("seat")) pinnedPointer = elementCenterContainerPoint(pinnedEl);
+      positionTooltip(pinTooltip, svg, svgContainer, pinnedEl, pinnedPointer);
+    }
     if (hoveredEl) positionTooltip(hoverTooltip, svg, svgContainer, hoveredEl, hoveredPointer);
   }
 
@@ -1541,7 +1559,9 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
   // not just the initially-resolved section's own — cheap at ~2,600
   // elements for a single tap, and correct right at a section boundary,
   // where the resolved section's own (rectangular) hit-area may not
-  // contain the seat that's actually nearest.
+  // contain the seat that's actually nearest. TOUCH ONLY — a mouse click
+  // is exactly as precise as mouse hover, so it uses resolveExactSeat
+  // below instead, with no zoom gate.
   function resolveNearestSeat(clientX, clientY, containerRect) {
     const pitchDevicePx = renderedSpanDevicePx(currentViewBox.width, containerRect.width, SEAT_PITCH_UNITS, window.devicePixelRatio || 1);
     if (pitchDevicePx < SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX) return null; // not zoomed in enough to attempt this
@@ -1557,7 +1577,18 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     return nearestId ? findById(svg, nearestId) : null;
   }
 
-  function handleTap(clientX, clientY) {
+  // MOUSE ONLY — the same exact hit-test the hover path uses
+  // (elementFromPoint + .closest(".seat")), no zoom gate. A mouse click
+  // lands on exactly the pixel it's aimed at, same as hover on that same
+  // pixel — the two must never disagree about which seat (if any) is
+  // under the pointer.
+  function resolveExactSeat(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    const seatEl = el?.closest(".seat");
+    return seatEl && mapContainer.contains(seatEl) ? seatEl : null;
+  }
+
+  function handleTap(clientX, clientY, pointerType) {
     // setPointerCapture retargets event.target to the capturing element on
     // subsequent events, so hit-test by screen position rather than trust
     // the pointer event's own target/closest chain.
@@ -1568,10 +1599,11 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     // Only seated sections (A1-D2) have .seat descendants — aggregate
     // areas (seisomakatsomo/invalid/aitiot/press) never do, so this is
     // exactly the "seats only" gate: they fall straight through to the
-    // unchanged section-tap behavior below, regardless of zoom.
+    // unchanged section-tap behavior below, regardless of input type.
     if (tappedEl && tappedEl.querySelector(".seat")) {
-      const nearestSeatEl = resolveNearestSeat(clientX, clientY, svgContainer.getBoundingClientRect());
-      if (nearestSeatEl) tappedEl = nearestSeatEl; // seat wins over its own enclosing section
+      const resolvedSeatEl =
+        pointerType === "mouse" ? resolveExactSeat(clientX, clientY) : resolveNearestSeat(clientX, clientY, svgContainer.getBoundingClientRect());
+      if (resolvedSeatEl) tappedEl = resolvedSeatEl; // seat wins over its own enclosing section
     }
 
     if (tappedEl && tappedEl === pinnedEl) {
@@ -1637,7 +1669,7 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
       }
     }
 
-    if (wasTap) handleTap(event.clientX, event.clientY);
+    if (wasTap) handleTap(event.clientX, event.clientY, event.pointerType);
   }
 
   svg.addEventListener("pointerup", endPointer);
