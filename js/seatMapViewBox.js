@@ -91,3 +91,31 @@ const DELTA_MODE_PIXELS_PER_UNIT = { 0: 1, 1: 16, 2: 800 }; // pixel, line, page
 export function normalizeWheelDeltaY(deltaY, deltaMode) {
   return deltaY * (DELTA_MODE_PIXELS_PER_UNIT[deltaMode] ?? 1);
 }
+
+// How large a span of `spanUnits` SVG user units renders, in DEVICE pixels,
+// given the current viewBox width and the container's own CSS-pixel width —
+// the same "measure the real scale, don't assume a viewport" discipline as
+// everywhere else this map derives a size from zoom. Used both to gate
+// touch seat-tap resolution (is the map zoomed in enough to attempt it?)
+// and, historically, to derive the free-seat stroke width — see the seat
+// tap-to-identify constants in seatMap.js for the real numbers this
+// produces at this app's actual zoom ceiling.
+export function renderedSpanDevicePx(viewBoxWidth, containerWidthCss, spanUnits, devicePixelRatio) {
+  const scale = containerWidthCss / viewBoxWidth; // CSS px per SVG user unit
+  return scale * spanUnits * devicePixelRatio;
+}
+
+// Inverse direction: a distance given in DEVICE pixels (e.g. "how far a
+// fingertip might miss by"), converted into SVG user units at the current
+// view — needed because a tap-to-seat search runs in user-unit space
+// (comparing against seat cx/cy attributes), and the cap has to shrink in
+// user units as the view zooms in, or the effective on-screen radius would
+// grow instead of staying constant. `ctmScale` is the CSS-px-per-user-unit
+// factor from the live transform (an SVGMatrix's `.a`, e.g.
+// `svg.getScreenCTM().a`) — not derived from viewBox/container width here,
+// since the caller already has the exact live matrix at hand and it's the
+// more direct source of truth (also correct under any browser page zoom,
+// which viewBox/container math alone wouldn't capture).
+export function devicePxToUserUnits(devicePx, ctmScale, devicePixelRatio) {
+  return devicePx / devicePixelRatio / ctmScale;
+}

@@ -10,6 +10,37 @@ export function sectionOfSeatId(seatId) {
   return seatId.slice(0, seatId.indexOf("-"));
 }
 
+// Seat ids are "section-row-seat" (e.g. "A1-6-123"), row/seat not
+// fixed-width (verified against real data: row "1"/"10", seat zero-padded
+// to 3 digits in the sample checked but not assumed elsewhere) — Number()
+// both strips any zero-padding for display and gives the caller real
+// numbers to format with, rather than raw substrings.
+export function parseSeatId(seatId) {
+  const [section, row, seat] = seatId.split("-");
+  return { section, row: Number(row), seat: Number(seat) };
+}
+
+// Nearest seat to `point` (SVG user-space, same space as each seat's own
+// cx/cy) among `seatPositions` — a plain linear scan, not spatially
+// indexed: cheap enough at ~2,600 seats for a single tap event (not run on
+// every pointermove). `maxDistance` (user units) is the touch fingertip
+// disambiguation cap — a genuinely nearest seat that's still farther than
+// this (a walkway, the rink edge, an empty corner) isn't a plausible match
+// for the tap and returns null, rather than picking something arbitrarily
+// far from where the finger actually landed.
+export function nearestSeatId(seatPositions, point, maxDistance = Infinity) {
+  let bestId = null;
+  let bestDist = Infinity;
+  for (const { id, cx, cy } of seatPositions) {
+    const dist = Math.hypot(cx - point.x, cy - point.y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestId = id;
+    }
+  }
+  return bestDist <= maxDistance ? bestId : null;
+}
+
 export function buildDisabledSectionSet(sections) {
   return new Set(sections.filter((row) => row.disabled).map((row) => row.section));
 }

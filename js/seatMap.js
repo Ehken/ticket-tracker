@@ -7,7 +7,15 @@ import { sectionLabel } from "./sectionLabels.js";
 import { buildFillBar } from "./sectionTable.js";
 import { formatThousands, formatPercent } from "./format.js";
 import { irtoliput } from "./dashboardBaseline.js";
-import { SEAT_STATE, AITIO_STATE, buildDisabledSectionSet, classifySeat, classifyAitio } from "./seatMapClassify.js";
+import {
+  SEAT_STATE,
+  AITIO_STATE,
+  buildDisabledSectionSet,
+  classifySeat,
+  classifyAitio,
+  parseSeatId,
+  nearestSeatId,
+} from "./seatMapClassify.js";
 import {
   parseViewBox,
   serializeViewBox,
@@ -16,11 +24,14 @@ import {
   viewBoxesEqual,
   normalizeWheelDeltaY,
   expandViewBox,
+  renderedSpanDevicePx,
+  devicePxToUserUnits,
 } from "./seatMapViewBox.js";
 import { computeStackedFillZones, clampZoneSpansToMinimum, buildGradientStopOffsets } from "./seatMapStackedFill.js";
 import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
 import { generateZoneCountPlacementCandidates } from "./seatMapZoneCountPlacement.js";
 import { computeTooltipPosition } from "./seatMapTooltipPosition.js";
+import { createHoverHysteresis } from "./seatMapHoverHysteresis.js";
 
 const TOOLTIP_GAP = 10; // px, screen space — gap between a tooltip and whatever it's anchored to
 
@@ -31,6 +42,46 @@ const AITIO_INFO = "Aitiopaikat myydään pääosin erillisten sopimusten kautta
 const TAP_MOVEMENT_THRESHOLD = 6; // px in screen space, disambiguates tap from drag-pan
 const WHEEL_ZOOM_FACTOR = 0.001;
 const MAX_ZOOM = 4;
+
+// PROTOTYPE (seat-level tap-to-identify): touch has no exact-hit
+// equivalent of mouse hover — a fingertip covers several seats at once, so
+// resolution is nearest-seat math (see nearestSeatId), not hit-testing.
+// Two related but deliberately DIFFERENT device-px quantities below, not
+// one reused number, because they answer different questions and only one
+// of them hits a real ceiling.
+//
+// SEAT_TAP_MAX_DISTANCE_DEVICE_PX is the search cap: how far a tap may
+// land from the nearest seat's center and still plausibly have meant it —
+// ~40 device px, roughly a fingertip's own contact width. This one is
+// reachable at ANY zoom: a mis-tap can be arbitrarily far from the seat it
+// missed, so there's no rendering ceiling to worry about.
+const SEAT_TAP_MAX_DISTANCE_DEVICE_PX = 40;
+
+// SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX gates whether to attempt seat
+// resolution AT ALL — is the map zoomed in enough that neighboring seats
+// are far enough apart on screen for "nearest" to plausibly mean anything?
+// This one DOES hit a ceiling, and not the ~40px fingertip ideal above.
+// Measured directly (not assumed): real seat-to-seat pitch is 11 SVG user
+// units, uniform across every seated section A1-D2 (checked across all
+// 16 — min/median/max pitch identical everywhere, not just assumed from
+// one section). At MAX_ZOOM=4, that pitch renders as at most ~20.6 device
+// px on desktop (894px container, dpr 1) and ~23 on a large modern phone
+// (390px viewport, dpr 3) — but only ~14 on a narrower/lower-dpr phone
+// (360px viewport, dpr 2). The 40px fingertip ideal is NOT reachable at
+// MAX_ZOOM=4 on ANY profile measured. Raising MAX_ZOOM to make it
+// reachable was considered and rejected: it's a shared, whole-map pan/zoom
+// constraint calibrated for every feature, not this spike's to move.
+// So this threshold targets the ceiling MAX_ZOOM=4 actually allows
+// (~20px, the desktop reference number), not the ideal — it fires only at
+// or very near max zoom on most modern phones and on desktop, and simply
+// never fires at all on a narrower/lower-dpr phone. That's a real,
+// accepted limitation of this compromise, not something to chase by
+// lowering the number further. If seat-level selection graduates from
+// spike to real feature, the follow-up decision is raising MAX_ZOOM
+// deliberately for the whole map — not re-tuning this constant.
+const SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX = 20;
+const SEAT_PITCH_UNITS = 11; // measured — see comment above
+const SEAT_HOVER_REVERT_GRACE_MS = 100; // mouse hover hysteresis — see createHoverHysteresis
 
 const SEAT_RADIUS = "4";
 // Outer radius (r + stroke/2) matches SEAT_RADIUS exactly — see the
@@ -1124,6 +1175,35 @@ function renderTooltipContent(container, sectionId, latest, baseline) {
   container.replaceChildren(title, headline, buildFillBar(row), rows, capacity);
 }
 
+// PROTOTYPE (seat-level tap-to-identify) — deliberately distinct wording
+// from both ZONE_TITLE_LABEL (aggregate zone labels) and the legend's own
+// entries: a single identified seat reads as a state description ("Myyty
+// irtolippu", not bare "Irtolippu" — the legend's product-name framing
+// would be ambiguous standing alone as a one-seat statement).
+const SEAT_IDENTITY_LABEL = {
+  [SEAT_STATE.KAUSIKORTTI]: "Kausikorttipaikka",
+  [SEAT_STATE.IRTOLIPPU]: "Myyty irtolippu",
+  [SEAT_STATE.MYYTY]: "Myyty",
+  [SEAT_STATE.VAPAA]: "Vapaa",
+  [SEAT_STATE.EI_MYYNNISSA]: "Ei myynnissä",
+};
+
+// Identity + state only — no bar, no figures. A seat's state lives on its
+// own classList exactly as colorSeats wrote it (no extra class for vapaa —
+// see there), so reading it back is a classList check, not new plumbing.
+function renderSeatTooltipContent(container, seatEl) {
+  const { section, row, seat } = parseSeatId(seatEl.id);
+  const state = Object.values(SEAT_STATE).find((s) => seatEl.classList.contains(s)) ?? SEAT_STATE.VAPAA;
+
+  const title = document.createElement("strong");
+  title.textContent = `${section} · Rivi ${row} · Paikka ${seat}`;
+
+  const stateEl = document.createElement("p");
+  stateEl.textContent = SEAT_IDENTITY_LABEL[state];
+
+  container.replaceChildren(title, stateEl);
+}
+
 // Converts a section's SVG-space bbox into CSS pixels relative to
 // svgContainer's own top-left — the forward direction of the same
 // getScreenCTM-based mapping clientToSvgPoint (below) already uses for the
@@ -1190,14 +1270,31 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
   let pinnedPointer = null;
   let hoveredPointer = null;
 
+  // PROTOTYPE (seat-level tap-to-identify): pinnedEl/hoveredEl are now
+  // either kind — a section (as always) or a seat. Never both a section
+  // AND a seat highlighted for the same role, since there's exactly one
+  // pinnedEl/hoveredEl variable either way; only the class name toggled on
+  // it differs by kind, everything else about the pin/hover machinery is
+  // unchanged.
+  function pinnedClass(el) {
+    return el.classList.contains("seat") ? "seat--pinned" : "section--pinned";
+  }
+  function hoveredClass(el) {
+    return el.classList.contains("seat") ? "seat--hovered" : "section--hovered";
+  }
+
   function clientToContainerPoint(clientX, clientY) {
     const rect = svgContainer.getBoundingClientRect();
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
-  function showTooltip(tooltipEl, sectionEl, pointer) {
-    renderTooltipContent(tooltipEl, sectionEl.id, latest, baseline);
-    positionTooltip(tooltipEl, svg, svgContainer, sectionEl, pointer);
+  function showTooltip(tooltipEl, targetEl, pointer) {
+    if (targetEl.classList.contains("seat")) {
+      renderSeatTooltipContent(tooltipEl, targetEl);
+    } else {
+      renderTooltipContent(tooltipEl, targetEl.id, latest, baseline);
+    }
+    positionTooltip(tooltipEl, svg, svgContainer, targetEl, pointer);
   }
 
   function hideTooltip(tooltipEl) {
@@ -1358,20 +1455,29 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
   // incidental pointer events never trigger it (touch has its own path:
   // tap-to-pin below). Skipped entirely while a gesture is active
   // (activePointers.size > 0) so panning/pinching never fights with it.
-  // Resolves via elementFromPoint + .closest(".section"), the same
-  // hit-testing handleTap already uses, and only touches the DOM when the
-  // *resolved section* actually changes — not on every pixel of movement —
-  // which is what avoids a flicker on a sweep across several sections
-  // without needing an artificial delay.
-  svg.addEventListener("pointermove", (event) => {
-    if (event.pointerType !== "mouse" || activePointers.size > 0) return;
+  //
+  // PROTOTYPE (seat-level tap-to-identify): resolves .closest(".seat")
+  // before .closest(".section") — a seat's own painted circle is already
+  // its hit target, no enlarged hit-area needed, since a mouse pointer (as
+  // opposed to a fingertip) is precise. Entering a seat always wins
+  // immediately via hoverHysteresis; leaving one into bare section
+  // background is debounced (see createHoverHysteresis) so a sweep across
+  // a row of small, gapped seats doesn't strobe the tooltip. A sweep that
+  // never touches a seat at all — the common case, most of the map — is
+  // completely unaffected: only touches the DOM when the *resolved*
+  // element actually changes, exactly as before.
+  const hoverHysteresis = createHoverHysteresis(SEAT_HOVER_REVERT_GRACE_MS);
+  let lastMouseClientPoint = null;
 
-    const el = document.elementFromPoint(event.clientX, event.clientY);
+  function resolveHoveredSection(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
     const sectionEl = el?.closest(".section");
-    const resolved = sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
-    if (resolved === hoveredEl) return;
+    return sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
+  }
 
-    hoveredEl?.classList.remove("section--hovered");
+  function applyHoverTarget(resolved) {
+    if (resolved === hoveredEl) return;
+    if (hoveredEl) hoveredEl.classList.remove(hoveredClass(hoveredEl));
     hoveredEl = resolved;
 
     if (!hoveredEl) {
@@ -1380,21 +1486,76 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     }
     if (hoveredEl === pinnedEl) {
       // Already shown by the pin tooltip — a second one on the same
-      // section would just be a redundant duplicate.
+      // target would just be a redundant duplicate.
       hideTooltip(hoverTooltip);
       return;
     }
 
-    hoveredEl.classList.add("section--hovered");
-    hoveredPointer = clientToContainerPoint(event.clientX, event.clientY);
+    hoveredEl.classList.add(hoveredClass(hoveredEl));
+    hoveredPointer = lastMouseClientPoint
+      ? clientToContainerPoint(lastMouseClientPoint.x, lastMouseClientPoint.y)
+      : null;
     showTooltip(hoverTooltip, hoveredEl, hoveredPointer);
+  }
+
+  svg.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "mouse" || activePointers.size > 0) return;
+    lastMouseClientPoint = { x: event.clientX, y: event.clientY };
+
+    const el = document.elementFromPoint(event.clientX, event.clientY);
+    const seatEl = el?.closest(".seat");
+    const resolvedSeat = seatEl && mapContainer.contains(seatEl) ? seatEl : null;
+
+    if (resolvedSeat) {
+      hoverHysteresis.enterSeat(applyHoverTarget, resolvedSeat);
+      return;
+    }
+
+    // Only a seat departure gets the grace period — a plain sweep across
+    // section background/gaps that was never on a seat updates instantly,
+    // same as always.
+    if (hoveredEl?.classList.contains("seat")) {
+      hoverHysteresis.leaveSeat(() => {
+        // Re-resolve fresh from the last known pointer position: the
+        // pointer may have kept moving during the grace window, so the
+        // section under it now may differ from when the seat was left.
+        applyHoverTarget(lastMouseClientPoint ? resolveHoveredSection(lastMouseClientPoint.x, lastMouseClientPoint.y) : null);
+      });
+    } else {
+      applyHoverTarget(resolveHoveredSection(event.clientX, event.clientY));
+    }
   });
 
   svg.addEventListener("pointerleave", () => {
-    hoveredEl?.classList.remove("section--hovered");
+    hoverHysteresis.cancel();
+    if (hoveredEl) hoveredEl.classList.remove(hoveredClass(hoveredEl));
     hoveredEl = null;
     hideTooltip(hoverTooltip);
   });
+
+  // PROTOTYPE (seat-level tap-to-identify): a fingertip covers several
+  // seats at once, so touch resolution is nearest-seat math against real
+  // seat centers (cx/cy, already in the DOM), not hit-testing — see
+  // SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX/SEAT_TAP_MAX_DISTANCE_DEVICE_PX above
+  // for why these are two different numbers. Scans ALL seats in the SVG,
+  // not just the initially-resolved section's own — cheap at ~2,600
+  // elements for a single tap, and correct right at a section boundary,
+  // where the resolved section's own (rectangular) hit-area may not
+  // contain the seat that's actually nearest.
+  function resolveNearestSeat(clientX, clientY, containerRect) {
+    const pitchDevicePx = renderedSpanDevicePx(currentViewBox.width, containerRect.width, SEAT_PITCH_UNITS, window.devicePixelRatio || 1);
+    if (pitchDevicePx < SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX) return null; // not zoomed in enough to attempt this
+
+    const svgPoint = clientToSvgPoint(clientX, clientY);
+    const maxDistance = devicePxToUserUnits(SEAT_TAP_MAX_DISTANCE_DEVICE_PX, svg.getScreenCTM().a, window.devicePixelRatio || 1);
+    const seatPositions = Array.from(svg.querySelectorAll(".seat")).map((el) => ({
+      id: el.id,
+      cx: Number(el.getAttribute("cx")),
+      cy: Number(el.getAttribute("cy")),
+    }));
+    const nearestId = nearestSeatId(seatPositions, svgPoint, maxDistance);
+    return nearestId ? findById(svg, nearestId) : null;
+  }
 
   function handleTap(clientX, clientY) {
     // setPointerCapture retargets event.target to the capturing element on
@@ -1402,11 +1563,20 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     // the pointer event's own target/closest chain.
     const el = document.elementFromPoint(clientX, clientY);
     const sectionEl = el?.closest(".section");
-    const tappedEl = sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
+    let tappedEl = sectionEl && mapContainer.contains(sectionEl) ? sectionEl : null;
+
+    // Only seated sections (A1-D2) have .seat descendants — aggregate
+    // areas (seisomakatsomo/invalid/aitiot/press) never do, so this is
+    // exactly the "seats only" gate: they fall straight through to the
+    // unchanged section-tap behavior below, regardless of zoom.
+    if (tappedEl && tappedEl.querySelector(".seat")) {
+      const nearestSeatEl = resolveNearestSeat(clientX, clientY, svgContainer.getBoundingClientRect());
+      if (nearestSeatEl) tappedEl = nearestSeatEl; // seat wins over its own enclosing section
+    }
 
     if (tappedEl && tappedEl === pinnedEl) {
-      // Tapping the pinned section again unpins it.
-      pinnedEl.classList.remove("section--pinned");
+      // Tapping the pinned target again unpins it.
+      pinnedEl.classList.remove(pinnedClass(pinnedEl));
       pinnedEl = null;
       pinnedPointer = null;
       hideTooltip(pinTooltip);
@@ -1414,7 +1584,7 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     }
 
     if (pinnedEl) {
-      pinnedEl.classList.remove("section--pinned");
+      pinnedEl.classList.remove(pinnedClass(pinnedEl));
       pinnedEl = null;
       pinnedPointer = null;
       hideTooltip(pinTooltip);
@@ -1425,17 +1595,17 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     // which had no such background-tap affordance.
     if (!tappedEl) return;
 
-    tappedEl.classList.add("section--pinned");
+    tappedEl.classList.add(pinnedClass(tappedEl));
     pinnedEl = tappedEl;
     pinnedPointer = clientToContainerPoint(clientX, clientY);
     showTooltip(pinTooltip, pinnedEl, pinnedPointer);
 
-    // The newly pinned section may already be the hovered one (the
+    // The newly pinned target may already be the hovered one (the
     // ordinary mouse-click case) — clean up its hover state immediately
     // rather than waiting for the next pointermove, or a reader who taps
     // and doesn't move the mouse again would see a redundant duplicate.
     if (hoveredEl === pinnedEl) {
-      hoveredEl.classList.remove("section--hovered");
+      hoveredEl.classList.remove(hoveredClass(hoveredEl));
       hideTooltip(hoverTooltip);
     }
   }
@@ -1478,7 +1648,7 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     // otherwise briefly recompute a placement for a pin that's about to be
     // cleared anyway.
     if (pinnedEl) {
-      pinnedEl.classList.remove("section--pinned");
+      pinnedEl.classList.remove(pinnedClass(pinnedEl));
       pinnedEl = null;
       pinnedPointer = null;
     }

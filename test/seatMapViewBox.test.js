@@ -8,6 +8,8 @@ import {
   viewBoxesEqual,
   normalizeWheelDeltaY,
   expandViewBox,
+  renderedSpanDevicePx,
+  devicePxToUserUnits,
 } from "../js/seatMapViewBox.js";
 
 const ORIGINAL = { x: 0, y: 0, width: 1780, height: 1261 };
@@ -128,4 +130,36 @@ test("expandViewBox with no margins is the identity", () => {
 test("expandViewBox with all four margins shifts both x and y outward", () => {
   const expanded = expandViewBox(ORIGINAL, { top: 10, bottom: 20, left: 30, right: 40 });
   assert.deepEqual(expanded, { x: -30, y: -10, width: 1780 + 30 + 40, height: 1261 + 10 + 20 });
+});
+
+test("renderedSpanDevicePx matches the measured desktop reference: 11 units at zoom-4, 894px container, dpr 1", () => {
+  const zoomedViewBoxWidth = 1905 / 4; // MAX_ZOOM=4 against the app's real expanded viewBox width
+  const px = renderedSpanDevicePx(zoomedViewBoxWidth, 894, 11, 1);
+  assert.ok(Math.abs(px - 20.6) < 0.1);
+});
+
+test("renderedSpanDevicePx scales linearly with devicePixelRatio", () => {
+  const base = renderedSpanDevicePx(500, 894, 11, 1);
+  assert.equal(renderedSpanDevicePx(500, 894, 11, 3), base * 3);
+});
+
+test("renderedSpanDevicePx shrinks as the viewBox widens (zooming out)", () => {
+  const zoomedIn = renderedSpanDevicePx(476.25, 894, 11, 1);
+  const zoomedOut = renderedSpanDevicePx(1905, 894, 11, 1);
+  assert.ok(zoomedIn > zoomedOut);
+});
+
+test("devicePxToUserUnits inverts renderedSpanDevicePx's scale/dpr factors", () => {
+  const ctmScale = 894 / 476.25; // CSS px per user unit at zoom-4
+  const dpr = 2;
+  const devicePx = 40;
+  const userUnits = devicePxToUserUnits(devicePx, ctmScale, dpr);
+  // Round-trip: that many user units, at this scale/dpr, renders back to ~devicePx.
+  assert.ok(Math.abs(userUnits * ctmScale * dpr - devicePx) < 1e-9);
+});
+
+test("devicePxToUserUnits shrinks the cap in user units as the view zooms in (ctmScale grows)", () => {
+  const zoomedInCap = devicePxToUserUnits(40, 4, 1); // zoomed in — large ctmScale
+  const zoomedOutCap = devicePxToUserUnits(40, 1, 1); // zoomed out — small ctmScale
+  assert.ok(zoomedInCap < zoomedOutCap);
 });
