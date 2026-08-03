@@ -57,6 +57,16 @@ export function getSeats(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seats.json`, { fallbackOn404: null });
 }
 
+// Deliberately a separate file/fetch from seats.json (see
+// scripts/lib/seatRecency.js) — an event scraped before this feature
+// existed (or mid-transition) has no file yet, hence the empty-marks
+// fallback rather than treating a 404 as an error.
+export function getRecentSeatActivity(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/recentSeatActivity.json`, {
+    fallbackOn404: { svgHash: null, freed: {}, sold: {} },
+  });
+}
+
 const svgCache = new Map();
 
 export async function getCapacitiesSvg(hash) {

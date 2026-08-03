@@ -41,6 +41,21 @@ export function nearestSeatId(seatPositions, point, maxDistance = Infinity) {
   return bestDist <= maxDistance ? bestId : null;
 }
 
+// The frontend-side mirror of scripts/lib/seatRecency.js's own FIX 1
+// guard: a recentSeatActivity.json fetched alongside a seats.json from a
+// DIFFERENT map generation (its own svgHash disagrees) must never be
+// trusted, even though both files are written from the same per-event
+// scraper run today — a partial write failure between the two, or a
+// transition period, could leave them momentarily mismatched, and
+// diffing seat ids across two different maps is exactly the phantom-
+// marks bug FIX 1 exists to prevent.
+export function resolveRecencyMarks(seats, recentActivity) {
+  if (!seats || !recentActivity || recentActivity.svgHash !== seats.svgHash) {
+    return { freed: {}, sold: {} };
+  }
+  return { freed: recentActivity.freed, sold: recentActivity.sold };
+}
+
 export function buildDisabledSectionSet(sections) {
   return new Set(sections.filter((row) => row.disabled).map((row) => row.section));
 }

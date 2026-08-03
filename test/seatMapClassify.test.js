@@ -9,6 +9,7 @@ import {
   classifyAitio,
   parseSeatId,
   nearestSeatId,
+  resolveRecencyMarks,
 } from "../js/seatMapClassify.js";
 
 test("sectionOfSeatId extracts the section prefix before the first dash", () => {
@@ -122,4 +123,25 @@ test("nearestSeatId returns null when the nearest seat exceeds maxDistance", () 
 test("nearestSeatId with no cap (default Infinity) always returns the nearest seat, however far", () => {
   const seats = [{ id: "A1-1-001", cx: 0, cy: 0 }];
   assert.equal(nearestSeatId(seats, { x: 10000, y: 10000 }), "A1-1-001");
+});
+
+test("resolveRecencyMarks returns the recency file's marks when its svgHash matches seats.json's own", () => {
+  const seats = { svgHash: "abc" };
+  const recentActivity = { svgHash: "abc", freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } }, sold: {} };
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), {
+    freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } },
+    sold: {},
+  });
+});
+
+test("resolveRecencyMarks discards marks from a recency file whose svgHash disagrees with seats.json's own", () => {
+  const seats = { svgHash: "abc" };
+  const recentActivity = { svgHash: "different", freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } }, sold: {} };
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), { freed: {}, sold: {} });
+});
+
+test("resolveRecencyMarks is empty when there's no recency file yet (fallback-on-404 shape, svgHash null)", () => {
+  const seats = { svgHash: "abc" };
+  const recentActivity = { svgHash: null, freed: {}, sold: {} };
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), { freed: {}, sold: {} });
 });

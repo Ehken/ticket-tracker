@@ -855,6 +855,63 @@ header.site-header h1 {
   r: 2.4px; /* smaller, not just a different color — separates by shape too. Still the smallest state either way. */
 }
 
+/* Recently freed/sold marks — a modifier on top of a seat's existing
+   state, not a sixth SEAT_STATE (see colorSeats in seatMap.js): freed
+   seats are always vapaa underneath, sold seats always one of the solid
+   states. Ancestor-gated on .seatmap-svg--recency-visible (toggled by
+   the localStorage preference, default on — see js/recencyPreference.js)
+   rather than each rule individually conditioned: no rule at all outside
+   that class, so there's nothing to override back when marks are off.
+
+   Freed ring colour #8a6d00: derived, not the mockup's #e6bf00 (which
+   measured 1.48:1 against sand — the exact failure this palette exists
+   to avoid). Clears 3:1 against sand (4.10:1) and the paper background
+   (4.80:1). Known, accepted limitation: #8a6d00 vs. the ordinary free
+   ring #6b6b6b measures only 1.08:1 — luminance-identical, distinguished
+   by hue alone, the one kind of cue this palette otherwise eliminates.
+   No yellow clears 3:1 against sand/paper AND 3:1 against #6b6b6b at
+   once — the two bounds leave about a 1.9:1-wide gap, not enough room
+   for a second 3:1 test. Not fatal on its own: a freed seat also carries
+   the tooltip line and the section-count row as non-colour carriers.
+
+   Checked, not assumed: an achromatopsia simulation (CDP
+   Emulation.setEmulatedVisionDeficiency) on this exact pair confirmed
+   the 1.08:1 prediction — side by side, the freed ring and an ordinary
+   free ring read as the same ring. Per the accepted fallback (shape, not
+   a different hue — no yellow threads both 3:1 needles at once, see
+   above), stroke-width is bumped 2px -> 3px for freed specifically. That
+   pushes freed's own outer radius (r + stroke/2, r unchanged at 3) to
+   4.5 against solid seats' 4 — a small, deliberate, documented deviation
+   from the "outer radius always 4" rule the hollow-ring geometry
+   otherwise holds to, not an oversight: freed seats are rare enough
+   (a handful at a time, per the real-data volume this whole feature is
+   built around) that reading very slightly larger doesn't compete with
+   ei-myynnissä's own smaller-radius cue anywhere on the map. */
+.seatmap-svg--recency-visible .seat.freed {
+  stroke: #8a6d00;
+  stroke-width: 3px;
+}
+
+/* Newly-sold ring is additionally zoom-gated — seatmap-svg--newly-sold-
+   visible is toggled only when BOTH the preference is on AND the map is
+   zoomed in enough (isZoomedPastSeatThreshold in seatMap.js — the exact
+   same check touch seat-tap resolution already uses, reused rather than
+   a second threshold concept). One combined class, not two ancestor
+   classes stacked on the same element: stacking would push this
+   selector's specificity to four classes, outranking .seat.seat--pinned/
+   .seat.seat--hovered (three) regardless of source order — exactly the
+   inversion the pin/hover priority rule above depends on not happening.
+   Subtle by design otherwise: sold marks outnumber freed ones, and
+   showing a per-seat ring at default zoom would make the whole map glow.
+   #5a3d00 clears 6.98:1 against the irtolippu yellow fill (the realistic
+   case for a newly-sold seat); against the black kausikortti/myyty fill
+   it measures only 1.74:1, effectively invisible — accepted: a season-
+   ticket seat flipping to sold within one run is a rare edge case, and
+   the ring is meant to read as subtle regardless. */
+.seatmap-svg--newly-sold-visible .seat.newly-sold {
+  stroke: #5a3d00;
+}
+
 /* PROTOTYPE (seat-level tap-to-identify) — same pin/hover treatment as
    .section--pinned/.section--hovered below, reused rather than a new
    color invented for it. `.seat.seat--pinned`/`.seat.seat--hovered` (three
@@ -1242,6 +1299,36 @@ header.site-header h1 {
   background: var(--seat-aitio-myyty);
 }
 
+.seatmap-legend__swatch--freed {
+  /* Same hollow shape as the --vapaa swatch above (a freed seat is
+     always vapaa underneath) with the map's own freed-ring colour on the
+     border instead of the default #d8d8d8 — matches .seat.freed. */
+  background: var(--seat-vapaa);
+  border-width: 3px;
+  border-color: #8a6d00;
+}
+
+.seatmap-legend__swatch--newly-sold {
+  /* Represents the realistic case (irtolippu yellow — see .seat.newly-
+     sold's own comment on why the ring is close to invisible against the
+     rarer black kausikortti/myyty fill) with the ring colour on the
+     border instead of the default. */
+  background: var(--seat-irtolippu);
+  border-width: 2px;
+  border-color: #5a3d00;
+}
+
+.seatmap-legend__item--recency-toggle {
+  /* A checkbox+label, not a swatch+label like every other item — margin-
+     left: auto nudges it to the row's far end without needing a
+     dedicated wrapper, since .seatmap-legend is already a flex row. */
+  margin-left: auto;
+}
+
+.seatmap-legend__item--recency-toggle input {
+  margin: 0;
+}
+
 .seatmap-legend__fallback-numbers {
   font-size: 0.8rem;
   color: var(--muted);
@@ -1415,6 +1502,20 @@ header.site-header h1 {
   margin: 0.5rem 0 0;
   padding-top: 0.4rem;
   border-top: 1px solid #d8d8d8;
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shown regardless of the visual toggle (requested data, not visual
+   noise) — no border-top of its own, unlike .seatmap-tooltip__capacity:
+   up to two of these can appear together with the capacity line right
+   below, and three stacked dividers would be busier than the numbers
+   they separate. */
+.seatmap-tooltip__recency-count {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0;
   color: #5a5a5a;
   font-variant-numeric: tabular-nums;
 }

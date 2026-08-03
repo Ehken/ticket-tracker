@@ -2,10 +2,10 @@
 // unit-tested (DOM assembly, same convention as card.js/dashboard.js) — the
 // pure classification/viewBox math it depends on lives in
 // seatMapClassify.js / seatMapViewBox.js and is unit-tested there.
-import { getSeats, getCapacitiesSvg } from "./fetchData.js";
+import { getSeats, getRecentSeatActivity, getCapacitiesSvg } from "./fetchData.js";
 import { sectionLabel } from "./sectionLabels.js";
 import { buildFillBar } from "./sectionTable.js";
-import { formatThousands, formatPercent } from "./format.js";
+import { formatThousands, formatPercent, formatHelsinkiDateTime } from "./format.js";
 import { irtoliput } from "./dashboardBaseline.js";
 import {
   SEAT_STATE,
@@ -15,6 +15,8 @@ import {
   classifyAitio,
   parseSeatId,
   nearestSeatId,
+  resolveRecencyMarks,
+  sectionOfSeatId,
 } from "./seatMapClassify.js";
 import {
   parseViewBox,
@@ -32,6 +34,7 @@ import { computeSlotSplit, WHEELCHAIR_SLOT_COUNT } from "./seatMapSlots.js";
 import { generateZoneCountPlacementCandidates } from "./seatMapZoneCountPlacement.js";
 import { computeTooltipPosition } from "./seatMapTooltipPosition.js";
 import { createHoverHysteresis } from "./seatMapHoverHysteresis.js";
+import { getShowRecencyMarks, setShowRecencyMarks, onShowRecencyMarksChange } from "./recencyPreference.js";
 
 const TOOLTIP_GAP = 10; // px, screen space — gap between a tooltip and whatever it's anchored to
 
@@ -133,12 +136,20 @@ export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] 
 
   (async () => {
     try {
-      const seats = await getSeats(mergedEvent.id);
+      // Fetched concurrently — no dependency between them (recentActivity's
+      // own presence/shape never affects whether the map itself can be
+      // rendered; getCapacitiesSvg below is the one real sequential
+      // dependency, on seats.svgHash).
+      const [seats, recentActivity] = await Promise.all([
+        getSeats(mergedEvent.id),
+        getRecentSeatActivity(mergedEvent.id),
+      ]);
       if (!seats) {
         // Missing/old data — a calm message, the Taulukko tab stays usable.
         mapContainer.textContent = "Istumakarttaa ei ole saatavilla.";
         return;
       }
+      const recency = resolveRecencyMarks(seats, recentActivity);
 
       const baseline = await resolveBaseline(mergedEvent, seats, kausikorttiEvents);
       const svgText = await getCapacitiesSvg(seats.svgHash);
@@ -147,6 +158,7 @@ export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] 
         mergedEvent,
         latest,
         seats,
+        recency,
         baseline,
         svgText,
         // offsetParent is null both when this panel's own hidden attribute
@@ -204,7 +216,7 @@ async function resolveBaseline(mergedEvent, seats, kausikorttiEvents) {
   return { soldSet: new Set(baselineSeats.soldSeatIds), sectionSold };
 }
 
-function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svgText, isVisible, registerOnShow }) {
+function renderSeatMap({ mapContainer, mergedEvent, latest, seats, recency, baseline, svgText, isVisible, registerOnShow }) {
   const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
   if (doc.querySelector("parsererror")) throw new Error("Failed to parse seatmap SVG");
 
@@ -277,9 +289,14 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
   // hiding, and repositioning either one is never in normal flow.
   svgWrapper.append(pinTooltip, hoverTooltip);
 
+  const hasFreedMarks = Object.keys(recency.freed).length > 0;
+  const hasNewlySoldMarks = Object.keys(recency.sold).length > 0;
+
   const legend = buildLegend(mapContainer, {
     hasBaseline: baseline.soldSet !== null,
     hasAitioOccupancy: (seats.soldAitiot ?? []).length > 0,
+    hasFreedMarks,
+    hasNewlySoldMarks,
   });
 
   const cta = buildCta(mergedEvent, latest);
@@ -289,7 +306,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
 
   // Layout-independent — no getBBox calls, so safe regardless of whether
   // this container is currently visible.
-  colorSeats(svg, mergedEvent, latest, seats, baseline);
+  colorSeats(svg, mergedEvent, latest, seats, baseline, recency);
   colorAitioBoxes(svg, seats);
   findById(svg, "press")?.classList.add("ei-myynnissa");
 
@@ -319,7 +336,15 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, baseline, svg
     registerOnShow(placeLayoutDependentContent);
   }
 
-  attachInteraction(svg, mapContainer, { latest, baseline, resetButton, pinTooltip, hoverTooltip, svgContainer: svgWrapper });
+  attachInteraction(svg, mapContainer, {
+    latest,
+    baseline,
+    recency,
+    resetButton,
+    pinTooltip,
+    hoverTooltip,
+    svgContainer: svgWrapper,
+  });
 }
 
 // The standing area (seisomakatsomo) keeps the full stacked fill exactly as
@@ -860,7 +885,7 @@ function addSectionHitAreas(svg) {
   }
 }
 
-function colorSeats(svg, mergedEvent, latest, seats, baseline) {
+function colorSeats(svg, mergedEvent, latest, seats, baseline, recency) {
   const disabledSectionSet = buildDisabledSectionSet(latest.sections);
   const soldSet = new Set(seats.soldSeatIds);
 
@@ -890,6 +915,13 @@ function colorSeats(svg, mergedEvent, latest, seats, baseline) {
     el.setAttribute("r", radius);
 
     if (state !== SEAT_STATE.VAPAA) el.classList.add(state); // vapaa is the CSS default; skip the no-op write
+
+    // Recency is a modifier, not a sixth SEAT_STATE — freed/newly-sold
+    // marks describe how a seat got to its current state, not a
+    // different state, and are mutually exclusive with each other by
+    // construction (a seat id is a key of at most one of the two maps).
+    if (id in recency.freed) el.classList.add("freed");
+    else if (id in recency.sold) el.classList.add("newly-sold");
   }
 
   // Assumes every sold id genuinely present in the SVG is a .seat element —
@@ -998,7 +1030,7 @@ function addWheelchairLabel(svg, shapeBBox, bands) {
 
 let legendInfoIdCounter = 0;
 
-function buildLegend(mapContainer, { hasBaseline, hasAitioOccupancy }) {
+function buildLegend(mapContainer, { hasBaseline, hasAitioOccupancy, hasFreedMarks, hasNewlySoldMarks }) {
   const legend = document.createElement("div");
   legend.className = "seatmap-legend";
 
@@ -1040,6 +1072,32 @@ function buildLegend(mapContainer, { hasBaseline, hasAitioOccupancy }) {
 
   for (const entry of entries) legend.append(buildLegendItem(entry, togglePopover));
 
+  // Two different conditions on two different elements: a swatch entry
+  // exists only when its kind's marks are both present on THIS map AND
+  // currently enabled (hidden/shown live as the preference changes); the
+  // toggle control below exists whenever marks are present at all,
+  // regardless of the preference's current value — otherwise turning it
+  // off would hide the only way to turn it back on.
+  if (hasFreedMarks) {
+    const freedItem = buildLegendItem({ cls: "freed", label: "Vapautunut äskettäin" }, togglePopover);
+    freedItem.hidden = !getShowRecencyMarks();
+    onShowRecencyMarksChange((show) => {
+      freedItem.hidden = !show;
+    });
+    legend.append(freedItem);
+  }
+  if (hasNewlySoldMarks) {
+    const soldItem = buildLegendItem({ cls: "newly-sold", label: "Myyty äskettäin" }, togglePopover);
+    soldItem.hidden = !getShowRecencyMarks();
+    onShowRecencyMarksChange((show) => {
+      soldItem.hidden = !show;
+    });
+    legend.append(soldItem);
+  }
+  if (hasFreedMarks || hasNewlySoldMarks) {
+    legend.append(buildRecencyToggleItem());
+  }
+
   // Scoped to the legend, so Escape only closes a popover while focus is
   // inside it (e.g. right after clicking the ⓘ button) — pressing Escape
   // with focus elsewhere on the page won't reach this listener at all.
@@ -1056,6 +1114,36 @@ function buildLegend(mapContainer, { hasBaseline, hasAitioOccupancy }) {
   });
 
   return legend;
+}
+
+let recencyToggleIdCounter = 0;
+
+// Lives in the legend, not the map controls — "the row that explains the
+// marks is where you turn them off." No unsubscribe on the change
+// listener below — same convention as the legend's own click listener on
+// mapContainer above: this panel lives as long as the page does.
+function buildRecencyToggleItem() {
+  const item = document.createElement("div");
+  item.className = "seatmap-legend__item seatmap-legend__item--recency-toggle";
+
+  const toggleId = `seatmap-recency-toggle-${++recencyToggleIdCounter}`;
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.id = toggleId;
+  checkbox.checked = getShowRecencyMarks();
+  checkbox.addEventListener("change", () => setShowRecencyMarks(checkbox.checked));
+
+  const label = document.createElement("label");
+  label.setAttribute("for", toggleId);
+  label.textContent = "Näytä äskettäiset muutokset";
+
+  item.append(checkbox, label);
+
+  onShowRecencyMarksChange((show) => {
+    checkbox.checked = show;
+  });
+
+  return item;
 }
 
 function buildLegendItem({ cls, label, info }, togglePopover) {
@@ -1125,7 +1213,21 @@ function buildTooltipRow(label, value, swatchKind) {
   return [swatch, labelEl, valueEl];
 }
 
-function renderTooltipContent(container, sectionId, latest, baseline) {
+// Same two-span shape as the capacity paragraph below (label + value, no
+// swatch) — a count of activity, not a bar zone, exactly like Kapasiteetti
+// is "the denominator, not a kind" rather than a fourth row-grid entry.
+function buildTooltipCountRow(label, value) {
+  const p = document.createElement("p");
+  p.className = "seatmap-tooltip__recency-count";
+  const labelEl = document.createElement("span");
+  labelEl.textContent = label;
+  const valueEl = document.createElement("span");
+  valueEl.textContent = formatThousands(value);
+  p.append(labelEl, valueEl);
+  return p;
+}
+
+function renderTooltipContent(container, sectionId, latest, baseline, recency) {
   const lookupKey = sectionId.startsWith("aitio_") ? "aitiot" : sectionId;
   const row = latest.sections.find((r) => r.section === lookupKey);
   if (!row) return;
@@ -1172,7 +1274,19 @@ function renderTooltipContent(container, sectionId, latest, baseline) {
   capacityValue.textContent = `${formatThousands(row.total)} (${formatPercent(row.sold, row.total)})`;
   capacity.append(capacityLabel, capacityValue);
 
-  container.replaceChildren(title, headline, buildFillBar(row), rows, capacity);
+  const children = [title, headline, buildFillBar(row), rows, capacity];
+
+  // Shown regardless of the visual toggle — requested data, not visual
+  // noise (see the off switch's own reasoning). Zero for "aitiot"/"press"
+  // naturally, with no explicit exclusion needed: freed/sold marks are
+  // only ever keyed by real per-seat ids, which sectionOfSeatId never
+  // resolves to those aggregate lookup keys.
+  const freedCount = Object.keys(recency.freed).filter((id) => sectionOfSeatId(id) === lookupKey).length;
+  const soldCount = Object.keys(recency.sold).filter((id) => sectionOfSeatId(id) === lookupKey).length;
+  if (freedCount > 0) children.push(buildTooltipCountRow("Vapautunut viime päivityksissä", freedCount));
+  if (soldCount > 0) children.push(buildTooltipCountRow("Myyty viime päivityksissä", soldCount));
+
+  container.replaceChildren(...children);
 }
 
 // PROTOTYPE (seat-level tap-to-identify) — deliberately distinct wording
@@ -1188,10 +1302,11 @@ const SEAT_IDENTITY_LABEL = {
   [SEAT_STATE.EI_MYYNNISSA]: "Ei myynnissä",
 };
 
-// Identity + state only — no bar, no figures. A seat's state lives on its
+// Identity + state, plus a recency line when this seat is a freed/newly-
+// sold mark — no bar, no figures otherwise. A seat's state lives on its
 // own classList exactly as colorSeats wrote it (no extra class for vapaa —
 // see there), so reading it back is a classList check, not new plumbing.
-function renderSeatTooltipContent(container, seatEl) {
+function renderSeatTooltipContent(container, seatEl, recency) {
   const { section, row, seat } = parseSeatId(seatEl.id);
   const state = Object.values(SEAT_STATE).find((s) => seatEl.classList.contains(s)) ?? SEAT_STATE.VAPAA;
 
@@ -1201,7 +1316,25 @@ function renderSeatTooltipContent(container, seatEl) {
   const stateEl = document.createElement("p");
   stateEl.textContent = SEAT_IDENTITY_LABEL[state];
 
-  container.replaceChildren(title, stateEl);
+  const children = [title, stateEl];
+
+  // sinceISO (the PREVIOUS run's own fetchedAt), not detectedAtISO (when
+  // we noticed) — the seat was already in this state at sinceISO, so
+  // that's the only timestamp a "vapautunut/myyty X jälkeen" claim can
+  // truthfully use. See scripts/lib/seatRecency.js for the full reasoning.
+  const freedEntry = recency.freed[seatEl.id];
+  const soldEntry = recency.sold[seatEl.id];
+  if (freedEntry) {
+    const recencyEl = document.createElement("p");
+    recencyEl.textContent = `Vapautunut ${formatHelsinkiDateTime(freedEntry.sinceISO)} jälkeen`;
+    children.push(recencyEl);
+  } else if (soldEntry) {
+    const recencyEl = document.createElement("p");
+    recencyEl.textContent = `Myyty ${formatHelsinkiDateTime(soldEntry.sinceISO)} jälkeen`;
+    children.push(recencyEl);
+  }
+
+  container.replaceChildren(...children);
 }
 
 // Converts a section's SVG-space bbox into CSS pixels relative to
@@ -1254,7 +1387,7 @@ function positionTooltip(tooltipEl, svg, svgContainer, sectionEl, pointer) {
   tooltipEl.style.top = `${result.top}px`;
 }
 
-function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, pinTooltip, hoverTooltip, svgContainer }) {
+function attachInteraction(svg, mapContainer, { latest, baseline, recency, resetButton, pinTooltip, hoverTooltip, svgContainer }) {
   const originalViewBox = parseViewBox(svg.getAttribute("viewBox"));
   const bounds = { original: originalViewBox, maxZoom: MAX_ZOOM };
   let currentViewBox = { ...originalViewBox };
@@ -1295,9 +1428,9 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
 
   function showTooltip(tooltipEl, targetEl, pointer) {
     if (targetEl.classList.contains("seat")) {
-      renderSeatTooltipContent(tooltipEl, targetEl);
+      renderSeatTooltipContent(tooltipEl, targetEl, recency);
     } else {
-      renderTooltipContent(tooltipEl, targetEl.id, latest, baseline);
+      renderTooltipContent(tooltipEl, targetEl.id, latest, baseline, recency);
     }
     positionTooltip(tooltipEl, svg, svgContainer, targetEl, pointer);
   }
@@ -1332,10 +1465,44 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     if (hoveredEl) positionTooltip(hoverTooltip, svg, svgContainer, hoveredEl, hoveredPointer);
   }
 
+  // Shared by touch seat-tap resolution (resolveNearestSeat, below — is
+  // the map zoomed in enough to even attempt nearest-seat math?) and the
+  // newly-sold ring's own zoom gate below — same underlying question
+  // ("are neighboring seats far enough apart on screen to read
+  // individually"), asked by two different consumers, so it's one
+  // function rather than two copies of the same math. See
+  // SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX's own comment for the derivation
+  // and its accepted limitations.
+  function isZoomedPastSeatThreshold() {
+    const containerRect = svgContainer.getBoundingClientRect();
+    const pitchDevicePx = renderedSpanDevicePx(currentViewBox.width, containerRect.width, SEAT_PITCH_UNITS, window.devicePixelRatio || 1);
+    return pitchDevicePx >= SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX;
+  }
+
+  // Two separate ancestor classes, each gating one recency accent's own
+  // CSS rule directly (not combined into a single compound selector on
+  // the seat itself) — .seat.freed and .seat.newly-sold each need to stay
+  // at the SAME class-count specificity as .seat.seat--pinned/.seat.seat--
+  // hovered (three: one ancestor class + .seat + the modifier) so pin/
+  // hover's later position in the stylesheet is what makes it win, not
+  // an accidental specificity gap. Combining "preference on" AND "zoomed
+  // in enough" into ONE class for newly-sold (rather than stacking two
+  // ancestor classes on the same element, which would add up to four
+  // classes and outrank pin/hover regardless of source order) keeps that
+  // invariant intact.
+  function updateRecencyVisibilityClasses() {
+    const show = getShowRecencyMarks();
+    svg.classList.toggle("seatmap-svg--recency-visible", show);
+    svg.classList.toggle("seatmap-svg--newly-sold-visible", show && isZoomedPastSeatThreshold());
+  }
+  updateRecencyVisibilityClasses();
+  onShowRecencyMarksChange(updateRecencyVisibilityClasses);
+
   function applyViewBox(vb) {
     currentViewBox = vb;
     svg.setAttribute("viewBox", serializeViewBox(vb));
     resetButton.hidden = viewBoxesEqual(currentViewBox, bounds.original);
+    updateRecencyVisibilityClasses();
     repositionVisibleTooltips();
   }
 
@@ -1562,9 +1729,8 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
   // contain the seat that's actually nearest. TOUCH ONLY — a mouse click
   // is exactly as precise as mouse hover, so it uses resolveExactSeat
   // below instead, with no zoom gate.
-  function resolveNearestSeat(clientX, clientY, containerRect) {
-    const pitchDevicePx = renderedSpanDevicePx(currentViewBox.width, containerRect.width, SEAT_PITCH_UNITS, window.devicePixelRatio || 1);
-    if (pitchDevicePx < SEAT_TAP_ZOOM_THRESHOLD_DEVICE_PX) return null; // not zoomed in enough to attempt this
+  function resolveNearestSeat(clientX, clientY) {
+    if (!isZoomedPastSeatThreshold()) return null; // not zoomed in enough to attempt this
 
     const svgPoint = clientToSvgPoint(clientX, clientY);
     const maxDistance = devicePxToUserUnits(SEAT_TAP_MAX_DISTANCE_DEVICE_PX, svg.getScreenCTM().a, window.devicePixelRatio || 1);
@@ -1602,7 +1768,7 @@ function attachInteraction(svg, mapContainer, { latest, baseline, resetButton, p
     // unchanged section-tap behavior below, regardless of input type.
     if (tappedEl && tappedEl.querySelector(".seat")) {
       const resolvedSeatEl =
-        pointerType === "mouse" ? resolveExactSeat(clientX, clientY) : resolveNearestSeat(clientX, clientY, svgContainer.getBoundingClientRect());
+        pointerType === "mouse" ? resolveExactSeat(clientX, clientY) : resolveNearestSeat(clientX, clientY);
       if (resolvedSeatEl) tappedEl = resolvedSeatEl; // seat wins over its own enclosing section
     }
 

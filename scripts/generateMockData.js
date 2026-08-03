@@ -551,6 +551,11 @@ async function main() {
   const historyById = new Map();
   const sectionHistoryById = new Map();
   const seatsById = new Map();
+  // Only set for events that get a hand-authored recency fixture (see
+  // below) — everything else has no recentSeatActivity.json at all,
+  // exercising the frontend's own fallback-on-404 path (getSectionHistory
+  // convention) for every other card, not just the one with a fixture.
+  const recentSeatActivityById = new Map();
   const overrides = {};
   const autoclass = {};
   const baselineBySeason = new Map();
@@ -850,6 +855,60 @@ async function main() {
   const kalpaGame = events.find((e) => e.name === "SaiPa - KalPa" && e.start.startsWith("2027-01-05"));
   overrides[toDashId(kalpaGame.id)] = { hidden: true };
 
+  // --- Recency fixture: freed/newly-sold seat marks for manual
+  // verification of js/seatMap.js's recency UI (legend toggle, tooltip
+  // lines, section-count rows). Decoupled from this generator's own
+  // sold-history synthesis, which stays monotonic (see buildHistory's own
+  // comment) — mid-timeline sold DECREASES remain deliberately
+  // unsupported here until the release-detection follow-up lands; this
+  // fixture is a static hand-authored snapshot layered onto one event's
+  // already-computed seats.json, not that support having arrived.
+  // Section C4 — visible without zooming, easy to locate by eye — and
+  // both kinds/both zoom-visibilities are covered: one freed seat (always
+  // visible, no zoom gate), and two newly-sold seats (zoom-gated; a fresh
+  // one and one near the 24h cutoff) so the always-visible and
+  // zoom-gated paths both have a real fixture to check against.
+  const kEspooGame = events.find((e) => e.name === "SaiPa - K-Espoo" && e.start.startsWith("2026-09-15"));
+  const kEspooSoldSeatIds = new Set(seatsById.get(kEspooGame.id).soldSeatIds);
+  // Excludes kausikortti-baseline seats from the "sold" pick — a season-
+  // ticket seat renders solid BLACK (kausikortti/myyty share that fill),
+  // against which the newly-sold ring (#5a3d00) is deliberately near-
+  // invisible (documented, accepted edge case — see style.css). Picking
+  // one for the fixture by accident would demo the rare unreadable case
+  // instead of the realistic one (irtolippu, bright yellow, 6.98:1
+  // against the ring). A freed seat has no such concern — it's always
+  // vapaa underneath regardless of baseline membership.
+  const kEspooSeason = autoclass[toDashId(kEspooGame.id)].season;
+  const c4BaselineIds = new Set(baselineSeatsBySeason.get(kEspooSeason)?.C4 ?? []);
+  const c4Pool = seatPoolBySection.C4 ?? [];
+  const c4SoldIds = c4Pool.filter((id) => kEspooSoldSeatIds.has(id) && !c4BaselineIds.has(id));
+  const c4FreeIds = c4Pool.filter((id) => !kEspooSoldSeatIds.has(id));
+  if (c4SoldIds.length < 2 || c4FreeIds.length < 1) {
+    throw new Error(
+      "generateMockData: not enough C4 seats to build the recency fixture (need >=2 non-baseline sold, >=1 free) — " +
+        "check popularity/sectionFractionOverrides for the K-Espoo (2026-09-15) event"
+    );
+  }
+
+  const RECENCY_FIXTURE_NOW_MS = Date.parse(SEASON_2026_27_NOW);
+  const minutesBeforeFixtureNow = (m) => new Date(RECENCY_FIXTURE_NOW_MS - m * 60_000).toISOString();
+
+  recentSeatActivityById.set(kEspooGame.id, {
+    svgHash: "mock-fixture",
+    freed: {
+      [c4FreeIds[0]]: { sinceISO: minutesBeforeFixtureNow(107), detectedAtISO: minutesBeforeFixtureNow(60) },
+    },
+    sold: {
+      // Fresh.
+      [c4SoldIds[0]]: { sinceISO: minutesBeforeFixtureNow(20), detectedAtISO: minutesBeforeFixtureNow(10) },
+      // Near the 24h cutoff.
+      [c4SoldIds[1]]: {
+        sinceISO: minutesBeforeFixtureNow(24 * 60 + 5),
+        detectedAtISO: minutesBeforeFixtureNow(24 * 60 - 10),
+      },
+    },
+  });
+
   // --- Synthetic playoffs games (not in schedule.json — playoffs aren't pre-scheduled) ---
   addEvent({
     id: "90:037",
@@ -1105,6 +1164,39 @@ async function main() {
     }
   }
 
+  // --- Verify the recency fixture agrees with the event's own
+  // soldSeatIds/disabled sections — this is what would catch the fixture
+  // disagreeing with latest.json's own per-section sold figures, which
+  // would otherwise silently show up as the section tooltip's new
+  // "Vapautunut/Myyty viime päivityksissä" row contradicting the numbers
+  // right above it in the same tooltip. Not trusted by hand. ---
+  for (const [eventId, activity] of recentSeatActivityById) {
+    const soldSet = new Set(seatsById.get(eventId).soldSeatIds);
+    const disabledSections = new Set(
+      latestById.get(eventId).sections.filter((s) => s.disabled).map((s) => s.section)
+    );
+    for (const [kind, ids, mustBeSold] of [
+      ["freed", Object.keys(activity.freed), false],
+      ["sold", Object.keys(activity.sold), true],
+    ]) {
+      for (const id of ids) {
+        const section = id.slice(0, id.indexOf("-"));
+        if (!(seatPoolBySection[section] ?? []).includes(id)) {
+          invariantViolations.push(`${eventId}: recentSeatActivity ${kind} id ${id} doesn't exist in the mock SVG`);
+        }
+        if (disabledSections.has(section)) {
+          invariantViolations.push(`${eventId}: recentSeatActivity ${kind} id ${id} is in a disabled section`);
+        }
+        if (soldSet.has(id) !== mustBeSold) {
+          invariantViolations.push(
+            `${eventId}: recentSeatActivity ${kind} id ${id} is ${soldSet.has(id) ? "" : "not "}in soldSeatIds, ` +
+              `expected ${mustBeSold ? "" : "not "}sold`
+          );
+        }
+      }
+    }
+  }
+
   if (invariantViolations.length > 0) {
     throw new Error(
       `generateMockData: ${invariantViolations.length} invariant violation(s):\n` + invariantViolations.join("\n")
@@ -1132,6 +1224,12 @@ async function main() {
     await writeFile(path.join(dir, "history.json"), JSON.stringify(historyById.get(event.id), null, 2) + "\n");
     await writeFile(path.join(dir, "seats.json"), JSON.stringify(seatsById.get(event.id), null, 2) + "\n");
     await writeSectionHistoryIfChanged(path.join(dir, "sectionHistory.json"), sectionHistoryById.get(event.id));
+    if (recentSeatActivityById.has(event.id)) {
+      await writeFile(
+        path.join(dir, "recentSeatActivity.json"),
+        JSON.stringify(recentSeatActivityById.get(event.id), null, 2) + "\n"
+      );
+    }
   }
 
   console.log(`Generated ${events.length} mock events under ${path.relative(repoRoot, mockDir)}/`);

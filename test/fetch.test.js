@@ -519,3 +519,136 @@ test("run() starts a new sectionHistory generation when the capacities SVG chang
   assert.equal(sectionHistory[1].points.length, 1);
   assert.ok(warnings.some((w) => w.includes("[sectionHistory]") && w.includes("new generation")));
 });
+
+function eventHtmlWithUsage(usages) {
+  const usageEntries = Object.entries(usages)
+    .map(([k, v]) => `"${k}": ${v}`)
+    .concat(["seisomakatsomo: 10", "invalid: 1"])
+    .join(", ");
+  return buildMatchEventHtml({
+    id: "53:601",
+    name: "SaiPa - JYP",
+    startMs: Date.parse("2026-10-08T17:30:00.000Z"),
+    stopMs: Date.parse("2026-10-08T20:00:00.000Z"),
+  }).replace(
+    `usages: { "A1-1-001": 1, seisomakatsomo: 10, invalid: 1 }`,
+    `usages: { ${usageEntries} }`
+  );
+}
+
+test("run() records a freed mark in recentSeatActivity.json for a seat sold in run 1 and absent in run 2", async () => {
+  const { dataDir } = await seedDataDir([]);
+  let usages = { "A1-1-001": 1 };
+  const httpClient = {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => `<a href="/saipa/53:601">SaiPa - JYP</a>` };
+      if (url.includes("53:601")) return { text: async () => eventHtmlWithUsage(usages) };
+      if (url.includes("seatmap.svg")) return { text: async () => seatmapSvg };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-31T09:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  usages = {}; // A1-1-001 no longer sold
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-31T09:47:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const activity = JSON.parse(await readFile(path.join(dataDir, "events", "53-601", "recentSeatActivity.json"), "utf8"));
+  assert.deepEqual(activity.freed, {
+    "A1-1-001": { sinceISO: "2026-07-31T09:00:00.000Z", detectedAtISO: "2026-07-31T09:47:00.000Z" },
+  });
+  assert.deepEqual(activity.sold, {});
+});
+
+test("run() twice with identical soldSeatIds writes no new recentSeatActivity.json content (no-change-no-commit)", async () => {
+  const { dataDir } = await seedDataDir([]);
+  const usages = { "A1-1-001": 1 };
+  const httpClient = {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => `<a href="/saipa/53:601">SaiPa - JYP</a>` };
+      if (url.includes("53:601")) return { text: async () => eventHtmlWithUsage(usages) };
+      if (url.includes("seatmap.svg")) return { text: async () => seatmapSvg };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+
+  for (const nowIso of ["2026-07-31T09:00:00.000Z", "2026-07-31T09:47:00.000Z"]) {
+    await run({
+      dataDir,
+      baseUrl: "https://elippu.net/saipa",
+      httpClient,
+      now: () => new Date(nowIso),
+      sleep: async () => {},
+      log: silentLog,
+    });
+  }
+
+  const activityPath = path.join(dataDir, "events", "53-601", "recentSeatActivity.json");
+  const content = await readFile(activityPath, "utf8");
+  const activity = JSON.parse(content);
+  assert.deepEqual(activity.freed, {});
+  assert.deepEqual(activity.sold, {});
+
+  // The file's mtime/content must reflect only the FIRST run's write —
+  // rewritten with byte-identical content on the second run would still
+  // pass writeJsonIfChanged's own no-op check, so re-parse and compare
+  // structurally rather than re-reading mtimes (which this fixture
+  // doesn't control precisely enough to assert on directly).
+  assert.equal(JSON.stringify(JSON.parse(content), null, 2) + "\n", content);
+});
+
+test("run() clears recentSeatActivity.json's marks instead of diffing across a capacities SVG change (FIX 1)", async () => {
+  const { dataDir } = await seedDataDir([]);
+  let usages = { "A1-1-001": 1 };
+  let svgToServe = seatmapSvg;
+  const httpClient = {
+    fetchWithRetry: async (url) => {
+      if (url === "https://elippu.net/saipa") return { text: async () => `<a href="/saipa/53:601">SaiPa - JYP</a>` };
+      if (url.includes("53:601")) return { text: async () => eventHtmlWithUsage(usages) };
+      if (url.includes("seatmap.svg")) return { text: async () => svgToServe };
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  };
+
+  // Run 1: A1-1-001 sold, real SVG.
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-31T09:00:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  // Run 2: A1-1-001 freed AND the arena SVG changes in the same run — a
+  // real diff would read this as a freed mark, but the map it's being
+  // compared against is no longer the same one.
+  usages = {};
+  svgToServe = seatmapSvg + "\n<!-- re-exported -->";
+  await run({
+    dataDir,
+    baseUrl: "https://elippu.net/saipa",
+    httpClient,
+    now: () => new Date("2026-07-31T09:47:00.000Z"),
+    sleep: async () => {},
+    log: silentLog,
+  });
+
+  const activity = JSON.parse(await readFile(path.join(dataDir, "events", "53-601", "recentSeatActivity.json"), "utf8"));
+  assert.deepEqual(activity.freed, {});
+  assert.deepEqual(activity.sold, {});
+});
