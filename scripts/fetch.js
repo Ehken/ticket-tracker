@@ -166,7 +166,16 @@ export async function run({
       const previousActivity = await readJson(recentSeatActivityPath(dataDir, id), null);
       const recency = computeSeatRecency({
         previousSoldSeatIds: previousSeats?.soldSeatIds ?? [],
-        previousSvgHash: previousActivity?.svgHash ?? null,
+        // The hash that gates the diff must be the hash the DIFFED ids
+        // were captured against — previousSeats.svgHash, not whatever
+        // hash the activity file happens to carry. The two agree on
+        // every normal run, but a crash between this run's two writes
+        // (or any future reordering) would leave the activity file's
+        // hash describing a different snapshot than previousSeats'
+        // soldSeatIds — comparing stale ids under a hash that no longer
+        // describes them is exactly the mass-mark bug this guard exists
+        // to prevent.
+        previousSvgHash: previousSeats?.svgHash ?? null,
         currentSvgHash: hash,
         currentSoldSeatIds: soldSeatIds,
         previousFreed: previousActivity?.freed ?? {},
