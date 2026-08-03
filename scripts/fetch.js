@@ -294,8 +294,10 @@ export async function run({
 async function main() {
   const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
   try {
-    const { hadFailure } = await run({ dataDir });
-    process.exit(hadFailure ? 1 : 0);
+    await run({ dataDir });
+    // Always exit with 0 (success) so the pipeline/cron doesn't fail
+    // even if individual games failed and were skipped.
+    process.exit(0); 
   } catch (err) {
     // Doesn't promise "nothing was written" — an error thrown after the
     // per-event loop (e.g. while writing events.json/autoclass.json) can
