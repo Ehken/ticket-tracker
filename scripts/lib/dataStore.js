@@ -37,6 +37,15 @@ export function sectionHistoryPath(dataDir, id) {
   return path.join(eventDir(dataDir, id), "sectionHistory.json");
 }
 
+// Deliberately separate from seats.json (see scripts/lib/seatRecency.js) —
+// its own change-cadence includes pure 24h-decay pruning, which isn't a
+// real change to seats.json's own soldSeatIds/soldAitiot. Carries its own
+// svgHash (the hash the diff was computed against), making it
+// self-contained for the cross-run hash-invalidation check.
+export function recentSeatActivityPath(dataDir, id) {
+  return path.join(eventDir(dataDir, id), "recentSeatActivity.json");
+}
+
 export function capacitiesPath(dataDir, hash) {
   return path.join(dataDir, "capacities", `${hash}.json`);
 }

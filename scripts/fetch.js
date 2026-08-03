@@ -23,6 +23,7 @@ import {
   historyPath,
   seatsPath,
   sectionHistoryPath,
+  recentSeatActivityPath,
   schedulePath,
   autoclassPath,
   overridesPath,
@@ -36,6 +37,7 @@ import {
   appendSectionHistoryPointIfChanged,
   setAutoclassIfAbsent,
 } from "./lib/dataStore.js";
+import { computeSeatRecency } from "./lib/seatRecency.js";
 
 const SHOP_BASE_URL = "https://elippu.net/saipa";
 const EVENT_DELAY_MS = 1500;
@@ -155,11 +157,43 @@ export async function run({
 
       const soldSeatIds = extractSoldSeatIds(map.status.usages);
       warnOnSeatCountMismatch(soldSeatIds, rows, log);
+
+      // Read before this run's own overwrite below — the working tree
+      // still holds the previous run's content at this point. See
+      // scripts/lib/seatRecency.js for why recentSeatActivity.json is a
+      // separate file from seats.json rather than fields on it.
+      const previousSeats = await readJson(seatsPath(dataDir, id), null);
+      const previousActivity = await readJson(recentSeatActivityPath(dataDir, id), null);
+      const recency = computeSeatRecency({
+        previousSoldSeatIds: previousSeats?.soldSeatIds ?? [],
+        // The hash that gates the diff must be the hash the DIFFED ids
+        // were captured against — previousSeats.svgHash, not whatever
+        // hash the activity file happens to carry. The two agree on
+        // every normal run, but a crash between this run's two writes
+        // (or any future reordering) would leave the activity file's
+        // hash describing a different snapshot than previousSeats'
+        // soldSeatIds — comparing stale ids under a hash that no longer
+        // describes them is exactly the mass-mark bug this guard exists
+        // to prevent.
+        previousSvgHash: previousSeats?.svgHash ?? null,
+        currentSvgHash: hash,
+        currentSoldSeatIds: soldSeatIds,
+        previousFreed: previousActivity?.freed ?? {},
+        previousSold: previousActivity?.sold ?? {},
+        previousFetchedAtISO: previousSeats?.fetchedAt ?? null,
+        nowISO,
+      });
+
       await writeJsonIfChanged(seatsPath(dataDir, id), {
         fetchedAt: nowISO,
         svgHash: hash,
         soldSeatIds,
         soldAitiot: soldAitioIds,
+      });
+      await writeJsonIfChanged(recentSeatActivityPath(dataDir, id), {
+        svgHash: hash,
+        freed: recency.freed,
+        sold: recency.sold,
       });
 
       const latest = {
