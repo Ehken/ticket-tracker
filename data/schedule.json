@@ -1,7 +1,7 @@
 [
   { "date": "2026-08-27", "opponent": "Jukurit", "gameType": "harjoitusottelu", "season": "2026-27" },
   { "date": "2026-09-01", "opponent": "Tappara", "gameType": "runkosarja", "season": "2026-27" },
-  { "date": "2026-09-10", "opponent": "Dynamo Pardubice", "gameType": "chl", "season": "2026-27" },
+  { "date": "2026-09-10", "opponent": "HC Dynamo Pardubice", "gameType": "chl", "season": "2026-27" },
   { "date": "2026-09-12", "opponent": "HK Nitra", "gameType": "chl", "season": "2026-27" },
   { "date": "2026-09-15", "opponent": "K-Espoo", "gameType": "runkosarja", "season": "2026-27" },
   { "date": "2026-09-19", "opponent": "KooKoo", "gameType": "runkosarja", "season": "2026-27" },
