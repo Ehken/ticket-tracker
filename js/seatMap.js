@@ -149,7 +149,7 @@ export function buildSeatMapPanel(mergedEvent, latest, { kausikorttiEvents = [] 
         mapContainer.textContent = "Istumakarttaa ei ole saatavilla.";
         return;
       }
-      const recency = resolveRecencyMarks(seats, recentActivity);
+      const recency = resolveRecencyMarks(seats, recentActivity, new Date().toISOString());
 
       const baseline = await resolveBaseline(mergedEvent, seats, kausikorttiEvents);
       const svgText = await getCapacitiesSvg(seats.svgHash);

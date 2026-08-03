@@ -11,6 +11,11 @@ import {
   nearestSeatId,
   resolveRecencyMarks,
 } from "../js/seatMapClassify.js";
+import { RECENCY_CAP_MS } from "../scripts/lib/seatRecency.js";
+
+const RECENCY_HASH = "abc";
+const RECENCY_T0 = "2026-07-31T09:00:00.000Z";
+const RECENCY_T1 = "2026-07-31T09:47:00.000Z";
 
 test("sectionOfSeatId extracts the section prefix before the first dash", () => {
   assert.equal(sectionOfSeatId("A1-12-172"), "A1");
@@ -126,22 +131,53 @@ test("nearestSeatId with no cap (default Infinity) always returns the nearest se
 });
 
 test("resolveRecencyMarks returns the recency file's marks when its svgHash matches seats.json's own", () => {
-  const seats = { svgHash: "abc" };
-  const recentActivity = { svgHash: "abc", freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } }, sold: {} };
-  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), {
-    freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } },
+  const seats = { svgHash: RECENCY_HASH };
+  const recentActivity = {
+    svgHash: RECENCY_HASH,
+    freed: { "A1-1-001": { sinceISO: RECENCY_T0, detectedAtISO: RECENCY_T1 } },
+    sold: {},
+  };
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity, RECENCY_T1), {
+    freed: { "A1-1-001": { sinceISO: RECENCY_T0, detectedAtISO: RECENCY_T1 } },
     sold: {},
   });
 });
 
 test("resolveRecencyMarks discards marks from a recency file whose svgHash disagrees with seats.json's own", () => {
-  const seats = { svgHash: "abc" };
-  const recentActivity = { svgHash: "different", freed: { "A1-1-001": { sinceISO: "t0", detectedAtISO: "t1" } }, sold: {} };
-  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), { freed: {}, sold: {} });
+  const seats = { svgHash: RECENCY_HASH };
+  const recentActivity = {
+    svgHash: "different",
+    freed: { "A1-1-001": { sinceISO: RECENCY_T0, detectedAtISO: RECENCY_T1 } },
+    sold: {},
+  };
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity, RECENCY_T1), { freed: {}, sold: {} });
 });
 
 test("resolveRecencyMarks is empty when there's no recency file yet (fallback-on-404 shape, svgHash null)", () => {
-  const seats = { svgHash: "abc" };
+  const seats = { svgHash: RECENCY_HASH };
   const recentActivity = { svgHash: null, freed: {}, sold: {} };
-  assert.deepEqual(resolveRecencyMarks(seats, recentActivity), { freed: {}, sold: {} });
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity, RECENCY_T1), { freed: {}, sold: {} });
+});
+
+// Mirrors scripts/lib/seatRecency.js's own "expires at exactly the 24h
+// boundary" test exactly (same constants renamed to avoid colliding with
+// that file's own T0/T1/HASH) — the scraper's cap and the frontend's
+// display-time cap must agree on the same instant, not just both round
+// to "about a day".
+test("resolveRecencyMarks: a mark just under the 24h cap survives, at/over it drops — boundary matches seatRecency's own", () => {
+  const seats = { svgHash: RECENCY_HASH };
+  const recentActivity = {
+    svgHash: RECENCY_HASH,
+    freed: { "A1-1-001": { sinceISO: RECENCY_T0, detectedAtISO: RECENCY_T1 } },
+    sold: {},
+  };
+  const detectedAt = new Date(RECENCY_T1).getTime();
+  const justUnder = new Date(detectedAt + RECENCY_CAP_MS - 1).toISOString();
+  const justOver = new Date(detectedAt + RECENCY_CAP_MS).toISOString();
+
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity, justUnder), {
+    freed: { "A1-1-001": { sinceISO: RECENCY_T0, detectedAtISO: RECENCY_T1 } },
+    sold: {},
+  });
+  assert.deepEqual(resolveRecencyMarks(seats, recentActivity, justOver), { freed: {}, sold: {} });
 });

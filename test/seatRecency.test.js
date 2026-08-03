@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { computeSeatRecency, RECENCY_CAP_MS } from "../scripts/lib/seatRecency.js";
 
 const HASH = "abc123";
@@ -166,4 +169,18 @@ test("keys are sorted in the output", () => {
     nowISO: T1,
   });
   assert.deepEqual(Object.keys(result.freed), ["C4-1-001", "C4-1-002", "C4-1-003"]);
+});
+
+// js/seatMapClassify.js imports RECENCY_CAP_MS from here directly (same
+// pattern as scripts/lib/schedule.js being imported by
+// js/dashboardUnclassified.js, guarded by its own test) so the scraper's
+// cap and the frontend's display-time cap can never silently drift to
+// two different numbers. That only works as long as this file never
+// gains a Node-only API — pinned here rather than left an assumption.
+test("scripts/lib/seatRecency.js stays browser-safe (no node: imports, require(), or process.*)", () => {
+  const filePath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "lib", "seatRecency.js");
+  const source = readFileSync(filePath, "utf8");
+  assert.doesNotMatch(source, /\bnode:/);
+  assert.doesNotMatch(source, /\brequire\(/);
+  assert.doesNotMatch(source, /\bprocess\./);
 });

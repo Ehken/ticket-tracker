@@ -175,6 +175,19 @@ export async function run({
         // soldSeatIds — comparing stale ids under a hash that no longer
         // describes them is exactly the mass-mark bug this guard exists
         // to prevent.
+        //
+        // The same crash window has a quieter failure mode this guard
+        // does nothing about: if THIS run's seats.json write succeeds
+        // but the recentSeatActivity.json write below never happens, the
+        // transitions this run just computed are lost, not just delayed.
+        // The next run diffs against a seats.json that already reflects
+        // them (freed seats are already absent from its soldSeatIds), so
+        // it sees no change for those ids and never re-detects the
+        // transition — it never comes into existence at all. Accepted
+        // deliberately: these marks are ephemeral display hints, not
+        // records, and building recovery machinery (e.g. re-deriving a
+        // lost diff from history.json, or making the two writes atomic)
+        // would outweigh the cost of occasionally missing one.
         previousSvgHash: previousSeats?.svgHash ?? null,
         currentSvgHash: hash,
         currentSoldSeatIds: soldSeatIds,
