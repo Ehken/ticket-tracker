@@ -5,6 +5,286 @@
     "start": "2026-07-31T21:00:00.000Z",
     "status": "upcoming",
     "firstSeen": "2026-07-23T11:25:15.625Z",
-    "lastSeen": "2026-08-03T06:50:44.570Z"
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:611",
+    "name": "SaiPa - Tappara",
+    "start": "2026-09-01T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:576",
+    "name": "SaiPa - HC Dynamo Pardubice",
+    "start": "2026-09-10T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:577",
+    "name": "SaiPa - HK Nitra",
+    "start": "2026-09-12T14:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:610",
+    "name": "SaiPa - K-Espoo",
+    "start": "2026-09-15T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:580",
+    "name": "SaiPa - KooKoo",
+    "start": "2026-09-19T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:581",
+    "name": "SaiPa - Ässät",
+    "start": "2026-09-23T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:582",
+    "name": "SaiPa - Jokerit",
+    "start": "2026-10-03T14:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:583",
+    "name": "SaiPa - JYP",
+    "start": "2026-10-08T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:578",
+    "name": "SaiPa - HC Plzen",
+    "start": "2026-10-14T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:584",
+    "name": "SaiPa - HPK",
+    "start": "2026-10-15T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:585",
+    "name": "SaiPa - HIFK",
+    "start": "2026-10-17T14:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:586",
+    "name": "SaiPa - Kärpät",
+    "start": "2026-10-20T15:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:587",
+    "name": "SaiPa - JYP",
+    "start": "2026-10-30T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:588",
+    "name": "SaiPa - Ilves",
+    "start": "2026-11-13T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:589",
+    "name": "SaiPa - TPS",
+    "start": "2026-11-20T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:590",
+    "name": "SaiPa - Lukko",
+    "start": "2026-11-24T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:591",
+    "name": "SaiPa - Jokerit",
+    "start": "2026-11-28T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:592",
+    "name": "SaiPa - Jukurit",
+    "start": "2026-12-05T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:593",
+    "name": "SaiPa - K-Espoo",
+    "start": "2026-12-08T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:594",
+    "name": "SaiPa - Kalpa",
+    "start": "2026-12-11T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:595",
+    "name": "SaiPa - HPK",
+    "start": "2026-12-18T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:596",
+    "name": "SaiPa - Pelicans",
+    "start": "2026-12-28T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:597",
+    "name": "SaiPa - Lukko",
+    "start": "2026-12-30T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:598",
+    "name": "SaiPa - Kalpa",
+    "start": "2027-01-05T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:599",
+    "name": "SaiPa - Ilves",
+    "start": "2027-01-14T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:600",
+    "name": "SaiPa - Kärpät",
+    "start": "2027-01-16T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:601",
+    "name": "SaiPa - HIFK",
+    "start": "2027-01-29T17:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:602",
+    "name": "SaiPa - Sport",
+    "start": "2027-02-05T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:603",
+    "name": "SaiPa - Sport",
+    "start": "2027-02-06T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:604",
+    "name": "SaiPa - KooKoo",
+    "start": "2027-02-19T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:605",
+    "name": "SaiPa - Ässät",
+    "start": "2027-02-23T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:606",
+    "name": "SaiPa - Tappara",
+    "start": "2027-02-27T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:607",
+    "name": "SaiPa - Pelicans",
+    "start": "2027-03-09T16:30:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:608",
+    "name": "SaiPa - TPS",
+    "start": "2027-03-13T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
+  },
+  {
+    "id": "53:609",
+    "name": "SaiPa - Jukurit",
+    "start": "2027-03-20T15:00:00.000Z",
+    "status": "upcoming",
+    "firstSeen": "2026-08-03T07:00:53.894Z",
+    "lastSeen": "2026-08-03T07:00:53.894Z"
   }
 ]

@@ -1,0 +1,273 @@
+{
+  "eventId": "53:610",
+  "name": "SaiPa - K-Espoo",
+  "start": "2026-09-15T15:30:00.000Z",
+  "stop": "2026-09-15T20:00:00.000Z",
+  "fetchedAt": "2026-08-03T07:00:53.894Z",
+  "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
+  "sections": [
+    {
+      "section": "A1",
+      "sold": 58,
+      "available": 113,
+      "hold": 0,
+      "total": 171,
+      "disabled": false
+    },
+    {
+      "section": "A2",
+      "sold": 138,
+      "available": 130,
+      "hold": 0,
+      "total": 268,
+      "disabled": false
+    },
+    {
+      "section": "A3",
+      "sold": 178,
+      "available": 68,
+      "hold": 0,
+      "total": 246,
+      "disabled": false
+    },
+    {
+      "section": "A4",
+      "sold": 181,
+      "available": 63,
+      "hold": 0,
+      "total": 244,
+      "disabled": false
+    },
+    {
+      "section": "A5",
+      "sold": 191,
+      "available": 56,
+      "hold": 0,
+      "total": 247,
+      "disabled": false
+    },
+    {
+      "section": "A6",
+      "sold": 101,
+      "available": 19,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C1",
+      "sold": 23,
+      "available": 85,
+      "hold": 0,
+      "total": 108,
+      "disabled": false
+    },
+    {
+      "section": "C2",
+      "sold": 4,
+      "available": 0,
+      "hold": 116,
+      "total": 120,
+      "disabled": true
+    },
+    {
+      "section": "C3",
+      "sold": 122,
+      "available": 28,
+      "hold": 0,
+      "total": 150,
+      "disabled": false
+    },
+    {
+      "section": "C4",
+      "sold": 116,
+      "available": 4,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C5",
+      "sold": 112,
+      "available": 8,
+      "hold": 0,
+      "total": 120,
+      "disabled": false
+    },
+    {
+      "section": "C6",
+      "sold": 86,
+      "available": 27,
+      "hold": 0,
+      "total": 113,
+      "disabled": false
+    },
+    {
+      "section": "C7",
+      "sold": 56,
+      "available": 0,
+      "hold": 38,
+      "total": 94,
+      "disabled": true
+    },
+    {
+      "section": "C8",
+      "sold": 55,
+      "available": 0,
+      "hold": 50,
+      "total": 105,
+      "disabled": true
+    },
+    {
+      "section": "D1",
+      "sold": 81,
+      "available": 124,
+      "hold": 0,
+      "total": 205,
+      "disabled": false
+    },
+    {
+      "section": "D2",
+      "sold": 3,
+      "available": 0,
+      "hold": 212,
+      "total": 215,
+      "disabled": true
+    },
+    {
+      "section": "seisomakatsomo",
+      "sold": 999,
+      "available": 1139,
+      "hold": 0,
+      "total": 2138,
+      "disabled": false
+    },
+    {
+      "section": "invalid",
+      "sold": 5,
+      "available": 7,
+      "hold": 0,
+      "total": 12,
+      "disabled": false
+    },
+    {
+      "section": "press",
+      "sold": 0,
+      "available": 0,
+      "hold": 24,
+      "total": 24
+    },
+    {
+      "section": "aitiot",
+      "sold": 0,
+      "available": 0,
+      "hold": 156,
+      "total": 156
+    }
+  ],
+  "totals": {
+    "sold": 2509,
+    "available": 1871,
+    "hold": 596,
+    "total": 4976
+  },
+  "prices": {
+    "priceGroups": {
+      "seisomakatsomo": "20",
+      "D1": "22",
+      "C1": "17",
+      "D2": "16",
+      "C2": "18",
+      "A1": "23",
+      "C3": "18",
+      "A2": "17",
+      "C4": "18",
+      "A3": "18",
+      "C5": "18",
+      "A4": "18",
+      "C6": "18",
+      "A5": "17",
+      "C7": "17",
+      "A6": "19",
+      "C8": "17",
+      "invalid": "21"
+    },
+    "productPrices": {
+      "16": {
+        "1060": 38,
+        "1061": 26
+      },
+      "17": {
+        "1060": 38
+      },
+      "18": {
+        "1060": 44
+      },
+      "19": {
+        "958": 26,
+        "1060": 38,
+        "1074": 15
+      },
+      "20": {
+        "1060": 24,
+        "1061": 18,
+        "1073": 12
+      },
+      "21": {
+        "1060": 12
+      },
+      "22": {
+        "1060": 38,
+        "1061": 26,
+        "1074": 15
+      },
+      "23": {
+        "1060": 38,
+        "1061": 26,
+        "1074": 15
+      }
+    },
+    "products": {
+      "958": {
+        "id": "958",
+        "name": "Saimaan keltamustat RY jäsen",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkomyyntipiste"
+      },
+      "1060": {
+        "id": "1060",
+        "name": "Aikuinen",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkokauppa Runkosarja"
+      },
+      "1061": {
+        "id": "1061",
+        "name": "Alennusryhmät",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkokauppa Runkosarja"
+      },
+      "1073": {
+        "id": "1073",
+        "name": "Lapsi 7-18 V",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkokauppa Runkosarja"
+      },
+      "1074": {
+        "id": "1074",
+        "name": "Perhelippu",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkokauppa Runkosarja"
+      }
+    }
+  }
+}
