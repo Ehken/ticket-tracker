@@ -1,3 +1,12 @@
+// scripts/lib/schedule.js is imported the same way by
+// js/dashboardUnclassified.js (guarded there by its own browser-safety
+// test) — this repo has no build step, so a Node-side module reused on
+// the frontend must stay free of node:/require/process for the browser
+// to load it at all. seatRecency.js's own RECENCY_CAP_MS is imported
+// here rather than duplicated so the scraper's cap and the frontend's
+// display-time cap can never silently drift to two different numbers.
+import { RECENCY_CAP_MS } from "../scripts/lib/seatRecency.js";
+
 export const SEAT_STATE = {
   KAUSIKORTTI: "kausikortti",
   IRTOLIPPU: "irtolippu",
@@ -49,11 +58,33 @@ export function nearestSeatId(seatPositions, point, maxDistance = Infinity) {
 // transition period, could leave them momentarily mismatched, and
 // diffing seat ids across two different maps is exactly the phantom-
 // marks bug FIX 1 exists to prevent.
-export function resolveRecencyMarks(seats, recentActivity) {
+//
+// Also enforces the 24h cap at DISPLAY time, not just scrape time — the
+// scraper only prunes an expired mark on its own next run, so without
+// this a mark that crossed 24h between scrapes (or in a long-open tab)
+// would still render. `nowISO` is passed in by the caller rather than
+// read here (e.g. `Date.now()`), so this stays pure and testable; the
+// caller uses the real current time at map build. A tab left open across
+// the cap doesn't get its already-rendered marks re-pruned live — that's
+// accepted, not a gap: this only re-runs on the next card expansion
+// (a fresh map build), and machinery to re-check a static render on a
+// timer isn't worth it for a page people refresh rather than leave open
+// for 24h.
+export function resolveRecencyMarks(seats, recentActivity, nowISO) {
   if (!seats || !recentActivity || recentActivity.svgHash !== seats.svgHash) {
     return { freed: {}, sold: {} };
   }
-  return { freed: recentActivity.freed, sold: recentActivity.sold };
+
+  const now = new Date(nowISO).getTime();
+  function prune(map) {
+    const result = {};
+    for (const [id, entry] of Object.entries(map)) {
+      if (now - new Date(entry.detectedAtISO).getTime() < RECENCY_CAP_MS) result[id] = entry;
+    }
+    return result;
+  }
+
+  return { freed: prune(recentActivity.freed), sold: prune(recentActivity.sold) };
 }
 
 export function buildDisabledSectionSet(sections) {

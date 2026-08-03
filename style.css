@@ -903,13 +903,40 @@ header.site-header h1 {
    inversion the pin/hover priority rule above depends on not happening.
    Subtle by design otherwise: sold marks outnumber freed ones, and
    showing a per-seat ring at default zoom would make the whole map glow.
-   #5a3d00 clears 6.98:1 against the irtolippu yellow fill (the realistic
-   case for a newly-sold seat); against the black kausikortti/myyty fill
-   it measures only 1.74:1, effectively invisible — accepted: a season-
-   ticket seat flipping to sold within one run is a rare edge case, and
-   the ring is meant to read as subtle regardless. */
+   (The zoom gate itself is a considered mark-volume decision for match
+   events, which only arrive once the season's matches go on sale —
+   judged against real match-day data when it exists, not revisited here.)
+
+   #0977ae was picked to clear 3:1 against BOTH solid fills at once,
+   after the original #5a3d00 turned out invisible against the fill that
+   actually occurs today: every event live so far is the season-ticket
+   event, where every sold seat is the black kausikortti/myyty fill, not
+   the yellow irtolippu fill #5a3d00 was tuned for (6.98:1 there, but
+   only 1.74:1 against black — confirmed on live: six real marks in C2,
+   correct in the section tooltip, invisible on the map even fully
+   zoomed). The two fills bound a luminance window of [0.131, 0.194] —
+   3:1 over #1a1a1a needs relative luminance >= 0.131; 3:1 under #ffd400
+   needs <= 0.194 — and #0977ae sits at 0.163, comfortably inside both
+   ways (3.53:1 / 3.44:1). Also checked against sand (4.11:1) and the
+   paper background (4.81:1), since a newly-sold seat can sit next to
+   free ones.
+
+   #0977ae vs. the freed ring #8a6d00 measures exactly 1.00:1 — not a
+   near-miss, mathematically unavoidable: WCAG contrast is a function of
+   luminance alone, #8a6d00 (0.163) already sits inside this same narrow
+   window (see its own comment above), so ANY colour landing in-window
+   scores ~1.00 against it — hue can't buy contrast back at a fixed
+   luminance. Checked, not assumed, by scanning candidate hues across the
+   window: every one landed at 1.00-1.01. Accepted, not patched with a
+   stroke-weight bump here, because ring-colour collision was never what
+   separated freed from newly-sold in the first place — freed is hollow
+   (sand-coloured centre) and newly-sold is solid (the seat's own dark/
+   yellow fill); that fill-vs-hollow cue is the same shape-over-hue
+   principle behind every other distinction on this map, and it holds
+   regardless of what the two rings' own colours measure against each
+   other. */
 .seatmap-svg--newly-sold-visible .seat.newly-sold {
-  stroke: #5a3d00;
+  stroke: #0977ae;
 }
 
 /* PROTOTYPE (seat-level tap-to-identify) — same pin/hover treatment as
@@ -1309,13 +1336,13 @@ header.site-header h1 {
 }
 
 .seatmap-legend__swatch--newly-sold {
-  /* Represents the realistic case (irtolippu yellow — see .seat.newly-
-     sold's own comment on why the ring is close to invisible against the
-     rarer black kausikortti/myyty fill) with the ring colour on the
+  /* Represents the irtolippu-yellow case (see .seat.newly-sold's own
+     comment for why #0977ae was picked to clear 3:1 against BOTH solid
+     fills at once, not just this one) with the ring colour on the
      border instead of the default. */
   background: var(--seat-irtolippu);
   border-width: 2px;
-  border-color: #5a3d00;
+  border-color: #0977ae;
 }
 
 .seatmap-legend__item--recency-toggle {

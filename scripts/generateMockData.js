@@ -870,14 +870,17 @@ async function main() {
   // zoom-gated paths both have a real fixture to check against.
   const kEspooGame = events.find((e) => e.name === "SaiPa - K-Espoo" && e.start.startsWith("2026-09-15"));
   const kEspooSoldSeatIds = new Set(seatsById.get(kEspooGame.id).soldSeatIds);
-  // Excludes kausikortti-baseline seats from the "sold" pick — a season-
-  // ticket seat renders solid BLACK (kausikortti/myyty share that fill),
-  // against which the newly-sold ring (#5a3d00) is deliberately near-
-  // invisible (documented, accepted edge case — see style.css). Picking
-  // one for the fixture by accident would demo the rare unreadable case
-  // instead of the realistic one (irtolippu, bright yellow, 6.98:1
-  // against the ring). A freed seat has no such concern — it's always
-  // vapaa underneath regardless of baseline membership.
+  // Excludes kausikortti-baseline seats from the "sold" pick — keeps this
+  // fixture demoing the irtolippu (bright yellow) case specifically,
+  // rather than leaving it to chance which underlying fill the picked
+  // seat happens to have. The newly-sold ring colour (#0977ae, see
+  // style.css) is now derived to clear 3:1 against both the irtolippu
+  // AND the kausikortti/myyty fill, so this exclusion is no longer load-
+  // bearing for visibility the way it once was — kept anyway for a
+  // predictable, single fixture rather than one that depends on which
+  // seats a given season's baseline happens to cover. A freed seat has
+  // no such concern either way — it's always vapaa underneath regardless
+  // of baseline membership.
   const kEspooSeason = autoclass[toDashId(kEspooGame.id)].season;
   const c4BaselineIds = new Set(baselineSeatsBySeason.get(kEspooSeason)?.C4 ?? []);
   const c4Pool = seatPoolBySection.C4 ?? [];

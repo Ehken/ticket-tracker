@@ -62,6 +62,23 @@ export function computeSeatRecency({
   const freed = { ...previousFreed };
   const sold = { ...previousSold };
 
+  // The `if (!(id in freed/sold))` guards below are unreachable under
+  // consistent inputs: an id entering `freed` here is, by definition,
+  // one this run found in prevSoldSet (sold as of the previous
+  // snapshot) — and the only way it could ALSO already be sitting in
+  // `freed` from an earlier run is if it had been marked free without
+  // ever leaving previousSoldSeatIds, which the two loops here never
+  // allow (the moment an id flips either direction, the mirror loop
+  // deletes any stale mark in the map it's leaving). So under normal
+  // operation this branch always sees a fresh id, never one already
+  // present. They matter only if the persisted files were desynced by
+  // something outside this function's own guarantees — a hand-edited
+  // recentSeatActivity.json, or a bug elsewhere that violates the
+  // invariant above — in which case they preserve the OLDER mark's
+  // original sinceISO/detectedAtISO rather than resetting the clock to
+  // this run. Left in deliberately, as a safety net for exactly that
+  // case, not because the normal path can reach them — don't "simplify"
+  // them away.
   for (const id of prevSoldSet) {
     if (!currSoldSet.has(id)) {
       delete sold[id]; // re-sold, then freed again within one diff step can't happen — this is the freed mirror
