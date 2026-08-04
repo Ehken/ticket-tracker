@@ -351,6 +351,40 @@ test("updateSeasonBaselines keeps the last clean derivation when the remaining g
   assert.equal(history.length, 1, "no new history point while frozen");
 });
 
+test("updateSeasonBaselines never touches a kausikortti frozen via overrides.json, even when re-derivation would succeed", async () => {
+  const { dataDir, index, overrides, autoclass } = await seedDataDir();
+  await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO: "t1", log: silentLog });
+  const before = await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8");
+
+  // A new seat becomes sold in every game — without the pin, the derived
+  // set would legitimately grow on the next run.
+  for (let i = 1; i <= MIN_GAMES_FOR_DERIVATION; i++) {
+    await seedEvent(dataDir, `90-${String(i).padStart(3, "0")}`, game({ sold: [...SEASON_SEATS, "C3-2-002"] }));
+  }
+
+  const frozenOverrides = { ...overrides, "90-000": { ...overrides["90-000"], seasonBaselineFrozen: true } };
+  await updateSeasonBaselines({
+    dataDir,
+    index,
+    overrides: frozenOverrides,
+    autoclass,
+    nowISO: "t2",
+    log: silentLog,
+  });
+
+  const after = await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8");
+  assert.equal(after, before, "pinned file must stay byte-identical");
+  const history = JSON.parse(
+    await readFile(path.join(dataDir, "events", "90-000", "seasonBaselineHistory.json"), "utf8")
+  );
+  assert.equal(history.length, 1, "no new history point while pinned");
+
+  // Removing the flag re-derives on the next run and picks up the growth.
+  await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO: "t3", log: silentLog });
+  const rederived = JSON.parse(await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8"));
+  assert.ok(rederived.seatIds.includes("C3-2-002"));
+});
+
 test("updateSeasonBaselines skips an archived kausikortti listing entirely", async () => {
   const { dataDir, index, overrides, autoclass } = await seedDataDir({ kkStatus: "past" });
 

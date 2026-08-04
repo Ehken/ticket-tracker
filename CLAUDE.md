@@ -68,7 +68,10 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   seasons with no derived file. The derivation freezes (keeps the last
   file) when its evidence runs out: fewer than 5 usable upcoming games,
   or fewer than 3 of them under 90% fill — a sold-out season tail must
-  never creep the count toward full capacity.
+  never creep the count toward full capacity. It can also be frozen by
+  hand: `seasonBaselineFrozen: true` on the kausikortti event in
+  `overrides.json` (human-owned, like every overrides field) pins the
+  derived files exactly as they are until the flag is removed.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never

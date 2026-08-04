@@ -167,6 +167,19 @@ export async function updateSeasonBaselines({ dataDir, index, overrides, autocla
   const kausikorttiEvents = classified.filter((c) => c.gameType === "kausikortti" && c.season != null);
   for (const kk of kausikorttiEvents) {
     try {
+      // Manual, human-owned pin (overrides.json is never written by code):
+      // with seasonBaselineFrozen set, the derived files on disk are the
+      // permanent baseline and this run must not touch them — no rewrite,
+      // no history point. The intended workflow is to let the derivation
+      // run while its evidence is strong (plenty of games with free
+      // capacity), then set this flag to lock the result in for the rest
+      // of the season; removing the flag for one scrape re-derives and
+      // updates the pinned files.
+      if (overrides[eventDirId(kk.entry.id)]?.seasonBaselineFrozen === true) {
+        log.log(`[seasonBaseline] ${kk.entry.id}: frozen via overrides.json — leaving existing files untouched`);
+        continue;
+      }
+
       if (kk.entry.status !== "upcoming") continue; // archived listing: keep the frozen derived file as-is
 
       const kausikorttiSeats = await readJson(seatsPath(dataDir, kk.entry.id), null);
