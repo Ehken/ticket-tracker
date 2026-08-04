@@ -403,17 +403,22 @@ export function buildCard(
     // the tracker lags.
     const derivedNote = document.createElement("p");
     derivedNote.className = "card__note";
-    derivedNote.textContent =
-      "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan paikka, " +
-      "joka on myyty kauden jokaiseen otteluun." +
-      // The pin is a display-relevant fact, not just scraper plumbing: a
-      // visitor comparing the card against the shop needs to know this
-      // number is deliberately held still, not lagging.
-      (mergedEvent.seasonBaselineFrozen
-        ? " Luku on lukittu eikä päivity automaattisesti; se tarkistetaan käsin kauden aikana."
-        : "") +
-      " Lippukaupan oma luku olisi suurempi, koska yksittäisen ottelulipun osto varaa paikan myös " +
-      "kausikorttilistauksesta.";
+    // Two variants, not a shared base with an inserted sentence: the pinned
+    // number's honest description ("an estimate, anchored to pre-single-
+    // sales seats, manually reviewed") differs in kind from the live
+    // derivation's ("recomputed from per-game data every scrape"), not just
+    // by one clause. Both end by attributing the raw figure to elippu.net's
+    // DATA rather than to a number the shop displays — the shop shows no
+    // season-ticket count anywhere; we compute it from their seat data.
+    derivedNote.textContent = mergedEvent.seasonBaselineFrozen
+      ? "Kausikorttimäärä on arvio: pohjana ovat ennen yksittäisten ottelulippujen myynnin alkamista " +
+        "myydyt paikat. Luku on lukittu ja tarkistetaan käsin kauden aikana, joten se voi ajoittain " +
+        "poiketa todellisesta esimerkiksi peruutusten vuoksi. Suoraan elippu.net-kaupan datasta " +
+        "laskettu luku olisi tätä suurempi, koska ottelulipun osto varaa paikan myös " +
+        "kausikorttilistauksesta."
+      : "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan " +
+        "paikka, joka on myyty kauden jokaiseen otteluun. Suoraan elippu.net-kaupan datasta laskettu " +
+        "luku olisi tätä suurempi, koska ottelulipun osto varaa paikan myös kausikorttilistauksesta.";
     article.append(derivedNote);
   }
 
