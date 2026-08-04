@@ -39,9 +39,8 @@ import {
 } from "./dashboardForecast.js";
 import { computeKiirehdiRanking, computeOpponentDemand, computeSectionSelloutRank } from "./dashboardRankings.js";
 import {
-  WEEKDAY_LABELS,
-  computeWeekdayFillRates,
-  computeMonthTrend,
+  computeWeekdayAttendance,
+  computeMonthAttendance,
   computePurchaseTimingProfile,
 } from "./dashboardTiming.js";
 import { heatColor } from "./dashboardHeatmap.js";
@@ -216,6 +215,10 @@ function buildHeroTiles(state) {
       value: formatThousands(irtoliput),
       sub: delta === null ? undefined : `${formatDelta(delta)} / 24 h`,
       subClass: delta !== null && delta > 0 ? "dashboard-tile__sub--up" : undefined,
+      info:
+        "24 h -muutos on nettomuutos kaikista otteluista yhteens\u00e4: uudet myynnit miinus " +
+        "vapautuneet paikat (esim. rauenneet varaukset). Trendaa nyt n\u00e4ytt\u00e4\u00e4 yksitt\u00e4isten " +
+        "otteluiden suurimmat nousut, joten sen luvut voivat olla t\u00e4t\u00e4 suurempia.",
     })
   );
 
@@ -609,36 +612,27 @@ function buildTimingPanel(state) {
   const { inScope, inScopeWithHistory, baselineIndex } = state;
   const subs = [];
 
-  const weekdayFill = computeWeekdayFillRates(inScope, baselineIndex);
-  if (weekdayFill?.length > 0) {
-    subs.push([
-      "Täyttöaste viikonpäivittäin",
-      weekdayFill.map((row) =>
-        buildRowBar({
-          label: row.label ?? WEEKDAY_LABELS[row.weekday] ?? String(row.weekday),
-          value: formatFraction(row.avgIrtolippuFillPct),
-          kkFraction: 0,
-          ilFraction: row.avgIrtolippuFillPct ?? 0,
-          meta: null,
-        })
-      ),
-    ]);
+  // Average attendance, not irtolippu fill%, as the headline (the same
+  // scale as Vastustajat): the season-ticket base dominates real arena
+  // fullness, so fill%-only rows read as "everything is 0-3%" all season.
+  const maxTotal = inScope.length > 0 ? Math.max(...inScope.map((e) => e.latest.totals.total)) : 1;
+  const attendanceRow = (row) =>
+    buildRowBar({
+      label: `${row.label} (${row.gameCount})`,
+      value: formatThousands(Math.round(row.avgAttendance)),
+      kkFraction: row.avgKk / maxTotal,
+      ilFraction: (row.avgAttendance - row.avgKk) / maxTotal,
+      meta: `irtolippujen täyttö ${formatFraction(row.avgIrtolippuFillPct)}`,
+    });
+
+  const weekdayAttendance = computeWeekdayAttendance(inScope, baselineIndex);
+  if (weekdayAttendance?.length > 0) {
+    subs.push(["Yleisökeskiarvo viikonpäivittäin", weekdayAttendance.map(attendanceRow)]);
   }
 
-  const monthTrend = computeMonthTrend(inScope, baselineIndex);
-  if (monthTrend?.length > 0) {
-    subs.push([
-      "Kuukausitrendi",
-      monthTrend.map((row) =>
-        buildRowBar({
-          label: row.key,
-          value: formatFraction(row.avgIrtolippuFillPct),
-          kkFraction: 0,
-          ilFraction: row.avgIrtolippuFillPct ?? 0,
-          meta: null,
-        })
-      ),
-    ]);
+  const monthAttendance = computeMonthAttendance(inScope, baselineIndex);
+  if (monthAttendance?.length > 0) {
+    subs.push(["Yleisökeskiarvo kuukausittain", monthAttendance.map(attendanceRow)]);
   }
 
   const pastEvents = inScopeWithHistory.filter((e) => e.status === "past");

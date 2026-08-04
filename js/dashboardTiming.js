@@ -53,6 +53,53 @@ function average(values) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+// Average total attendance (sold tickets) per group, with the kausikortti
+// share alongside for stacked-bar rendering — the same scale the
+// Vastustajat panel speaks. Irtolippu fill% is kept as a secondary field
+// for the meta line: on its own it made these panels read as "everything
+// is 0-3%" all season, because the season-ticket base dominates actual
+// arena fullness. Shared by the weekday and month groupings below.
+function attendanceRows(matchEvents, baselineIndex, keyOf) {
+  const groups = new Map();
+  for (const event of matchEvents) {
+    const key = keyOf(event);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  }
+  if (groups.size < 2) return null;
+
+  return [...groups.entries()].map(([key, events]) => {
+    const avgAttendance = events.reduce((s, e) => s + e.latest.totals.sold, 0) / events.length;
+    const avgKk =
+      events.reduce((s, e) => {
+        const baseline = baselineForEvent(e, baselineIndex);
+        return s + Math.min(baseline.totalSold, e.latest.totals.sold);
+      }, 0) / events.length;
+    const fillPcts = events.map((e) => gameIrtolippuFillPct(e, baselineIndex)).filter((v) => v !== null);
+    return {
+      key,
+      avgAttendance,
+      avgKk,
+      avgIrtolippuFillPct: fillPcts.length > 0 ? average(fillPcts) : null,
+      gameCount: events.length,
+    };
+  });
+}
+
+export function computeWeekdayAttendance(matchEvents, baselineIndex) {
+  const rows = attendanceRows(matchEvents, baselineIndex, (e) => helsinkiWeekday(e.start));
+  if (!rows) return null;
+  return rows
+    .map((row) => ({ ...row, weekday: row.key, label: WEEKDAY_LABELS[row.key] }))
+    .sort((a, b) => a.weekday - b.weekday);
+}
+
+export function computeMonthAttendance(matchEvents, baselineIndex) {
+  const rows = attendanceRows(matchEvents, baselineIndex, (e) => helsinkiYearMonthKey(e.start));
+  if (!rows) return null;
+  return rows.map((row) => ({ ...row, label: row.key })).sort((a, b) => a.key.localeCompare(b.key));
+}
+
 export function computeWeekdayFillRates(matchEvents, baselineIndex) {
   const byWeekday = new Map();
 

@@ -9,7 +9,10 @@ import {
   computeWeekdayTierGrid,
   computeMonthTrend,
   computePurchaseTimingProfile,
+  computeWeekdayAttendance,
+  computeMonthAttendance,
 } from "../js/dashboardTiming.js";
+import { buildBaselineIndex } from "../js/dashboardBaseline.js";
 
 const EMPTY_BASELINE_INDEX = new Map();
 
@@ -175,4 +178,51 @@ test("computePurchaseTimingProfile only considers past events with a resolvable 
   assert.ok(profile);
   const total = profile.reduce((sum, w) => sum + w.gameCount, 0);
   assert.equal(total, 2);
+});
+
+// --- attendance-based weekday/month groupings (dashboard redesign follow-up) ---
+
+test("computeWeekdayAttendance averages total attendance per weekday with the kausikortti share alongside", () => {
+  const baselineIndex = buildBaselineIndex([
+    { id: "kk", season: "2026-27", latest: { totals: { sold: 2000 }, sections: [] } },
+  ]);
+  const game = (start, sold) => ({
+    season: "2026-27",
+    start,
+    latest: { totals: { sold, total: 4976 }, sections: [] },
+  });
+  const rows = computeWeekdayAttendance(
+    [
+      game("2026-09-04T14:30:00Z", 3000), // Friday
+      game("2026-09-11T14:30:00Z", 4000), // Friday
+      game("2026-09-08T14:30:00Z", 2400), // Tuesday
+    ],
+    baselineIndex
+  );
+  const friday = rows.find((r) => r.label === "Perjantai");
+  assert.equal(friday.avgAttendance, 3500);
+  assert.equal(friday.avgKk, 2000);
+  assert.equal(friday.gameCount, 2);
+  const tuesday = rows.find((r) => r.label === "Tiistai");
+  assert.equal(tuesday.avgAttendance, 2400);
+  // ordered Monday-first
+  assert.deepEqual(rows.map((r) => r.label), ["Tiistai", "Perjantai"]);
+});
+
+test("computeWeekdayAttendance and computeMonthAttendance need at least two groups", () => {
+  const baselineIndex = buildBaselineIndex([]);
+  const one = [{ season: null, start: "2026-09-04T14:30:00Z", latest: { totals: { sold: 3000, total: 4976 }, sections: [] } }];
+  assert.equal(computeWeekdayAttendance(one, baselineIndex), null);
+  assert.equal(computeMonthAttendance(one, baselineIndex), null);
+});
+
+test("computeMonthAttendance groups by Helsinki year-month in order", () => {
+  const baselineIndex = buildBaselineIndex([]);
+  const game = (start, sold) => ({ season: null, start, latest: { totals: { sold, total: 4976 }, sections: [] } });
+  const rows = computeMonthAttendance(
+    [game("2026-10-04T14:30:00Z", 3000), game("2026-09-04T14:30:00Z", 2500), game("2026-10-20T14:30:00Z", 3400)],
+    baselineIndex
+  );
+  assert.deepEqual(rows.map((r) => r.key), ["2026-09", "2026-10"]);
+  assert.equal(rows[1].avgAttendance, 3200);
 });

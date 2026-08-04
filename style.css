@@ -621,7 +621,10 @@ header.site-header h1 {
 
 .dashboard-hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  /* 140px, not 150px: the body's own max-width caps the container at
+     ~928px, and 6×150 + gaps > 928 — the sixth tile wrapped onto its own
+     orphan row at exactly the width most desktops render at. 6×140 fits. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.6rem;
   margin-bottom: 1rem;
 }
