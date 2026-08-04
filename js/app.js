@@ -73,7 +73,7 @@ function renderSiteNav() {
     link.textContent = "← Lipputilanne";
   } else {
     params.set("dashboard", "1");
-    link.textContent = "Kojelauta →";
+    link.textContent = "Lipunmyynti lukuina →";
   }
   const query = params.toString();
   link.href = `${window.location.pathname}${query ? `?${query}` : ""}`;

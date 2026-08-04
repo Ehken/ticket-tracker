@@ -187,10 +187,10 @@ npm run generate-mock
 joten sama komento tuottaa saman lopputuloksen uudelleen ajettuna (ellei
 generointilogiikkaa tai `data/schedule.json`:ää muuteta).
 
-## Kojelauta (`?dashboard=1`)
+## Lipunmyynti lukuina (`?dashboard=1`)
 
 `.../?dashboard=1` näyttää seuranta-/analytiikkanäkymän — linkitetty
-etusivun otsikosta ("Kojelauta →") ja takaisin. Sisältö:
+etusivun otsikosta ("Lipunmyynti lukuina →") ja takaisin. Sisältö:
 
 - **Tunnusluvut**: kausikortit, myydyt irtoliput (+24 h muutos),
   yleisökeskiarvo pelatuista, yleisökeskiarvo nykymyynnillä (alaraja),
