@@ -744,7 +744,12 @@ async function main() {
     historyPoints: 14,
     pinnedBaseline: pinned2026_27Baseline, // real data — popularity is unused, sections come from the snapshot
   });
-  overrides[toDashId(kausikorttiId)] = { gameType: "kausikortti", season: "2026-27" };
+  // seasonBaselineFrozen mirrors production (the 2026-27 baseline is
+  // manually pinned via the real overrides.json) so ?mock=1 exercises the
+  // frozen variant of the kausikortti card's derived-baseline note. The
+  // mock generator itself ignores the flag — it always (re)generates the
+  // derived files; only the scraper's updateSeasonBaselines honors it.
+  overrides[toDashId(kausikorttiId)] = { gameType: "kausikortti", season: "2026-27", seasonBaselineFrozen: true };
 
   addEvent({
     id: "90:901",

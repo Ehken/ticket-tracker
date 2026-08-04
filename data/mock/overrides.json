@@ -5,7 +5,8 @@
   },
   "90-000": {
     "gameType": "kausikortti",
-    "season": "2026-27"
+    "season": "2026-27",
+    "seasonBaselineFrozen": true
   },
   "90-901": {
     "gameType": "kausikortti",
