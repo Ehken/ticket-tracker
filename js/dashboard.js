@@ -116,6 +116,35 @@ function buildRowBar({ label, value, kkFraction, ilFraction, meta }) {
   return row;
 }
 
+// Ranked panels show the top ROW_LIMIT rows and fold the rest behind a
+// toggle — one tall list (15 opponents) otherwise stretches its whole grid
+// row and hands every neighbouring panel dead vertical space.
+const ROW_LIMIT = 5;
+
+function appendExpandableRows(panel, rows, limit = ROW_LIMIT) {
+  for (const row of rows.slice(0, limit)) panel.append(row);
+  if (rows.length <= limit) return;
+
+  const rest = document.createElement("div");
+  rest.hidden = true;
+  for (const row of rows.slice(limit)) rest.append(row);
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "dashboard-expand-toggle";
+  const collapsedLabel = `Näytä kaikki (${rows.length})`;
+  toggle.textContent = collapsedLabel;
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.addEventListener("click", () => {
+    const open = rest.hidden;
+    rest.hidden = !open;
+    toggle.textContent = open ? "Näytä vähemmän" : collapsedLabel;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+
+  panel.append(rest, toggle);
+}
+
 function buildTile({ label, value, sub, subClass, tag, info }) {
   const tile = document.createElement("div");
   tile.className = "dashboard-tile";
@@ -382,7 +411,8 @@ function buildKiirehdiPanel(state) {
   if (ranking.length === 0) return null;
 
   const panel = buildPanel("Kiirehdi");
-  for (const { event, irtolippuFillPct: fillPct, premiumTriggers } of ranking.slice(0, 8)) {
+  const rows = [];
+  for (const { event, irtolippuFillPct: fillPct, premiumTriggers } of ranking) {
     const totals = event.latest.totals;
     const baseline = baselineForEvent(event, baselineIndex);
     const kk = Math.min(baseline.totalSold, totals.sold);
@@ -411,7 +441,7 @@ function buildKiirehdiPanel(state) {
       metaNode.append(est);
     }
 
-    panel.append(
+    rows.push(
       buildRowBar({
         label: `${event.name} ${formatHelsinkiDate(event.start)}`,
         value: fillPct !== null ? formatFraction(fillPct) : formatPercent(totals.sold, totals.total),
@@ -421,6 +451,43 @@ function buildKiirehdiPanel(state) {
       })
     );
   }
+  appendExpandableRows(panel, rows);
+  return panel;
+}
+
+// Top-selling games by total sold tickets — the "which single games are
+// hottest" complement to Trendaa nyt's velocity view and Vastustajat's
+// per-opponent averages.
+function buildTopGamesPanel(state) {
+  const { inScope, baselineIndex } = state;
+  if (inScope.length === 0) return null;
+
+  const maxTotal = Math.max(...inScope.map((e) => e.latest.totals.total));
+  const panel = buildPanel("Myydyimmät ottelut", "myydyt liput yhteensä");
+
+  const rows = [...inScope]
+    .sort((a, b) => b.latest.totals.sold - a.latest.totals.sold)
+    .map((event) => {
+      const totals = event.latest.totals;
+      const baseline = baselineForEvent(event, baselineIndex);
+      const kk = Math.min(baseline.totalSold, totals.sold);
+      const irtoliput = Math.max(0, totals.sold - kk);
+      const metaParts = [
+        formatHelsinkiDate(event.start),
+        `irtolippuja ${formatThousands(irtoliput)}`,
+        `täyttö ${formatPercent(totals.sold, totals.total)}`,
+      ];
+      if (totals.total > 0 && totals.available === 0) metaParts.push("loppuunmyyty");
+      return buildRowBar({
+        label: event.name,
+        value: formatThousands(totals.sold),
+        kkFraction: kk / maxTotal,
+        ilFraction: irtoliput / maxTotal,
+        meta: metaParts.join(" · "),
+      });
+    });
+
+  appendExpandableRows(panel, rows);
   return panel;
 }
 
@@ -446,18 +513,17 @@ function buildOpponentsPanel(state) {
     })
     .sort((a, b) => b.avgAttendance - a.avgAttendance);
 
-  for (const { entry, avgAttendance, avgKk, avgIrtoliput } of rows.slice(0, 12)) {
+  const rowEls = rows.map(({ entry, avgAttendance, avgKk, avgIrtoliput }) => {
     const tags = sarja === "kaikki" ? ` · ${entry.gameTypes.map((gt) => gameTypeLabel(gt)).join(", ")}` : "";
-    panel.append(
-      buildRowBar({
-        label: `${entry.opponent} (${entry.gameCount})`,
-        value: formatThousands(Math.round(avgAttendance)),
-        kkFraction: avgKk / maxTotal,
-        ilFraction: (avgAttendance - avgKk) / maxTotal,
-        meta: `irtolippuja ka. ${formatThousands(Math.round(avgIrtoliput))} · täyttö ${formatFraction(entry.avgIrtolippuFillPct)}${tags}`,
-      })
-    );
-  }
+    return buildRowBar({
+      label: `${entry.opponent} (${entry.gameCount})`,
+      value: formatThousands(Math.round(avgAttendance)),
+      kkFraction: avgKk / maxTotal,
+      ilFraction: (avgAttendance - avgKk) / maxTotal,
+      meta: `irtolippuja ka. ${formatThousands(Math.round(avgIrtoliput))} · täyttö ${formatFraction(entry.avgIrtolippuFillPct)}${tags}`,
+    });
+  });
+  appendExpandableRows(panel, rowEls);
   return panel;
 }
 
@@ -757,6 +823,7 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
 
     const panels = [
       timeline,
+      buildTopGamesPanel(state),
       buildTrendsPanel(state),
       buildKiirehdiPanel(state),
       buildOpponentsPanel(state),
