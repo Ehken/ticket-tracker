@@ -187,12 +187,46 @@ npm run generate-mock
 joten sama komento tuottaa saman lopputuloksen uudelleen ajettuna (ellei
 generointilogiikkaa tai `data/schedule.json`:ää muuteta).
 
-## Yksityinen esikatselu (`?dashboard=1`)
+## Kojelauta (`?dashboard=1`)
 
-`.../?dashboard=1` näyttää normaalin sivun sijaan sisäisen
-seuranta-/analytiikkanäkymän (myyntinopeudet, sellout-ennusteet,
-top-liikkujat) — ei linkitetty navigaatiosta. Sisääntulokohta:
-`js/urlState.js`:n `IS_DASHBOARD`.
+`.../?dashboard=1` näyttää seuranta-/analytiikkanäkymän — linkitetty
+etusivun otsikosta ("Kojelauta →") ja takaisin. Sisältö:
+
+- **Tunnusluvut**: kausikortit, myydyt irtoliput (+24 h muutos),
+  yleisökeskiarvo pelatuista, yleisökeskiarvo nykymyynnillä (alaraja),
+  loppuunmyytyjen määrä ja seuraava ottelu. Sarjasuodatin (oletuksena
+  Runkosarja) rajaa kaiken paitsi kausikorttiluvun.
+- **Yleisömäärä ottelu kerrallaan**: pinottu pylväs per ottelu
+  (kausikortit + irtoliput), tulevat ottelut vaalennettuina,
+  loppuunmyydyt merkittyinä.
+- **Yleisöennuste** (`js/dashboardForecast.js`): tulevan ottelun
+  lopullinen yleisömäärä ennustetaan kauden omista myyntikäyristä
+  ("paljonko irtolippuja tyypillisesti myydään vielä D päivää ennen
+  ottelua"), kerrottuna vastustaja- ja viikonpäiväkertoimilla, jotka
+  lasketaan aiempien kausien yleisömääristä
+  (`data/attendanceHistory.json`, ks. alla). Ennuste näytetään sivulla
+  vasta kun kaudelta on vähintään 5 pelattua ottelua; sitä ennen sen
+  saa näkyviin parametrilla `?forecast=1` (kokeellinen tila, joka ennen
+  pelattuja otteluita perustuu pelkkiin historiallisiin kertoimiin).
+  Malli ei näe joukkueen menestystä, TV-valintoja eikä säätä.
+- **Kiirehdi**, **Vastustajat** (yleisökeskiarvo), **Katsomot**
+  (halli lämpökarttana), **Viikonpäivät ja ajankohdat** — tyhjät osiot
+  piilotetaan kokonaan.
+
+### Historiallinen yleisödata (`data/attendanceHistory.json`)
+
+SaiPan kotiotteluiden ilmoitetut yleisömäärät viimeisiltä päättyneiltä
+kausilta, liiga.fi:n julkisesta rajapinnasta. Haetaan kertaluonteisesti
+(EI osa tunneittaista scrapea):
+
+```bash
+node scripts/fetchAttendanceHistory.js
+```
+
+Aja komento, tarkista diff ja committaa. Jos tiedostoa ei ole, ennuste
+toimii ilman vastustaja-/viikonpäiväkertoimia (kertoimet ≡ 1) eikä
+mikään muu riko. Päivitä kauden päätyttyä lisäämällä uusi kausi
+skriptin `API_SEASONS`-listaan.
 
 ## Ajaminen paikallisesti
 

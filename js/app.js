@@ -56,6 +56,30 @@ function renderUpdatedAt(events) {
   el.textContent = `Päivitetty ${formatHelsinkiTime(latestSeen)}`;
 }
 
+// Two-way navigation between the front page and the dashboard. Built in
+// JS rather than as a static href so the link carries the CURRENT query
+// params (kausi, mock, …) across — a dashboard link that dropped ?mock=1
+// would silently flip the viewer from test data to production.
+function renderSiteNav() {
+  const nav = document.getElementById("site-nav");
+  if (!nav) return;
+  const params = new URLSearchParams(window.location.search);
+  const link = document.createElement("a");
+  link.className = "site-nav__link";
+  if (IS_DASHBOARD) {
+    params.delete("dashboard");
+    params.delete("forecast");
+    params.delete("sarja"); // dashboard-scoped; the front page resolves its own
+    link.textContent = "← Lipputilanne";
+  } else {
+    params.set("dashboard", "1");
+    link.textContent = "Kojelauta →";
+  }
+  const query = params.toString();
+  link.href = `${window.location.pathname}${query ? `?${query}` : ""}`;
+  nav.append(link);
+}
+
 function renderMockBanner() {
   if (!IS_MOCK) return;
   const banner = document.createElement("p");
@@ -75,6 +99,7 @@ function buildEmptyStateAction(label, onClick) {
 
 async function main() {
   renderMockBanner();
+  renderSiteNav();
 
   const [eventsIndex, overrides, autoclass, schedule] = await Promise.all([
     getEventsIndex(),

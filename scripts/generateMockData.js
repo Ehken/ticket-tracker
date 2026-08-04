@@ -1289,11 +1289,53 @@ async function main() {
     );
   }
 
+  // --- Synthetic past-season attendance history (mirrors what
+  // scripts/fetchAttendanceHistory.js pulls from liiga.fi in production) —
+  // gives ?mock=1's dashboard forecast real opponent/weekday indices to
+  // chew on. Deterministic: per-opponent draw comes from the seeded rng.
+  // Two completed seasons, two home games per runkosarja opponent per
+  // season (one Friday-ish, one Tuesday-ish), attendance = season level ×
+  // opponent draw × weekday factor with a little seeded noise.
+  const attendanceGames = [];
+  const runkosarjaOpponents = [...new Set(schedule.filter((f) => f.gameType === "runkosarja").map((f) => f.opponent))];
+  for (const [season, level, year] of [
+    ["2024-25", 3400, 2024],
+    ["2025-26", 3700, 2025],
+  ]) {
+    runkosarjaOpponents.forEach((opponent, i) => {
+      const rng = makeRng(`attendance-${season}-${opponent}`);
+      const draw = 0.8 + rng() * 0.45; // this opponent's stable relative pull
+      // Fixed weekday anchors: 2024-09-06 and 2025-09-05 are Fridays;
+      // spreading games by whole weeks keeps every "Friday game" a Friday.
+      const friBase = year === 2024 ? "2024-09-06" : "2025-09-05";
+      for (const [offsetWeeks, weekdayShiftDays, weekdayFactor] of [
+        [i % 20, 0, 1.1], // Friday
+        [(i + 7) % 20, 4, 0.85], // Tuesday (Friday + 4 days)
+      ]) {
+        const startMs =
+          new Date(`${friBase}T17:00:00.000Z`).getTime() + (offsetWeeks * 7 + weekdayShiftDays) * 86400000;
+        attendanceGames.push({
+          season,
+          start: new Date(startMs).toISOString(),
+          opponent,
+          attendance: Math.min(4820, Math.round(level * draw * weekdayFactor * (0.95 + rng() * 0.1))),
+        });
+      }
+    });
+  }
+  attendanceGames.sort((a, b) => a.start.localeCompare(b.start));
+  const attendanceHistory = {
+    source: "generateMockData.js (synteettinen — ei oikeaa liiga.fi-dataa)",
+    fetchedAt: SEASON_2026_27_NOW,
+    games: attendanceGames,
+  };
+
   // --- Write everything out ---
   await mkdir(mockDir, { recursive: true });
   await writeFile(path.join(mockDir, "events.json"), JSON.stringify(events, null, 2) + "\n");
   await writeFile(path.join(mockDir, "overrides.json"), JSON.stringify(overrides, null, 2) + "\n");
   await writeFile(path.join(mockDir, "autoclass.json"), JSON.stringify(autoclass, null, 2) + "\n");
+  await writeFile(path.join(mockDir, "attendanceHistory.json"), JSON.stringify(attendanceHistory, null, 2) + "\n");
 
   // Every mock event shares capacitiesHash/svgHash "mock-fixture" — without
   // these files, ?mock=1's seat-map fetch 404s for every event. Copy the

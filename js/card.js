@@ -43,7 +43,9 @@ let statInfoIdCounter = 0;
 // audience. Self-contained per stat (one button, one popover, its own
 // outside-click/Escape close) since stats don't share a coordinating
 // parent the way legend items do.
-function buildStat(label, value, { info } = {}) {
+// Exported for the dashboard's hero tiles — same stat anatomy (label,
+// value, optional ⓘ popover) at a different size, which is a CSS concern.
+export function buildStat(label, value, { info } = {}) {
   const span = document.createElement("span");
   span.className = "card__stat";
 

@@ -1,8 +1,19 @@
-// Private preview: ?dashboard=1 (see js/urlState.js's IS_DASHBOARD). Not
-// unit-tested (DOM assembly, same convention as app.js/card.js/filterBar.js)
-// — verified via the browser instead.
-import { getHistory } from "./fetchData.js";
-import { filterBySeason, gameTypeLabel } from "./grouping.js";
+// Dashboard (?dashboard=1): hero stat tiles, a season timeline chart, and
+// analysis panels — reachable from the front page's header link. Not
+// unit-tested (DOM assembly, same convention as app.js/card.js); every
+// number on it comes from tested pure modules (dashboardHero, -Forecast,
+// -Baseline, -Trends, -Rankings, -Timing, -Heatmap).
+import { getHistory, getAttendanceHistory, getCapacitiesSvg } from "./fetchData.js";
+import {
+  filterBySeason,
+  filterBySarja,
+  computeSarjaAvailability,
+  resolveSarja,
+  gameTypeLabel,
+  buildTimeline,
+  extractOpponentDisplay,
+} from "./grouping.js";
+import { readUrlState, writeUrlState, FORCE_FORECAST } from "./urlState.js";
 import { computeUnclassifiedEvents } from "./dashboardUnclassified.js";
 import {
   buildBaselineIndex,
@@ -12,22 +23,38 @@ import {
 } from "./dashboardBaseline.js";
 import { computeTopMovers, computeSelloutEstimate } from "./dashboardTrends.js";
 import {
-  computeKiirehdiRanking,
-  computeOpponentDemand,
-  computeOpponentTiers,
-  computeSectionSelloutRank,
-  PREMIUM_SECTIONS,
-} from "./dashboardRankings.js";
+  computeIrtoliputTotal,
+  computeSold24hDelta,
+  computeAvgAttendancePlayed,
+  computeAvgAttendanceFloor,
+  computeAvgAttendanceForecast,
+  computeSelloutStats,
+  findNextGame,
+} from "./dashboardHero.js";
 import {
+  computeAttendanceIndices,
+  buildPaceCurve,
+  forecastGame,
+  forecastVisibility,
+} from "./dashboardForecast.js";
+import { computeKiirehdiRanking, computeOpponentDemand, computeSectionSelloutRank } from "./dashboardRankings.js";
+import {
+  WEEKDAY_LABELS,
   computeWeekdayFillRates,
-  computeWeekdayStartTimeGrid,
-  computeWeekdayTierGrid,
   computeMonthTrend,
   computePurchaseTimingProfile,
 } from "./dashboardTiming.js";
+import { heatColor } from "./dashboardHeatmap.js";
 import { buildSparkline } from "./chart.js";
-import { formatThousands, formatHelsinkiDate } from "./format.js";
+import { buildStat } from "./card.js";
+import { formatThousands, formatPercent, formatHelsinkiDate } from "./format.js";
 import { sectionLabel } from "./sectionLabels.js";
+
+const SARJA_CHIP_VALUES = ["kaikki", "runkosarja", "chl", "harjoitusottelu", "playoffs"];
+
+// The dashboard's own default differs from the front page's "kaikki":
+// league numbers are the headline; CHL/harjoitus are one click away.
+const DEFAULT_SARJA = "runkosarja";
 
 function formatFraction(frac) {
   if (frac === null || frac === undefined) return "–";
@@ -35,374 +62,714 @@ function formatFraction(frac) {
 }
 
 function formatDelta(n) {
-  if (n === null || n === undefined) return "–";
   return n > 0 ? `+${formatThousands(n)}` : formatThousands(n);
 }
 
-function buildPanel(title) {
+function buildPanel(title, subtitle) {
   const panel = document.createElement("section");
   panel.className = "dashboard-panel";
   const heading = document.createElement("h2");
   heading.textContent = title;
+  if (subtitle) {
+    const sub = document.createElement("span");
+    sub.className = "dashboard-panel__subtitle";
+    sub.textContent = ` — ${subtitle}`;
+    heading.append(sub);
+  }
   panel.append(heading);
   return panel;
 }
 
-function buildPlaceholder(text = "Kertyy dataa…") {
-  const p = document.createElement("p");
-  p.className = "empty-state";
-  p.textContent = text;
-  return p;
-}
-
-function buildMetric(label, value) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "dashboard-metric";
-  const labelEl = document.createElement("div");
-  labelEl.className = "dashboard-metric__label";
-  labelEl.textContent = label;
-  const valueEl = document.createElement("div");
-  valueEl.className = "dashboard-metric__value";
-  valueEl.textContent = value;
-  wrapper.append(labelEl, valueEl);
-  return wrapper;
-}
-
-function buildRankRow({ label, value, tags = [], sparklinePoints }) {
+// One stacked horizontal bar on the site's own sales scale: black
+// kausikortti base + yellow irtoliput on a sand track. Everything the
+// dashboard ranks uses this same anatomy, so magnitudes stay comparable
+// across panels by eye.
+function buildRowBar({ label, value, kkFraction, ilFraction, meta }) {
   const row = document.createElement("div");
-  row.className = "rank-row";
+  row.className = "rowbar";
 
+  const top = document.createElement("div");
+  top.className = "rowbar__top";
   const labelEl = document.createElement("span");
-  labelEl.className = "rank-row__label";
   labelEl.textContent = label;
-  row.append(labelEl);
+  const valueEl = document.createElement("b");
+  valueEl.textContent = value;
+  top.append(labelEl, valueEl);
 
-  for (const tag of tags) {
+  const track = document.createElement("div");
+  track.className = "rowbar__track";
+  const kk = document.createElement("span");
+  kk.className = "rowbar__kk";
+  kk.style.width = `${Math.max(0, Math.min(1, kkFraction)) * 100}%`;
+  const il = document.createElement("span");
+  il.className = "rowbar__il";
+  il.style.width = `${Math.max(0, Math.min(1 - kkFraction, ilFraction)) * 100}%`;
+  track.append(kk, il);
+
+  row.append(top, track);
+  if (meta) {
+    const metaEl = document.createElement("div");
+    metaEl.className = "rowbar__meta";
+    metaEl.append(meta);
+    row.append(metaEl);
+  }
+  return row;
+}
+
+function buildTile({ label, value, sub, subClass, tag, info }) {
+  const tile = document.createElement("div");
+  tile.className = "dashboard-tile";
+  const stat = buildStat(label, value, { info });
+  tile.append(stat);
+  if (sub) {
+    const subEl = document.createElement("div");
+    subEl.className = `dashboard-tile__sub${subClass ? ` ${subClass}` : ""}`;
+    subEl.textContent = sub;
+    tile.append(subEl);
+  }
+  if (tag) {
     const tagEl = document.createElement("span");
-    tagEl.className = "rank-row__tag";
+    tagEl.className = "dashboard-tile__tag";
     tagEl.textContent = tag;
-    row.append(tagEl);
+    tile.append(tagEl);
+  }
+  return tile;
+}
+
+const ATTENDANCE_INFO =
+  "Yleisömäärä tarkoittaa tässä myytyjä lippuja (kausikortit + irtoliput + seisomapaikat), " +
+  "ei laskettua yleisöä.";
+
+const FLOOR_INFO =
+  "Kaikki ottelut nykyisellä myynnillä: pelatut lopullisin luvuin, tulevat tämänhetkisin. " +
+  "Tulevien otteluiden myynti vain kasvaa, joten todellinen keskiarvo on vähintään tämä.";
+
+const FORECAST_INFO =
+  "Malli olettaa, että kausi jatkaa tähänastisen datan mukaisesti. Se ei näe joukkueen " +
+  "menestystä, TV-otteluita eikä säätä. Vastustaja- ja viikonpäiväkertoimet perustuvat " +
+  "aiempien kausien yleisömääriin (liiga.fi).";
+
+function buildHeroTiles(state) {
+  const {
+    kausikorttiTotals,
+    kausikorttiFrozen,
+    inScope,
+    inScopeWithHistory,
+    nowIso,
+    forecastAvg,
+    forecastExperimental,
+    showForecast,
+    baselineIndex,
+  } = state;
+
+  const hero = document.createElement("div");
+  hero.className = "dashboard-hero";
+
+  if (kausikorttiTotals) {
+    hero.append(
+      buildTile({
+        label: "Kausikortteja",
+        value: formatThousands(kausikorttiTotals.sold),
+        sub: "koko kausi",
+        tag: kausikorttiFrozen ? "lukittu" : undefined,
+        info:
+          "Ottelukohtaisista paikkatiedoista päätelty kausikorttimäärä — sama luku kuin " +
+          "etusivun kausikorttikortissa. Kausitason luku: sarjasuodatin ei vaikuta tähän.",
+      })
+    );
   }
 
-  if (sparklinePoints) {
+  const irtoliput = computeIrtoliputTotal(inScope, baselineIndex);
+  const delta = computeSold24hDelta(inScopeWithHistory, nowIso);
+  hero.append(
+    buildTile({
+      label: "Irtolippuja myyty",
+      value: formatThousands(irtoliput),
+      sub: delta === null ? undefined : `${formatDelta(delta)} / 24 h`,
+      subClass: delta !== null && delta > 0 ? "dashboard-tile__sub--up" : undefined,
+    })
+  );
+
+  const played = computeAvgAttendancePlayed(inScope);
+  hero.append(
+    buildTile({
+      label: "Yleisökeskiarvo · pelatut",
+      value: played ? formatThousands(Math.round(played.average)) : "–",
+      sub: played ? `${played.gameCount} ottelua` : "ei pelattuja otteluita",
+      info: ATTENDANCE_INFO,
+    })
+  );
+
+  const floor = computeAvgAttendanceFloor(inScope);
+  hero.append(
+    buildTile({
+      label: "Yleisökeskiarvo · nykymyynnillä",
+      value: floor ? formatThousands(Math.round(floor.average)) : "–",
+      sub: "vähintään",
+      info: FLOOR_INFO,
+    })
+  );
+
+  if (showForecast && forecastAvg) {
+    hero.append(
+      buildTile({
+        label: "Yleisökeskiarvo · ennuste",
+        value: formatThousands(Math.round(forecastAvg.average)),
+        sub: forecastAvg.mode === "index" ? "historiallisesta vetovoimasta" : "myyntivauhdista",
+        tag: forecastExperimental ? "kokeellinen" : undefined,
+        info: FORECAST_INFO,
+      })
+    );
+  }
+
+  const sellouts = computeSelloutStats(inScope);
+  hero.append(
+    buildTile({
+      label: "Loppuunmyydyt",
+      value: `${sellouts.soldOutCount}`,
+      sub: `/ ${sellouts.gameCount} ottelua`,
+    })
+  );
+
+  const next = findNextGame(inScope, nowIso);
+  if (next) {
+    const totals = next.latest.totals;
+    hero.append(
+      buildTile({
+        label: "Seuraava ottelu",
+        value: extractOpponentDisplay(next.name) ?? next.name,
+        sub: `${formatHelsinkiDate(next.start)} · myyty ${formatThousands(totals.sold)} · ${formatPercent(totals.sold, totals.total)}`,
+      })
+    );
+  }
+
+  return hero;
+}
+
+// One stacked bar per game in date order: black kausikortti base, yellow
+// irtoliput, faded when the game is still upcoming (current sales, not an
+// outcome), red ring when sold out, and — when the forecast is visible —
+// an outlined extension for expected additional sales.
+function buildTimelinePanel(state) {
+  const { inScope, baselineIndex, forecastByEventId, showForecast } = state;
+  if (inScope.length === 0) return null;
+
+  const panel = buildPanel(
+    "Yleisömäärä ottelu kerrallaan",
+    showForecast ? "tulevat ottelut: nykymyynti + ennustettu lisämyynti" : "tulevat ottelut nykymyynnin mukaan"
+  );
+
+  const maxTotal = Math.max(...inScope.map((e) => e.latest.totals.total));
+  const chart = document.createElement("div");
+  chart.className = "dashboard-timeline";
+
+  const capLine = document.createElement("div");
+  capLine.className = "dashboard-timeline__cap";
+  const capLabel = document.createElement("span");
+  capLabel.textContent = `kapasiteetti ${formatThousands(maxTotal)}`;
+  capLine.append(capLabel);
+  chart.append(capLine);
+
+  for (const event of buildTimeline(inScope)) {
+    const totals = event.latest.totals;
+    const baseline = baselineForEvent(event, baselineIndex);
+    const kk = Math.min(baseline.totalSold, totals.sold);
+    const il = Math.max(0, totals.sold - kk);
+    const soldOut = totals.total > 0 && totals.available === 0;
+    const isUpcoming = event.status !== "past";
+
+    const bar = document.createElement("div");
+    bar.className = `dashboard-timeline__bar${isUpcoming ? " dashboard-timeline__bar--future" : ""}${soldOut ? " dashboard-timeline__bar--soldout" : ""}`;
+    let titleText = `${event.name} · ${formatHelsinkiDate(event.start)} · myyty ${formatThousands(totals.sold)} (${formatPercent(totals.sold, totals.total)})`;
+
+    const kkSeg = document.createElement("i");
+    kkSeg.className = "dashboard-timeline__kk";
+    kkSeg.style.height = `${(kk / maxTotal) * 100}%`;
+    const ilSeg = document.createElement("i");
+    ilSeg.className = "dashboard-timeline__il";
+    ilSeg.style.height = `${(il / maxTotal) * 100}%`;
+    bar.append(kkSeg, ilSeg);
+
+    const forecast = showForecast && isUpcoming ? forecastByEventId.get(event.id) : null;
+    if (forecast && forecast.attendance > totals.sold) {
+      const extra = document.createElement("i");
+      extra.className = "dashboard-timeline__forecast";
+      extra.style.height = `${((forecast.attendance - totals.sold) / maxTotal) * 100}%`;
+      bar.append(extra);
+      titleText += ` · ennuste ${formatThousands(forecast.attendance)}`;
+    }
+
+    bar.title = titleText;
+    chart.append(bar);
+  }
+  panel.append(chart);
+
+  const legend = document.createElement("div");
+  legend.className = "dashboard-timeline__legend";
+  const items = [
+    ["dashboard-legend-swatch--kk", "Kausikortit"],
+    ["dashboard-legend-swatch--il", "Irtoliput"],
+    ["dashboard-legend-swatch--future", "Tuleva ottelu (nykymyynti)"],
+  ];
+  if (showForecast) items.push(["dashboard-legend-swatch--forecast", "Ennustettu lisämyynti"]);
+  items.push(["dashboard-legend-swatch--soldout", "Loppuunmyyty"]);
+  for (const [cls, label] of items) {
+    const item = document.createElement("span");
+    const sw = document.createElement("span");
+    sw.className = `dashboard-legend-swatch ${cls}`;
+    item.append(sw, label);
+    legend.append(item);
+  }
+  panel.append(legend);
+  return panel;
+}
+
+function buildTrendRow(event, delta) {
+  const row = document.createElement("div");
+  row.className = "dashboard-trend-row";
+  const label = document.createElement("span");
+  label.textContent = event.name;
+  row.append(label);
+  if (event.history?.length > 1) {
     const wrapper = document.createElement("div");
     wrapper.className = "sparkline-wrapper";
     const canvas = document.createElement("canvas");
     wrapper.append(canvas);
     row.append(wrapper);
-    buildSparkline(canvas, sparklinePoints);
+    buildSparkline(canvas, event.history);
   }
-
-  const valueEl = document.createElement("span");
-  valueEl.className = "rank-row__value";
-  valueEl.textContent = value;
-  row.append(valueEl);
-
+  const value = document.createElement("span");
+  value.className = "dashboard-trend-row__value";
+  value.textContent = formatDelta(delta);
+  row.append(value);
   return row;
 }
 
-function buildTimingSubsection(title, rows, rowBuilder) {
-  const sub = document.createElement("div");
-  sub.className = "dashboard-subsection";
-  const heading = document.createElement("h3");
-  heading.textContent = title;
-  sub.append(heading);
-  if (!rows || rows.length === 0) {
-    sub.append(buildPlaceholder());
-  } else {
-    for (const row of rows) sub.append(rowBuilder(row));
-  }
-  return sub;
-}
+// Panels return null instead of a "Kertyy dataa…" placeholder — an empty
+// analysis earns no screen space (explicit requirement of the redesign).
+function buildTrendsPanel(state) {
+  const { inScopeWithHistory, nowIso } = state;
+  const movers24h = computeTopMovers(inScopeWithHistory, 24, nowIso).slice(0, 5);
+  const movers7d = computeTopMovers(inScopeWithHistory, 24 * 7, nowIso).slice(0, 5);
+  if (movers24h.length === 0 && movers7d.length === 0) return null;
 
-function buildSection1(kausikorttiInScope, matchInScope, baselineIndex) {
-  const panel = buildPanel("Kauden kokonaiskuva");
-
-  const kausikorttiSold = kausikorttiInScope.reduce((sum, e) => sum + baselineTotalsForKausikortti(e).sold, 0);
-
-  let irtolippuSold = 0;
-  let nonBaselineCapacity = 0;
-  for (const event of matchInScope) {
-    const baseline = baselineForEvent(event, baselineIndex);
-    irtolippuSold += Math.max(0, event.latest.totals.sold - baseline.totalSold);
-    nonBaselineCapacity += Math.max(0, event.latest.totals.total - baseline.totalSold);
-  }
-  const overallFillPct = nonBaselineCapacity > 0 ? irtolippuSold / nonBaselineCapacity : null;
-
-  const metrics = document.createElement("div");
-  metrics.className = "dashboard-metric-row";
-  metrics.append(
-    buildMetric("Kausikortit myyty", formatThousands(kausikorttiSold)),
-    buildMetric("Irtoliput myyty", formatThousands(irtolippuSold)),
-    buildMetric("Irtolippujen täyttöaste", formatFraction(overallFillPct))
-  );
-  panel.append(metrics);
-
-  if (matchInScope.length === 0) {
-    panel.append(buildPlaceholder("Ei otteluita tällä kaudella vielä."));
-  }
-
-  return panel;
-}
-
-function buildSection2(matchInScope, nowIso) {
   const panel = buildPanel("Trendaa nyt");
-
-  if (matchInScope.length === 0) {
-    panel.append(buildPlaceholder());
-    return panel;
+  if (movers24h.length > 0) {
+    const sub = document.createElement("div");
+    sub.className = "dashboard-subsection";
+    const h = document.createElement("h3");
+    h.textContent = "Viimeiset 24 tuntia";
+    sub.append(h);
+    for (const { event, delta } of movers24h) sub.append(buildTrendRow(event, delta));
+    panel.append(sub);
   }
-
-  const movers24h = computeTopMovers(matchInScope, 24, nowIso).slice(0, 5);
-  const movers7d = computeTopMovers(matchInScope, 24 * 7, nowIso).slice(0, 5);
-
-  panel.append(
-    buildTimingSubsection("Viimeiset 24 tuntia", movers24h, ({ event, delta }) =>
-      buildRankRow({ label: event.name, value: formatDelta(delta), sparklinePoints: event.history })
-    )
-  );
-  panel.append(
-    buildTimingSubsection("Viimeiset 7 vuorokautta", movers7d, ({ event, delta }) =>
-      buildRankRow({ label: event.name, value: formatDelta(delta), sparklinePoints: event.history })
-    )
-  );
-
+  if (movers7d.length > 0) {
+    const sub = document.createElement("div");
+    sub.className = "dashboard-subsection";
+    const h = document.createElement("h3");
+    h.textContent = "Viimeiset 7 vuorokautta";
+    sub.append(h);
+    for (const { event, delta } of movers7d) sub.append(buildTrendRow(event, delta));
+    panel.append(sub);
+  }
   return panel;
 }
 
-function buildSection3(matchInScope, baselineIndex, nowIso) {
+function buildKiirehdiPanel(state) {
+  const { inScopeWithHistory, baselineIndex, nowIso } = state;
+  const upcoming = inScopeWithHistory.filter((e) => e.status === "upcoming");
+  const ranking = computeKiirehdiRanking(upcoming, baselineIndex);
+  if (ranking.length === 0) return null;
+
   const panel = buildPanel("Kiirehdi");
-  const ranking = computeKiirehdiRanking(matchInScope, baselineIndex);
-
-  if (ranking.length === 0) {
-    panel.append(buildPlaceholder(matchInScope.length === 0 ? undefined : "Ei kiireellisiä otteluita juuri nyt."));
-    return panel;
-  }
-
   for (const { event, irtolippuFillPct: fillPct, premiumTriggers } of ranking.slice(0, 8)) {
-    const tags = premiumTriggers.map((section) => `${section} lähes loppu`);
-    const estimate = computeSelloutEstimate({
-      available: event.latest.totals.available,
-      historyPoints: event.history,
-      latestSold: event.latest.totals.sold,
-      nowIso,
-    });
-    let value = formatFraction(fillPct);
+    const totals = event.latest.totals;
+    const baseline = baselineForEvent(event, baselineIndex);
+    const kk = Math.min(baseline.totalSold, totals.sold);
+    const soldOut = totals.available === 0;
+
+    const metaParts = [];
+    if (soldOut) metaParts.push("loppuunmyyty");
+    for (const section of premiumTriggers) metaParts.push(`${sectionLabel(section)} lähes loppu`);
+    const estimate = soldOut
+      ? null
+      : computeSelloutEstimate({
+          available: totals.available,
+          historyPoints: event.history,
+          latestSold: totals.sold,
+          nowIso,
+        });
+
+    let meta = metaParts.join(" · ");
+    let metaNode = null;
     if (estimate) {
-      value += ` · nykyisellä varannolla ja vauhdilla myyty ~${formatHelsinkiDate(estimate.estimatedDate)} (arvio)`;
+      metaNode = document.createDocumentFragment();
+      if (meta) metaNode.append(`${meta} · `);
+      const est = document.createElement("span");
+      est.className = "dashboard-kiirehdi-estimate";
+      est.textContent = `nykyvauhdilla myyty ~${formatHelsinkiDate(estimate.estimatedDate)} (arvio)`;
+      metaNode.append(est);
     }
-    panel.append(buildRankRow({ label: event.name, value, tags }));
-  }
 
-  return panel;
-}
-
-function buildSection4(opponentDemand) {
-  const panel = buildPanel("Vastustajat");
-
-  if (opponentDemand.length === 0) {
-    panel.append(buildPlaceholder());
-    return panel;
-  }
-
-  for (const entry of opponentDemand.slice(0, 10)) {
     panel.append(
-      buildRankRow({
-        label: `${entry.opponent} (${entry.gameCount})`,
-        value: formatFraction(entry.avgIrtolippuFillPct),
-        tags: entry.gameTypes.map((gt) => gameTypeLabel(gt)),
+      buildRowBar({
+        label: `${event.name} ${formatHelsinkiDate(event.start)}`,
+        value: fillPct !== null ? formatFraction(fillPct) : formatPercent(totals.sold, totals.total),
+        kkFraction: kk / totals.total,
+        ilFraction: Math.max(0, totals.sold - kk) / totals.total,
+        meta: metaNode ?? (meta || null),
       })
     );
   }
-
   return panel;
 }
 
-function buildSection5(matchInScope, baselineIndex, opponentDemand) {
-  const panel = buildPanel("Viikonpäivät ja ajankohdat");
+function buildOpponentsPanel(state) {
+  const { inScope, baselineIndex, sarja } = state;
+  const demand = computeOpponentDemand(inScope, baselineIndex);
+  if (demand.length === 0) return null;
 
-  const weekdayFill = computeWeekdayFillRates(matchInScope, baselineIndex);
-  panel.append(
-    buildTimingSubsection("Täyttöaste viikonpäivittäin", weekdayFill, (row) =>
-      buildRankRow({ label: row.label, value: formatFraction(row.avgIrtolippuFillPct) })
-    )
-  );
+  const maxTotal = Math.max(...inScope.map((e) => e.latest.totals.total));
+  const panel = buildPanel("Vastustajat", "yleisökeskiarvo");
 
-  const startTimeGrid = computeWeekdayStartTimeGrid(matchInScope, baselineIndex);
-  panel.append(
-    buildTimingSubsection("Viikonpäivä × alkamisaika", startTimeGrid, (cell) =>
-      buildRankRow({ label: `${cell.weekdayLabel} ${cell.time}`, value: formatFraction(cell.avgIrtolippuFillPct) })
-    )
-  );
+  const rows = demand
+    .map((entry) => {
+      const attendances = entry.games.map((g) => g.event.latest.totals.sold);
+      const avgAttendance = attendances.reduce((a, b) => a + b, 0) / attendances.length;
+      const avgKk =
+        entry.games.reduce((s, g) => {
+          const baseline = baselineForEvent(g.event, baselineIndex);
+          return s + Math.min(baseline.totalSold, g.event.latest.totals.sold);
+        }, 0) / entry.games.length;
+      const avgIrtoliput = entry.games.reduce((s, g) => s + g.irtoliput, 0) / entry.games.length;
+      return { entry, avgAttendance, avgKk, avgIrtoliput };
+    })
+    .sort((a, b) => b.avgAttendance - a.avgAttendance);
 
-  const tiers = computeOpponentTiers(opponentDemand);
-  const tierGrid = computeWeekdayTierGrid(matchInScope, baselineIndex, tiers);
-  const tierSub = document.createElement("div");
-  tierSub.className = "dashboard-subsection";
-  const tierHeading = document.createElement("h3");
-  tierHeading.textContent = "Viikonpäivä × vastustajan suosio";
-  tierSub.append(tierHeading);
-  if (!tierGrid) {
-    tierSub.append(
-      buildPlaceholder(
-        "Kertyy dataa — tarvitaan useampi ottelu sekä isoilta että pienemmiltä vastustajilta, eri viikonpäiviltä, jotta viikonpäivän ja vastustajan vaikutukset voidaan erottaa toisistaan."
-      )
+  for (const { entry, avgAttendance, avgKk, avgIrtoliput } of rows.slice(0, 12)) {
+    const tags = sarja === "kaikki" ? ` · ${entry.gameTypes.map((gt) => gameTypeLabel(gt)).join(", ")}` : "";
+    panel.append(
+      buildRowBar({
+        label: `${entry.opponent} (${entry.gameCount})`,
+        value: formatThousands(Math.round(avgAttendance)),
+        kkFraction: avgKk / maxTotal,
+        ilFraction: (avgAttendance - avgKk) / maxTotal,
+        meta: `irtolippuja ka. ${formatThousands(Math.round(avgIrtoliput))} · täyttö ${formatFraction(entry.avgIrtolippuFillPct)}${tags}`,
+      })
     );
-  } else {
-    const bigLabel = document.createElement("p");
-    bigLabel.className = "dashboard-tier-label";
-    bigLabel.textContent = "Isot vastustajat";
-    tierSub.append(bigLabel);
-    for (const row of tierGrid.big) {
-      tierSub.append(buildRankRow({ label: row.label, value: formatFraction(row.avgIrtolippuFillPct) }));
-    }
+  }
+  return panel;
+}
 
-    const smallLabel = document.createElement("p");
-    smallLabel.className = "dashboard-tier-label";
-    smallLabel.textContent = "Pienemmät vastustajat";
-    tierSub.append(smallLabel);
-    for (const row of tierGrid.small) {
-      tierSub.append(buildRankRow({ label: row.label, value: formatFraction(row.avgIrtolippuFillPct) }));
+// The arena itself as a heatmap: the real capacities SVG with every seat
+// recolored by its section's average irtolippu fill, standing/wheelchair
+// shapes likewise. No interactivity — this is a picture, the per-event
+// seat maps on the front page are the interactive surface.
+async function buildHeatmapPanel(state) {
+  const { inScope, baselineIndex } = state;
+  const rank = computeSectionSelloutRank(inScope, baselineIndex);
+  if (!rank) return null;
+
+  const withHash = inScope.find((e) => e.latest.capacitiesHash);
+  if (!withHash) return null;
+
+  let svgText;
+  try {
+    svgText = await getCapacitiesSvg(withHash.latest.capacitiesHash);
+  } catch (err) {
+    console.error("Failed to load arena SVG for heatmap:", err);
+    return null;
+  }
+
+  const fillBySection = new Map(rank.map((r) => [r.section, r.avgIrtolippuFillPct]));
+  const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
+  const svg = doc.documentElement;
+
+  // Color the section PLATES, not the seats: the baked .section shapes
+  // carry the shop's own price-group colors (teal/blue/red), which would
+  // otherwise bleed through and fight the heat ramp; and at this panel's
+  // size individual dots are noise anyway. Sections with no fill data
+  // (aitiot, press — excluded from irtolippu math by design) go neutral.
+  for (const el of svg.querySelectorAll(".section")) {
+    const color = heatColor(fillBySection.get(el.id) ?? null);
+    // .section is a <g>: a group-level fill is overridden by any child
+    // carrying its own fill attribute (the shop's price-group plates), so
+    // the children get recolored explicitly too — text stays readable.
+    el.setAttribute("fill", color);
+    for (const child of el.querySelectorAll("[fill]")) {
+      if (child.tagName !== "text") child.setAttribute("fill", color);
     }
   }
-  panel.append(tierSub);
+  // The seated sections' visible plates live OUTSIDE the .section groups,
+  // as .section-label paths (id "C4-label" etc.) carrying the shop's own
+  // price-group colors; the glyph paths next to them have their own black
+  // fill and are untouched.
+  for (const el of svg.querySelectorAll(".section-label")) {
+    const section = el.id?.replace(/-label$/, "");
+    if (!section) continue;
+    el.setAttribute("fill", heatColor(fillBySection.get(section) ?? null));
+  }
+  for (const el of svg.querySelectorAll(".seat")) {
+    el.remove(); // no inline r -> invisible outside the seat-map CSS scope; drop the ~2600 nodes
+  }
 
-  const monthTrend = computeMonthTrend(matchInScope, baselineIndex);
-  panel.append(
-    buildTimingSubsection("Kuukausitrendi", monthTrend, (row) =>
-      buildRankRow({ label: row.key, value: formatFraction(row.avgIrtolippuFillPct) })
-    )
-  );
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  svg.setAttribute("class", "dashboard-heatmap-svg");
+  svg.style.pointerEvents = "none";
 
-  const pastEvents = matchInScope.filter((e) => e.status === "past");
+  const panel = buildPanel("Katsomot", "irtolippujen täyttö keskimäärin");
+  panel.append(svg);
+  const legend = document.createElement("div");
+  legend.className = "dashboard-heatmap__legend";
+  legend.textContent = "vaalea = vapaata · kirkas keltainen = lähes loppu · oranssi = loppuunmyyty";
+  panel.append(legend);
+
+  const top = rank
+    .filter((r) => !["press", "aitiot"].includes(r.section))
+    .slice(0, 3)
+    .map((r) => `${sectionLabel(r.section)} ${formatFraction(r.avgIrtolippuFillPct)}`)
+    .join(" · ");
+  if (top) {
+    const topEl = document.createElement("div");
+    topEl.className = "dashboard-heatmap__top";
+    topEl.textContent = `Täysimmät: ${top}`;
+    panel.append(topEl);
+  }
+  return panel;
+}
+
+function buildTimingPanel(state) {
+  const { inScope, inScopeWithHistory, baselineIndex } = state;
+  const subs = [];
+
+  const weekdayFill = computeWeekdayFillRates(inScope, baselineIndex);
+  if (weekdayFill?.length > 0) {
+    subs.push([
+      "Täyttöaste viikonpäivittäin",
+      weekdayFill.map((row) =>
+        buildRowBar({
+          label: row.label ?? WEEKDAY_LABELS[row.weekday] ?? String(row.weekday),
+          value: formatFraction(row.avgIrtolippuFillPct),
+          kkFraction: 0,
+          ilFraction: row.avgIrtolippuFillPct ?? 0,
+          meta: null,
+        })
+      ),
+    ]);
+  }
+
+  const monthTrend = computeMonthTrend(inScope, baselineIndex);
+  if (monthTrend?.length > 0) {
+    subs.push([
+      "Kuukausitrendi",
+      monthTrend.map((row) =>
+        buildRowBar({
+          label: row.key,
+          value: formatFraction(row.avgIrtolippuFillPct),
+          kkFraction: 0,
+          ilFraction: row.avgIrtolippuFillPct ?? 0,
+          meta: null,
+        })
+      ),
+    ]);
+  }
+
+  const pastEvents = inScopeWithHistory.filter((e) => e.status === "past");
   const purchaseTiming = computePurchaseTimingProfile(pastEvents);
-  panel.append(
-    buildTimingSubsection("Ostoajankohta (osuus myynnistä viim. 3 vrk aikana)", purchaseTiming, (row) =>
-      buildRankRow({ label: row.label, value: formatFraction(row.avgPctInFinalThreeDays) })
-    )
-  );
+  if (purchaseTiming?.length > 0) {
+    subs.push([
+      "Ostoajankohta (osuus myynnistä viim. 3 vrk aikana)",
+      purchaseTiming.map((row) =>
+        buildRowBar({
+          label: row.label,
+          value: formatFraction(row.avgPctInFinalThreeDays),
+          kkFraction: 0,
+          ilFraction: row.avgPctInFinalThreeDays ?? 0,
+          meta: null,
+        })
+      ),
+    ]);
+  }
 
+  if (subs.length === 0) return null;
+  const panel = buildPanel("Viikonpäivät ja ajankohdat");
+  for (const [title, rows] of subs) {
+    const sub = document.createElement("div");
+    sub.className = "dashboard-subsection";
+    const h = document.createElement("h3");
+    h.textContent = title;
+    sub.append(h);
+    for (const row of rows) sub.append(row);
+    panel.append(sub);
+  }
   return panel;
 }
 
-function buildSection6(matchInScope, baselineIndex) {
-  const panel = buildPanel("Katsomot");
-  const rank = computeSectionSelloutRank(matchInScope, baselineIndex);
+function buildUnclassifiedPanel(allEvents, schedule) {
+  const unclassified = computeUnclassifiedEvents(allEvents, schedule);
+  if (unclassified.length === 0) return null;
 
-  if (!rank) {
-    panel.append(buildPlaceholder());
-    return panel;
-  }
-
-  for (const row of rank) {
-    const tags = PREMIUM_SECTIONS.includes(row.section) ? ["premium"] : [];
-    panel.append(buildRankRow({ label: sectionLabel(row.section), value: formatFraction(row.avgIrtolippuFillPct), tags }));
-  }
-
-  return panel;
-}
-
-function buildSection7(unclassified) {
   const panel = buildPanel("Luokittelemattomat");
-
-  if (unclassified.length === 0) {
-    panel.append(buildPlaceholder("Ei luokittelemattomia otteluita."));
-    return panel;
-  }
-
   for (const { event, sameDateDifferentOpponent, sameOpponentDifferentDate } of unclassified) {
     const row = document.createElement("div");
-    row.className = "rank-row";
-
-    const labelEl = document.createElement("span");
-    labelEl.className = "rank-row__label";
-    labelEl.textContent = `${event.name} (${formatHelsinkiDate(event.start)})`;
-    row.append(labelEl);
-
-    const sameDateText =
-      sameDateDifferentOpponent.length > 0
-        ? sameDateDifferentOpponent.map((f) => f.opponent).join(", ")
-        : "ei osumia";
-    const sameOpponentText =
-      sameOpponentDifferentDate.length > 0 ? sameOpponentDifferentDate.map((f) => f.date).join(", ") : "ei osumia";
-
-    const valueEl = document.createElement("span");
-    valueEl.className = "rank-row__value";
-    valueEl.textContent = `sama pvm, eri vastustaja: ${sameDateText} · sama vastustaja, eri pvm: ${sameOpponentText}`;
-    row.append(valueEl);
-
+    row.className = "dashboard-unclassified-row";
+    const label = document.createElement("span");
+    label.textContent = `${event.name} (${formatHelsinkiDate(event.start)})`;
+    const detail = document.createElement("span");
+    detail.className = "dashboard-unclassified-row__detail";
+    const sameDate = sameDateDifferentOpponent.map((f) => f.opponent).join(", ") || "ei osumia";
+    const sameOpp = sameOpponentDifferentDate.map((f) => f.date).join(", ") || "ei osumia";
+    detail.textContent = `sama pvm, eri vastustaja: ${sameDate} · sama vastustaja, eri pvm: ${sameOpp}`;
+    row.append(label, detail);
     panel.append(row);
   }
-
   return panel;
+}
+
+function buildSarjaChips(availability, active, onSelect) {
+  const bar = document.createElement("div");
+  bar.className = "dashboard-chips";
+  for (const option of availability) {
+    if (!SARJA_CHIP_VALUES.includes(option.value)) continue;
+    if (!option.hasEvents && option.value !== "kaikki") continue;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `dashboard-chip${option.value === active ? " dashboard-chip--on" : ""}`;
+    chip.textContent = option.label;
+    chip.addEventListener("click", () => onSelect(option.value));
+    bar.append(chip);
+  }
+  return bar;
 }
 
 export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule }) {
   const container = document.getElementById("dashboard-container");
   container.hidden = false;
-  container.replaceChildren();
 
-  const backLink = document.createElement("a");
-  backLink.className = "dashboard-back-link";
-  backLink.textContent = "← Takaisin";
-  const backUrl = new URL(window.location.href);
-  backUrl.searchParams.delete("dashboard");
-  backLink.href = `${backUrl.pathname}${backUrl.search}`;
-  container.append(backLink);
-
-  // Work on copies — the dashboard attaches its own `.history` and resolves
-  // its own effective `.season`, and must never mutate the objects the
-  // normal (non-dashboard) view holds onto.
+  // Copies — the dashboard attaches .history and resolves effective
+  // .season, and must never mutate the objects the normal view holds onto.
   const kausikorttiInScope = filterBySeason(kausikortti, kausi).map((e) => ({ ...e }));
-  const matchInScope = filterBySeason(matchEvents, kausi).map((e) => ({
+  const seasonEvents = filterBySeason(matchEvents, kausi).map((e) => ({
     ...e,
     season: seasonForEvent(e, kausikortti),
   }));
 
-  await Promise.all(
-    [...kausikorttiInScope, ...matchInScope].map(async (event) => {
+  // Fetched once for the whole season scope; the sarja chips re-render from
+  // memory without refetching.
+  const [attendanceHistory] = await Promise.all([
+    getAttendanceHistory().catch(() => null),
+    ...[...kausikorttiInScope, ...seasonEvents].map(async (event) => {
       try {
         event.history = await getHistory(event.id);
       } catch (err) {
         event.history = [];
         console.error(`Failed to load history for ${event.id}:`, err);
       }
-    })
-  );
+    }),
+  ]);
 
   const baselineIndex = buildBaselineIndex(kausikortti);
 
-  // "Now" for all delta/velocity math is the season's own kausikortti
-  // snapshot time — the one deliberately shared reference instant for a
-  // season (mirrored by the mock generator). Falling back to match events'
-  // own fetchedAt would be unreliable: an upcoming match event's fetchedAt
-  // can be its own (arbitrary, possibly far-future) start time rather than
-  // a real observation instant, and taking a naive max across all of them
-  // risks picking up something like a synthetic playoffs date next season.
-  const nowSourceEvents = kausikorttiInScope.length > 0 ? kausikorttiInScope : matchInScope;
+  // "Now" = the season's kausikortti snapshot time (see the mock generator's
+  // shared per-season reference instant); match-event fetchedAt values are
+  // not reliable observation instants for upcoming events.
+  const nowSourceEvents = kausikorttiInScope.length > 0 ? kausikorttiInScope : seasonEvents;
   const nowIso =
     nowSourceEvents.length > 0
       ? new Date(Math.max(...nowSourceEvents.map((e) => new Date(e.latest.fetchedAt).getTime()))).toISOString()
       : new Date().toISOString();
 
-  const opponentDemand = computeOpponentDemand(matchInScope, baselineIndex);
+  // Forecast inputs are season-wide (not sarja-filtered): pace behavior is
+  // shared across competitions and completed games are scarce.
+  const completedGames = seasonEvents
+    .filter((e) => e.status === "past")
+    .map((e) => ({
+      startIso: e.start,
+      history: e.history,
+      finalSold: e.latest.totals.sold,
+      baselineSold: baselineForEvent(e, baselineIndex).totalSold,
+    }));
+  const paceCurve = buildPaceCurve(completedGames);
+  const indices = computeAttendanceIndices(attendanceHistory);
+  const completedCount = completedGames.length;
+  const visibility = forecastVisibility({
+    completedCount,
+    hasIndices: indices !== null,
+    forceVisible: FORCE_FORECAST,
+  });
 
-  // Unclassified events: intentionally computed from the full, unfiltered
-  // universe (not *InScope), never hidden by kausi/season selection — an
-  // unclassified event has no reliable season of its own, so hiding it
-  // behind a season filter would defeat the point of surfacing it at all.
-  const unclassified = computeUnclassifiedEvents([...kausikortti, ...matchEvents], schedule);
+  const forecastByEventId = new Map();
+  if (visibility.show) {
+    for (const event of seasonEvents) {
+      if (event.status !== "upcoming") continue;
+      const forecast = forecastGame(
+        {
+          name: event.name,
+          startIso: event.start,
+          currentSold: event.latest.totals.sold,
+          capacity: event.latest.totals.total,
+          nowIso,
+        },
+        { paceCurve, indices, completedCount }
+      );
+      if (forecast) forecastByEventId.set(event.id, forecast);
+    }
+  }
 
-  const grid = document.createElement("div");
-  grid.className = "dashboard-grid";
-  grid.append(
-    buildSection1(kausikorttiInScope, matchInScope, baselineIndex),
-    buildSection2(matchInScope, nowIso),
-    buildSection3(matchInScope, baselineIndex, nowIso),
-    buildSection4(opponentDemand),
-    buildSection5(matchInScope, baselineIndex, opponentDemand),
-    buildSection6(matchInScope, baselineIndex),
-    buildSection7(unclassified)
-  );
-  container.append(grid);
+  const kausikorttiEvent = kausikorttiInScope[0] ?? null;
+  const kausikorttiTotals = kausikorttiEvent ? baselineTotalsForKausikortti(kausikorttiEvent) : null;
+
+  const availability = computeSarjaAvailability(seasonEvents);
+
+  async function render() {
+    // No ?sarja= means the dashboard's own default (runkosarja);
+    // resolveSarja degrades either to "kaikki" when it has no events.
+    const sarja = resolveSarja(readUrlState().sarja ?? DEFAULT_SARJA, availability);
+
+    const inScope = filterBySarja(seasonEvents, sarja);
+    const state = {
+      sarja,
+      inScope,
+      inScopeWithHistory: inScope,
+      baselineIndex,
+      nowIso,
+      kausikorttiTotals,
+      kausikorttiFrozen: kausikorttiEvent?.seasonBaselineFrozen === true,
+      forecastByEventId,
+      showForecast: visibility.show && forecastByEventId.size > 0,
+      forecastExperimental: visibility.experimental,
+      forecastAvg: computeAvgAttendanceForecast(inScope, forecastByEventId),
+    };
+
+    container.replaceChildren();
+    container.append(buildSarjaChips(availability, sarja, (value) => {
+      writeUrlState({ sarja: value === DEFAULT_SARJA ? undefined : value });
+      render();
+    }));
+
+    container.append(buildHeroTiles(state));
+
+    const timeline = buildTimelinePanel(state);
+    if (timeline) timeline.classList.add("dashboard-panel--wide");
+    const unclassified = buildUnclassifiedPanel([...kausikortti, ...matchEvents], schedule);
+    if (unclassified) unclassified.classList.add("dashboard-panel--wide");
+
+    const panels = [
+      timeline,
+      buildTrendsPanel(state),
+      buildKiirehdiPanel(state),
+      buildOpponentsPanel(state),
+      await buildHeatmapPanel(state),
+      buildTimingPanel(state),
+      unclassified,
+    ].filter(Boolean);
+
+    const grid = document.createElement("div");
+    grid.className = "dashboard-grid";
+    for (const panel of panels) grid.append(panel);
+    container.append(grid);
+  }
+
+  await render();
 }

@@ -1,0 +1,390 @@
+{
+  "source": "generateMockData.js (synteettinen — ei oikeaa liiga.fi-dataa)",
+  "fetchedAt": "2026-10-25T12:00:00.000Z",
+  "games": [
+    {
+      "season": "2024-25",
+      "start": "2024-09-06T17:00:00.000Z",
+      "opponent": "Tappara",
+      "attendance": 3316
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-10T17:00:00.000Z",
+      "opponent": "KalPa",
+      "attendance": 3026
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-13T17:00:00.000Z",
+      "opponent": "K-Espoo",
+      "attendance": 3003
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-17T17:00:00.000Z",
+      "opponent": "Pelicans",
+      "attendance": 3146
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-20T17:00:00.000Z",
+      "opponent": "KooKoo",
+      "attendance": 4077
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-24T17:00:00.000Z",
+      "opponent": "Sport",
+      "attendance": 2910
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-09-27T17:00:00.000Z",
+      "opponent": "Ässät",
+      "attendance": 4475
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-10-04T17:00:00.000Z",
+      "opponent": "Jokerit",
+      "attendance": 3375
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-10-11T17:00:00.000Z",
+      "opponent": "JYP",
+      "attendance": 4153
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-10-18T17:00:00.000Z",
+      "opponent": "HPK",
+      "attendance": 3586
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-10-25T17:00:00.000Z",
+      "opponent": "HIFK",
+      "attendance": 3549
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-10-29T17:00:00.000Z",
+      "opponent": "Tappara",
+      "attendance": 2609
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-01T17:00:00.000Z",
+      "opponent": "Kärpät",
+      "attendance": 4036
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-05T17:00:00.000Z",
+      "opponent": "K-Espoo",
+      "attendance": 2505
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-08T17:00:00.000Z",
+      "opponent": "Ilves",
+      "attendance": 4085
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-12T17:00:00.000Z",
+      "opponent": "KooKoo",
+      "attendance": 3160
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-15T17:00:00.000Z",
+      "opponent": "TPS",
+      "attendance": 4065
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-19T17:00:00.000Z",
+      "opponent": "Ässät",
+      "attendance": 3389
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-22T17:00:00.000Z",
+      "opponent": "Lukko",
+      "attendance": 3340
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-26T17:00:00.000Z",
+      "opponent": "Jokerit",
+      "attendance": 2705
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-11-29T17:00:00.000Z",
+      "opponent": "Jukurit",
+      "attendance": 4271
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-03T17:00:00.000Z",
+      "opponent": "JYP",
+      "attendance": 3098
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-06T17:00:00.000Z",
+      "opponent": "KalPa",
+      "attendance": 3767
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-10T17:00:00.000Z",
+      "opponent": "HPK",
+      "attendance": 2676
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-13T17:00:00.000Z",
+      "opponent": "Pelicans",
+      "attendance": 3936
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-17T17:00:00.000Z",
+      "opponent": "HIFK",
+      "attendance": 2657
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-20T17:00:00.000Z",
+      "opponent": "Sport",
+      "attendance": 3781
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-24T17:00:00.000Z",
+      "opponent": "Kärpät",
+      "attendance": 3331
+    },
+    {
+      "season": "2024-25",
+      "start": "2024-12-31T17:00:00.000Z",
+      "opponent": "Ilves",
+      "attendance": 3016
+    },
+    {
+      "season": "2024-25",
+      "start": "2025-01-07T17:00:00.000Z",
+      "opponent": "TPS",
+      "attendance": 3079
+    },
+    {
+      "season": "2024-25",
+      "start": "2025-01-14T17:00:00.000Z",
+      "opponent": "Lukko",
+      "attendance": 2389
+    },
+    {
+      "season": "2024-25",
+      "start": "2025-01-21T17:00:00.000Z",
+      "opponent": "Jukurit",
+      "attendance": 3595
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-05T17:00:00.000Z",
+      "opponent": "Tappara",
+      "attendance": 4636
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-09T17:00:00.000Z",
+      "opponent": "KalPa",
+      "attendance": 3338
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-12T17:00:00.000Z",
+      "opponent": "K-Espoo",
+      "attendance": 4073
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-16T17:00:00.000Z",
+      "opponent": "Pelicans",
+      "attendance": 3542
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-19T17:00:00.000Z",
+      "opponent": "KooKoo",
+      "attendance": 3296
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-23T17:00:00.000Z",
+      "opponent": "Sport",
+      "attendance": 2924
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-09-26T17:00:00.000Z",
+      "opponent": "Ässät",
+      "attendance": 4620
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-03T17:00:00.000Z",
+      "opponent": "Jokerit",
+      "attendance": 4150
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-10T17:00:00.000Z",
+      "opponent": "JYP",
+      "attendance": 4596
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-17T17:00:00.000Z",
+      "opponent": "HPK",
+      "attendance": 3709
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-24T17:00:00.000Z",
+      "opponent": "HIFK",
+      "attendance": 4326
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-28T17:00:00.000Z",
+      "opponent": "Tappara",
+      "attendance": 3769
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-10-31T17:00:00.000Z",
+      "opponent": "Kärpät",
+      "attendance": 3456
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-04T17:00:00.000Z",
+      "opponent": "K-Espoo",
+      "attendance": 2934
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-07T17:00:00.000Z",
+      "opponent": "Ilves",
+      "attendance": 3590
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-11T17:00:00.000Z",
+      "opponent": "KooKoo",
+      "attendance": 2477
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-14T17:00:00.000Z",
+      "opponent": "TPS",
+      "attendance": 4462
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-18T17:00:00.000Z",
+      "opponent": "Ässät",
+      "attendance": 3498
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-21T17:00:00.000Z",
+      "opponent": "Lukko",
+      "attendance": 3479
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-25T17:00:00.000Z",
+      "opponent": "Jokerit",
+      "attendance": 3245
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-11-28T17:00:00.000Z",
+      "opponent": "Jukurit",
+      "attendance": 3503
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-02T17:00:00.000Z",
+      "opponent": "JYP",
+      "attendance": 3551
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-05T17:00:00.000Z",
+      "opponent": "KalPa",
+      "attendance": 4077
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-09T17:00:00.000Z",
+      "opponent": "HPK",
+      "attendance": 3001
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-12T17:00:00.000Z",
+      "opponent": "Pelicans",
+      "attendance": 4426
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-16T17:00:00.000Z",
+      "opponent": "HIFK",
+      "attendance": 3301
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-19T17:00:00.000Z",
+      "opponent": "Sport",
+      "attendance": 3930
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-23T17:00:00.000Z",
+      "opponent": "Kärpät",
+      "attendance": 2663
+    },
+    {
+      "season": "2025-26",
+      "start": "2025-12-30T17:00:00.000Z",
+      "opponent": "Ilves",
+      "attendance": 2734
+    },
+    {
+      "season": "2025-26",
+      "start": "2026-01-06T17:00:00.000Z",
+      "opponent": "TPS",
+      "attendance": 3243
+    },
+    {
+      "season": "2025-26",
+      "start": "2026-01-13T17:00:00.000Z",
+      "opponent": "Lukko",
+      "attendance": 2730
+    },
+    {
+      "season": "2025-26",
+      "start": "2026-01-20T17:00:00.000Z",
+      "opponent": "Jukurit",
+      "attendance": 2501
+    }
+  ]
+}

@@ -572,12 +572,304 @@ header.site-header h1 {
   }
 }
 
-/* Dashboard (private preview, ?dashboard=1) */
+/* Header navigation between the front page and the dashboard */
 
-.dashboard-back-link {
-  display: inline-block;
-  margin-bottom: 1rem;
+.site-nav {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.site-nav__link {
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--fg);
+}
+
+/* Dashboard (?dashboard=1) */
+
+.dashboard-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-chip {
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.8rem;
+  background: var(--card-bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.dashboard-chip:hover {
+  background: var(--hover-bg);
+}
+
+.dashboard-chip--on {
+  /* The site's own "sold" black, not an accent color — active means
+     "this slice of the season is what every number below describes". */
+  background: var(--seat-kausikortti);
+  border-color: var(--seat-kausikortti);
+  color: #fff;
+}
+
+/* Hero stat tiles — the card header's stat anatomy (card.js's buildStat,
+   including its ⓘ popover) at display size. */
+
+.dashboard-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-tile {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  padding: 0.7rem 0.8rem 0.6rem;
+}
+
+.dashboard-tile .card__stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.68rem;
+}
+
+.dashboard-tile .card__stat-value {
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.dashboard-tile__sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.dashboard-tile__sub--up {
+  color: #1a7a1a;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-tile__sub--up {
+    color: #6fbf6f;
+  }
+}
+
+.dashboard-tile__tag {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.55rem;
+  font-size: 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  color: var(--muted);
+  background: var(--card-bg);
+}
+
+/* Season timeline — one stacked bar per game. Bar heights are inline
+   percentages of the shared capacity scale (js/dashboard.js). */
+
+.dashboard-panel--wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-panel__subtitle {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-timeline {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 150px;
+  position: relative;
+  margin-top: 0.4rem;
+}
+
+.dashboard-timeline__cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-top: 2px dashed var(--border);
+}
+
+.dashboard-timeline__cap span {
+  position: absolute;
+  right: 0;
+  top: -1.15rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.dashboard-timeline__bar {
+  flex: 1;
+  min-width: 4px;
+  display: flex;
+  flex-direction: column-reverse;
+  height: 100%;
+}
+
+.dashboard-timeline__bar i {
+  display: block;
+}
+
+.dashboard-timeline__kk {
+  background: var(--seat-kausikortti);
+}
+
+.dashboard-timeline__il {
+  background: var(--seat-irtolippu);
+}
+
+/* Fade only the yellow — the black base fading to grey made the split
+   unreadable in the mockup review. The whole bar staying strong-black
+   below with paler yellow above still reads clearly as "not final". */
+.dashboard-timeline__bar--future .dashboard-timeline__il {
+  opacity: 0.5;
+}
+
+.dashboard-timeline__bar--soldout .dashboard-timeline__il {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dashboard-timeline__forecast {
+  background: transparent;
+  border: 1.5px dashed #c9a600;
+  border-bottom: none;
+}
+
+.dashboard-timeline__legend,
+.dashboard-heatmap__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.dashboard-legend-swatch {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+  margin-right: 0.3em;
+  vertical-align: -1px;
+}
+
+.dashboard-legend-swatch--kk { background: var(--seat-kausikortti); }
+.dashboard-legend-swatch--il { background: var(--seat-irtolippu); }
+.dashboard-legend-swatch--future { background: var(--seat-irtolippu); opacity: 0.5; }
+.dashboard-legend-swatch--forecast { border: 1.5px dashed #c9a600; }
+.dashboard-legend-swatch--soldout { background: var(--seat-irtolippu); outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Stacked row bars (Kiirehdi, Vastustajat, timing subsections) */
+
+.rowbar {
+  margin: 0.55rem 0;
+  font-size: 0.82rem;
+}
+
+.rowbar__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 2px;
+}
+
+.rowbar__track {
+  height: 12px;
+  background: var(--seat-vapaa);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.rowbar__kk {
+  background: var(--seat-kausikortti);
+  height: 100%;
+}
+
+.rowbar__il {
+  background: var(--seat-irtolippu);
+  height: 100%;
+}
+
+.rowbar__meta {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.dashboard-kiirehdi-estimate {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dashboard-trend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+}
+
+.dashboard-trend-row__value {
+  margin-left: auto;
+  font-weight: 600;
+  color: #1a7a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-trend-row__value {
+    color: #6fbf6f;
+  }
+}
+
+/* Arena heatmap — the real capacities SVG, recolored; always-light surface
+   for the same reason as the seat map itself (see the locked-palette note). */
+
+.dashboard-heatmap-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #faf7ef;
+  border-radius: 6px;
+}
+
+.dashboard-heatmap__top {
+  font-size: 0.78rem;
+  margin-top: 0.4rem;
+}
+
+.dashboard-unclassified-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-unclassified-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-unclassified-row__detail {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .dashboard-grid {
