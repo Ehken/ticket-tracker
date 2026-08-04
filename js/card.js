@@ -24,7 +24,24 @@ function buildCheapestAvailableLine(mergedEvent, latest) {
   return p;
 }
 
-function buildStat(label, value) {
+// The shop's capacity (4976) is not the arena's official spectator
+// capacity (4820): the shop data additionally lists the 9 aitio boxes'
+// 156 seats as sellable inventory, and 4976 - 156 = 4820 exactly. Shown
+// as an ⓘ popover on every card's Kapasiteetti stat so the mismatch
+// against publicly quoted figures doesn't read as a data error.
+const CAPACITY_INFO =
+  "Kapasiteetti on laskettu lippukaupan (elippu.net) paikkadatasta, ja siihen sisältyvät myös " +
+  "aitiopaikat (156). Kisapuiston virallinen katsojakapasiteetti on 4 820.";
+
+let statInfoIdCounter = 0;
+
+// Same interaction pattern as the seat-map legend's ⓘ (js/seatMap.js's
+// buildLegendItem): a click-toggled popover, not a title attribute —
+// title tooltips never open on touch, and phones are this site's main
+// audience. Self-contained per stat (one button, one popover, its own
+// outside-click/Escape close) since stats don't share a coordinating
+// parent the way legend items do.
+function buildStat(label, value, { info } = {}) {
   const span = document.createElement("span");
   span.className = "card__stat";
 
@@ -37,6 +54,56 @@ function buildStat(label, value) {
   valueEl.textContent = value;
 
   span.append(labelEl, valueEl);
+
+  if (info) {
+    const popoverId = `card-stat-info-${++statInfoIdCounter}`;
+
+    const infoButton = document.createElement("button");
+    infoButton.type = "button";
+    infoButton.className = "card__stat-info-toggle";
+    infoButton.textContent = "ⓘ";
+    infoButton.setAttribute("aria-expanded", "false");
+    infoButton.setAttribute("aria-controls", popoverId);
+
+    const popover = document.createElement("p");
+    popover.id = popoverId;
+    popover.className = "card__stat-info-popover";
+    popover.textContent = info;
+    popover.hidden = true;
+
+    // The document-level close listener exists only WHILE the popover is
+    // open — added on open, removed on close — so re-rendering cards on
+    // every filter change can't accumulate permanent global listeners
+    // (the exact leak the seat-map legend's scoping comment warns about).
+    // Capture-phase so a click landing anywhere (including the card
+    // header, which stops nothing) closes the popover before it acts.
+    function onDocumentClick(event) {
+      if (!span.contains(event.target)) setOpen(false);
+    }
+
+    function setOpen(open) {
+      popover.hidden = !open;
+      infoButton.setAttribute("aria-expanded", String(open));
+      if (open) document.addEventListener("click", onDocumentClick, { capture: true });
+      else document.removeEventListener("click", onDocumentClick, { capture: true });
+    }
+
+    infoButton.addEventListener("click", (event) => {
+      // The stat lives inside the card header, whose own click listener
+      // toggles card expansion — opening an explanation must not also
+      // expand/collapse the card.
+      event.stopPropagation();
+      setOpen(popover.hidden);
+    });
+    span.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setOpen(false);
+    });
+
+    labelEl.append(" ");
+    labelEl.append(infoButton);
+    span.append(popover);
+  }
+
   return span;
 }
 
@@ -128,7 +195,7 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
     };
     headline.append(
       buildStat("Myyty", formatThousands(derived.totals.sold)),
-      buildStat("Kapasiteetti", formatThousands(totals.total)),
+      buildStat("Kapasiteetti", formatThousands(totals.total), { info: CAPACITY_INFO }),
       buildStat("Osuus kapasiteetista", formatPercent(derived.totals.sold, totals.total))
     );
     header.append(title, headline, buildFillBar(fillRow));
@@ -139,7 +206,7 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
     buildStat("Myyty", formatThousands(totals.sold)),
     buildStat("Ostettavissa", formatThousands(totals.available)),
     buildStat("Ei myynnissä", formatThousands(totals.hold)),
-    buildStat("Kapasiteetti", formatThousands(totals.total)),
+    buildStat("Kapasiteetti", formatThousands(totals.total), { info: CAPACITY_INFO }),
     // A match's "Täyttö" is arena fill for one game; a kausikortti
     // listing's is the share of a whole season's capacity committed —
     // two different quantities under one word would be compared as if
@@ -338,8 +405,15 @@ export function buildCard(
     derivedNote.className = "card__note";
     derivedNote.textContent =
       "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan paikka, " +
-      "joka on myyty kauden jokaiseen otteluun. Lippukaupan oma luku olisi suurempi, koska yksittäisen " +
-      "ottelulipun osto varaa paikan myös kausikorttilistauksesta.";
+      "joka on myyty kauden jokaiseen otteluun." +
+      // The pin is a display-relevant fact, not just scraper plumbing: a
+      // visitor comparing the card against the shop needs to know this
+      // number is deliberately held still, not lagging.
+      (mergedEvent.seasonBaselineFrozen
+        ? " Luku on lukittu eikä päivity automaattisesti; se tarkistetaan käsin kauden aikana."
+        : "") +
+      " Lippukaupan oma luku olisi suurempi, koska yksittäisen ottelulipun osto varaa paikan myös " +
+      "kausikorttilistauksesta.";
     article.append(derivedNote);
   }
 

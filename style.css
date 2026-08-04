@@ -277,6 +277,49 @@ header.site-header h1 {
   font-weight: 600;
 }
 
+/* Same interaction pattern as .seatmap-legend__info-toggle/-popover, but
+   theme-following throughout — a card header is an ordinary themed
+   surface, unlike the legend's deliberately fixed-light one, so the
+   fixed-color exception there does not apply here. */
+.card__stat {
+  position: relative;
+}
+
+.card__stat-info-toggle {
+  font: inherit;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 0.2rem;
+  line-height: 1;
+}
+
+.card__stat-info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.card__stat-info-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  margin: 0.3rem 0 0;
+  width: max-content;
+  max-width: 260px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.8rem;
+  font-weight: 400;
+  font-style: normal;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .card__season-badge,
 .card__game-type-label,
 .card__pelattu-tag {
