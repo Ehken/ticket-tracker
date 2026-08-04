@@ -25,6 +25,23 @@ const COUNT_ONLY_SECTIONS = new Set(["seisomakatsomo", "invalid", "press", "aiti
 // count.
 export const MIN_GAMES_FOR_DERIVATION = 5;
 
+// A second, independent freeze condition on the same principle. The
+// intersection's evidence that a seat is NOT a season ticket is "unsold in
+// at least one upcoming game" — evidence that only exists while some
+// upcoming game has real free capacity. Game count alone doesn't capture
+// that: eight remaining games that have all pre-sold out (a playoff race)
+// would pass the MIN_GAMES floor while the intersection creeps toward
+// full capacity, ending the season claiming every seat in the arena is a
+// season ticket. So the derivation also requires at least
+// MIN_SLACK_GAMES usable games below MAX_TRUSTED_FILL total fill; when
+// the season gets so hot that fewer remain, the last clean derivation is
+// kept (same keep-the-file mechanism as above) — which by then still
+// includes every season ticket sold before the freeze, unlike an anchor
+// frozen at sales opening. A game with no totals recorded counts as NOT
+// slack: missing data must never stand in as evidence of free capacity.
+export const MIN_SLACK_GAMES = 3;
+export const MAX_TRUSTED_FILL = 0.9;
+
 // The season-ticket listing's own "sold" is NOT a season-ticket count once
 // match tickets are on sale: the shop blocks a seat from season-ticket sale
 // as soon as any single game sells it, so the listing's number grows with
@@ -57,6 +74,12 @@ export function deriveSeasonBaseline({ kausikorttiSeats, kausikorttiSections, ga
     (g) => g?.seats && Array.isArray(g.seats.soldSeatIds) && g.seats.svgHash === kausikorttiSeats.svgHash && g.latest
   );
   if (usable.length < MIN_GAMES_FOR_DERIVATION) return null;
+
+  const slackGames = usable.filter((g) => {
+    const totals = g.latest.totals;
+    return totals && totals.total > 0 && totals.sold / totals.total < MAX_TRUSTED_FILL;
+  });
+  if (slackGames.length < MIN_SLACK_GAMES) return null;
 
   let seatIds = kausikorttiSeats.soldSeatIds;
   for (const game of usable) {
@@ -167,7 +190,9 @@ export async function updateSeasonBaselines({ dataDir, index, overrides, autocla
       });
       if (!derived) {
         log.log(
-          `[seasonBaseline] ${kk.entry.id}: not derivable (${games.length} candidate games) — leaving existing files untouched`
+          `[seasonBaseline] ${kk.entry.id}: not derivable (${games.length} candidate games; needs ` +
+            `>=${MIN_GAMES_FOR_DERIVATION} usable, >=${MIN_SLACK_GAMES} below ${MAX_TRUSTED_FILL * 100}% fill) — ` +
+            `leaving existing files untouched`
         );
         continue;
       }

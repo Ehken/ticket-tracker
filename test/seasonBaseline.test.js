@@ -8,6 +8,8 @@ import {
   appendSeasonBaselineHistoryPointIfChanged,
   updateSeasonBaselines,
   MIN_GAMES_FOR_DERIVATION,
+  MIN_SLACK_GAMES,
+  MAX_TRUSTED_FILL,
 } from "../scripts/lib/seasonBaseline.js";
 
 const HASH = "hash-1";
@@ -16,8 +18,8 @@ function seats(soldSeatIds, svgHash = HASH) {
   return { svgHash, soldSeatIds };
 }
 
-function latestWith(sections) {
-  return { sections };
+function latestWith(sections, totals = { sold: 500, total: 4976 }) {
+  return { sections, totals };
 }
 
 // A minimal but realistic shape: two seated sections plus the two
@@ -31,16 +33,25 @@ const KK_SECTIONS = [
 
 const KK_SEATS = seats(["A1-1-001", "A1-1-002", "A1-1-003", "C3-2-001", "C3-2-002"]);
 
-function game({ sold, standing = 150, wheelchair = 3, svgHash = HASH }) {
+function game({ sold, standing = 150, wheelchair = 3, svgHash = HASH, totals }) {
   return {
     seats: seats(sold, svgHash),
-    latest: latestWith([
-      { section: "A1", sold: 99 },
-      { section: "C3", sold: 99 },
-      { section: "seisomakatsomo", sold: standing },
-      { section: "invalid", sold: wheelchair },
-    ]),
+    latest: latestWith(
+      [
+        { section: "A1", sold: 99 },
+        { section: "C3", sold: 99 },
+        { section: "seisomakatsomo", sold: standing },
+        { section: "invalid", sold: wheelchair },
+      ],
+      totals
+    ),
   };
+}
+
+// A game filled past MAX_TRUSTED_FILL — usable for the map/seat checks but
+// contributing no free-capacity evidence.
+function fullGame(overrides = {}) {
+  return game({ sold: SEASON_SEATS, totals: { sold: 4900, total: 4976 }, ...overrides });
 }
 
 // Season seats sold in every game; A1-1-003 and C3-2-002 blocked by a
@@ -138,6 +149,60 @@ test("deriveSeasonBaseline returns null below the minimum game count or without 
       kausikorttiSections: KK_SECTIONS,
       games: makeGames(MIN_GAMES_FOR_DERIVATION),
     }),
+    null
+  );
+});
+
+test("deriveSeasonBaseline freezes (returns null) when too few usable games have free capacity", () => {
+  // Enough games to pass the MIN_GAMES floor, but all except
+  // MIN_SLACK_GAMES - 1 of them are filled past MAX_TRUSTED_FILL: a
+  // sellout tail must freeze the derivation, not creep toward capacity.
+  const games = [
+    ...Array.from({ length: MIN_SLACK_GAMES - 1 }, () => game({ sold: SEASON_SEATS })),
+    ...Array.from({ length: MIN_GAMES_FOR_DERIVATION }, () => fullGame()),
+  ];
+  assert.equal(
+    deriveSeasonBaseline({ kausikorttiSeats: KK_SEATS, kausikorttiSections: KK_SECTIONS, games }),
+    null
+  );
+});
+
+test("deriveSeasonBaseline derives with exactly the minimum number of slack games, and full games still count as evidence", () => {
+  // MIN_SLACK_GAMES games with slack + full games on top: derivable, and
+  // the full games still participate in the intersection (a full game that
+  // does NOT include a seat is still proof it isn't a season ticket).
+  const slack = Array.from({ length: MIN_SLACK_GAMES }, () =>
+    game({ sold: [...SEASON_SEATS, "A1-1-003", "C3-2-002"] })
+  );
+  const full = Array.from({ length: MIN_GAMES_FOR_DERIVATION }, () => fullGame({ sold: SEASON_SEATS }));
+  const derived = deriveSeasonBaseline({
+    kausikorttiSeats: KK_SEATS,
+    kausikorttiSections: KK_SECTIONS,
+    games: [...slack, ...full],
+  });
+
+  assert.deepEqual(derived.seatIds, SEASON_SEATS); // extras excluded by the FULL games' sets
+  assert.equal(derived.gamesUsed, MIN_SLACK_GAMES + MIN_GAMES_FOR_DERIVATION);
+});
+
+test("deriveSeasonBaseline treats a game with missing or zero totals as having no free capacity", () => {
+  const noTotals = Array.from({ length: MIN_GAMES_FOR_DERIVATION }, () => {
+    const g = game({ sold: SEASON_SEATS });
+    delete g.latest.totals;
+    return g;
+  });
+  assert.equal(
+    deriveSeasonBaseline({ kausikorttiSeats: KK_SEATS, kausikorttiSections: KK_SECTIONS, games: noTotals }),
+    null
+  );
+});
+
+test("a fill exactly at MAX_TRUSTED_FILL does not count as slack", () => {
+  const atThreshold = Array.from({ length: MIN_GAMES_FOR_DERIVATION }, () =>
+    game({ sold: SEASON_SEATS, totals: { sold: MAX_TRUSTED_FILL * 1000, total: 1000 } })
+  );
+  assert.equal(
+    deriveSeasonBaseline({ kausikorttiSeats: KK_SEATS, kausikorttiSections: KK_SECTIONS, games: atThreshold }),
     null
   );
 });
@@ -263,6 +328,27 @@ test("updateSeasonBaselines leaves an existing derived file untouched when deriv
 
   const after = await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8");
   assert.equal(after, before);
+});
+
+test("updateSeasonBaselines keeps the last clean derivation when the remaining games sell out", async () => {
+  const { dataDir, index, overrides, autoclass } = await seedDataDir();
+  await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO: "t1", log: silentLog });
+  const before = await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8");
+
+  // Every game still upcoming, but now filled past MAX_TRUSTED_FILL — the
+  // playoff-race scenario. Without the slack floor, the intersection would
+  // keep updating and creep toward full capacity.
+  for (let i = 1; i <= MIN_GAMES_FOR_DERIVATION; i++) {
+    await seedEvent(dataDir, `90-${String(i).padStart(3, "0")}`, fullGame());
+  }
+  await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO: "t2", log: silentLog });
+
+  const after = await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8");
+  assert.equal(after, before);
+  const history = JSON.parse(
+    await readFile(path.join(dataDir, "events", "90-000", "seasonBaselineHistory.json"), "utf8")
+  );
+  assert.equal(history.length, 1, "no new history point while frozen");
 });
 
 test("updateSeasonBaselines skips an archived kausikortti listing entirely", async () => {

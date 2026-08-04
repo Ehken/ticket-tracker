@@ -151,6 +151,13 @@ sitä listauksen raakalukujen sijaan. Jos johdettua tiedostoa ei ole (kauden
 otteluita ei vielä myynnissä), käytetään listauksen omia lukuja — ne ovat
 silloin vielä puhtaita.
 
+Johtaminen edellyttää, että vertailuun on aitoa näyttöä: paikka ei ole
+kausikortti vain, jos se on jossain tulevassa ottelussa myymättä. Siksi
+laskenta pysähtyy (viimeisin johdettu tiedosto jää voimaan sellaisenaan),
+kun tulevia otteluita on alle 5, tai kun alle 3 niistä on alle 90 %
+täyttöasteessa — loppuunmyyty loppukausi ei siis hivuta lukua kohti hallin
+kapasiteettia, vaan luku jäätyy viimeiseen luotettavaan arvoon.
+
 ## Testidata / suunnittelutila (`?mock=1`)
 
 Sivu tukee pysyvää suunnittelu- ja testitilaa: `.../?mock=1` lataa oikean
