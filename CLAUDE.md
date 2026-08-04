@@ -72,6 +72,11 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   hand: `seasonBaselineFrozen: true` on the kausikortti event in
   `overrides.json` (human-owned, like every overrides field) pins the
   derived files exactly as they are until the flag is removed.
+- `data/attendanceHistory.json` is written ONLY by the one-off
+  `scripts/fetchAttendanceHistory.js` (run manually, diff reviewed,
+  committed — like schedule.json edits in spirit). The hourly scraper
+  never touches it. Optional: the dashboard forecast degrades gracefully
+  without it.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never

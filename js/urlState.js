@@ -18,6 +18,13 @@
 // never needs to change within a single page life.
 export const IS_DASHBOARD = new URLSearchParams(window.location.search).get("dashboard") === "1";
 
+// ?forecast=1: reveal the dashboard's attendance forecast before its
+// production gate (>= MIN_COMPLETED_GAMES completed games) is met — for
+// validating the model against reality on real data. WHAT-axis state like
+// every other param here (a shared link should show the recipient the same
+// experimental view), resolved once at load like IS_DASHBOARD.
+export const FORCE_FORECAST = new URLSearchParams(window.location.search).get("forecast") === "1";
+
 export function readUrlState() {
   const params = new URLSearchParams(window.location.search);
   return {

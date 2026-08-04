@@ -81,6 +81,13 @@ export function getSeasonBaselineHistory(id) {
   return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seasonBaselineHistory.json`, { fallbackOn404: [] });
 }
 
+// Historical SaiPa home attendance from liiga.fi (see
+// scripts/fetchAttendanceHistory.js). Optional by design: absent file →
+// null → the forecast simply runs without its opponent/weekday indices.
+export function getAttendanceHistory() {
+  return fetchJson(`${DATA_ROOT}/attendanceHistory.json`, { fallbackOn404: null });
+}
+
 const svgCache = new Map();
 
 export async function getCapacitiesSvg(hash) {
