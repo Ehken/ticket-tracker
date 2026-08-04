@@ -300,6 +300,17 @@ header.site-header h1 {
   outline-offset: 1px;
 }
 
+/* Top-layer variant (Popover API path in js/card.js's buildStat): fixed
+   coordinates are set inline from the button's viewport position; the
+   inset/margin reset overrides the UA's [popover] centering defaults.
+   Engines without the API use the .card__stat-info-popover base rules
+   below unchanged. */
+.card__stat-info-popover[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+}
+
 .card__stat-info-popover {
   position: absolute;
   top: 100%;
