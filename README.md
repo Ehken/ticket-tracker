@@ -98,6 +98,8 @@ data/
   events/{id}/latest.json        # tuorein tilannekuva per tapahtuma
   events/{id}/history.json       # myynnin aikasarja per tapahtuma (myyty/vapaa/ei-myynnissä/suljetut lohkot ajassa)
   events/{id}/seats.json         # tämänhetkiset myydyt paikka-ID:t (ei historiaa, ylikirjoitetaan joka haulla)
+  events/{id}/seasonBaseline.json         # kausikorttitapahtumille: johdettu todellinen kausikorttimäärä, ks. "Kausikorttien laskenta"
+  events/{id}/seasonBaselineHistory.json  # johdetun kausikorttimäärän aikasarja
   capacities/{svg-hash}.json     # paikkamäärät per katsomonumero, versioitu SVG:n tiivisteellä
   capacities/{svg-hash}.svg      # sama kartta raakana SVG:nä, istumakarttaa varten
   mock/                          # kokonaan erillinen puu ?mock=1-tilalle, ks. alla — sama rakenne kuin yllä
@@ -128,6 +130,26 @@ Ominaisuudet:
 
 Kaaviokirjastot (Chart.js, Luxon, chartjs-adapter-luxon) on ladattu itse
 (`vendor/`, ks. `vendor/README.md`) — ei CDN-pyyntöjä kävijöille.
+
+## Kausikorttien laskenta
+
+Lippukaupan kausikorttilistauksen oma "myyty"-luku lakkaa kuvaamasta
+kausikortteja siinä vaiheessa, kun yksittäisten otteluiden lipunmyynti
+alkaa: yksittäisen ottelulipun osto varaa saman paikan myös
+kausikorttilistauksesta, joten listauksen luku kasvaa irtolippujen tahdissa
+vaikka yhtään uutta kausikorttia ei myytäisi.
+
+Todellinen kausikorttimäärä johdetaan siksi ottelukohtaisesta datasta
+(`scripts/lib/seasonBaseline.js`): kausikortiksi lasketaan paikka, joka on
+myyty kausikorttilistauksessa **ja** kauden jokaisessa tulevassa
+ottelussa — aito kausikortti näkyy myytynä joka ottelussa, irtolippu vain
+yhdessä. Seisomakatsomolle (ei paikka-ID:itä) käytetään otteluiden
+pienintä myytyä määrää. Tulos kirjoitetaan tiedostoon
+`events/{id}/seasonBaseline.json`, ja kausikorttikortti, istumakarttojen
+kausikortti/irtolippu-jako sekä dashboardin irtolippulaskenta käyttävät
+sitä listauksen raakalukujen sijaan. Jos johdettua tiedostoa ei ole (kauden
+otteluita ei vielä myynnissä), käytetään listauksen omia lukuja — ne ovat
+silloin vielä puhtaita.
 
 ## Testidata / suunnittelutila (`?mock=1`)
 

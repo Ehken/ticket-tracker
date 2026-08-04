@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getSeasonBaseline,
   buildBaselineIndex,
+  baselineTotalsForKausikortti,
   irtoliput,
   irtolippuFillPct,
   irtolippuSections,
@@ -28,6 +29,40 @@ test("getSeasonBaseline finds the matching season's sold count", () => {
 test("getSeasonBaseline returns 0 when no kausikortti event exists for that season", () => {
   assert.equal(getSeasonBaseline([], "2026-27"), 0);
   assert.equal(getSeasonBaseline([kausikortti({ season: "2025-26" })], "2026-27"), 0);
+});
+
+test("a derived seasonBaseline wins over the listing's own (contaminated) numbers everywhere", () => {
+  const event = {
+    ...kausikortti({
+      season: "2026-27",
+      sold: 2856, // raw listing count, inflated by single-game purchases
+      sections: [
+        { section: "A1", sold: 73, total: 171 },
+        { section: "seisomakatsomo", sold: 1016, total: 2138 },
+      ],
+    }),
+    seasonBaseline: {
+      totals: { sold: 2489, soldSeated: 1483, soldStanding: 1001 },
+      sections: [
+        { section: "A1", sold: 50 },
+        { section: "seisomakatsomo", sold: 1001 },
+      ],
+    },
+  };
+
+  assert.equal(baselineTotalsForKausikortti(event).sold, 2489);
+  assert.equal(getSeasonBaseline([event], "2026-27"), 2489);
+
+  const entry = buildBaselineIndex([event]).get("2026-27");
+  assert.equal(entry.totalSold, 2489);
+  assert.equal(entry.sections.get("A1"), 50);
+  assert.equal(entry.sections.get("seisomakatsomo"), 1001);
+});
+
+test("baselineTotalsForKausikortti falls back to the raw listing when no derived baseline exists", () => {
+  const event = kausikortti({ season: "2026-27", sold: 2552 });
+  assert.equal(baselineTotalsForKausikortti(event).sold, 2552);
+  assert.equal(baselineTotalsForKausikortti({ ...event, seasonBaseline: null }).sold, 2552);
 });
 
 test("buildBaselineIndex builds a per-season map of total + per-section sold", () => {

@@ -46,6 +46,17 @@ export function recentSeatActivityPath(dataDir, id) {
   return path.join(eventDir(dataDir, id), "recentSeatActivity.json");
 }
 
+// Derived season-ticket baseline (see scripts/lib/seasonBaseline.js) — the
+// true season set cross-derived from per-game seat data, because the
+// kausikortti listing's own sold count inflates with single-game purchases.
+export function seasonBaselinePath(dataDir, id) {
+  return path.join(eventDir(dataDir, id), "seasonBaseline.json");
+}
+
+export function seasonBaselineHistoryPath(dataDir, id) {
+  return path.join(eventDir(dataDir, id), "seasonBaselineHistory.json");
+}
+
 export function capacitiesPath(dataDir, hash) {
   return path.join(dataDir, "capacities", `${hash}.json`);
 }

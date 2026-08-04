@@ -38,6 +38,7 @@ import {
   setAutoclassIfAbsent,
 } from "./lib/dataStore.js";
 import { computeSeatRecency } from "./lib/seatRecency.js";
+import { updateSeasonBaselines } from "./lib/seasonBaseline.js";
 
 const SHOP_BASE_URL = "https://elippu.net/saipa";
 const EVENT_DELAY_MS = 1500;
@@ -287,6 +288,12 @@ export async function run({
   index = archiveMissingEvents(index, presentIds);
   await writeJsonIfChanged(eventsIndexPath(dataDir), index);
   await writeJsonIfChanged(autoclassPath(dataDir), autoclass);
+
+  // After archiving so this run's status changes are already reflected —
+  // a game archived just now must not participate in the intersection.
+  // Reads back what the loop above wrote; its own failures are logged
+  // inside and never abort the run (derived data, raw files already safe).
+  await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO, log });
 
   return { hadFailure };
 }

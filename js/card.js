@@ -1,7 +1,7 @@
 import { formatHelsinkiDate, formatThousands, formatPercent } from "./format.js";
 import { buildSectionTable, buildFillBar } from "./sectionTable.js";
 import { buildChart } from "./chart.js";
-import { getHistory } from "./fetchData.js";
+import { getHistory, getSeasonBaselineHistory } from "./fetchData.js";
 import { gameTypeLabel } from "./grouping.js";
 import { buildSeatMapPanel } from "./seatMap.js";
 import { findCheapestAvailableSection, formatPrice } from "./prices.js";
@@ -111,6 +111,30 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
 
   const headline = document.createElement("div");
   headline.className = "card__headline";
+
+  const derived = isKausikortti ? mergedEvent.seasonBaseline : null;
+  if (derived) {
+    // The listing's own sold/available/hold stop describing season tickets
+    // once match tickets are on sale (a single-game purchase blocks the
+    // seat here too), so the card shows only the derived season-ticket
+    // count — see scripts/lib/seasonBaseline.js. Ostettavissa/Ei myynnissä
+    // are dropped rather than shown next to a derived Myyty they no longer
+    // sum with; the note appended in buildCard explains the derivation.
+    const fillRow = {
+      sold: derived.totals.sold,
+      available: totals.total - derived.totals.sold,
+      hold: 0,
+      total: totals.total,
+    };
+    headline.append(
+      buildStat("Myyty", formatThousands(derived.totals.sold)),
+      buildStat("Kapasiteetti", formatThousands(totals.total)),
+      buildStat("Osuus kapasiteetista", formatPercent(derived.totals.sold, totals.total))
+    );
+    header.append(title, headline, buildFillBar(fillRow));
+    return header;
+  }
+
   headline.append(
     buildStat("Myyty", formatThousands(totals.sold)),
     buildStat("Ostettavissa", formatThousands(totals.available)),
@@ -252,7 +276,19 @@ export function buildCard(
     body.append(chartWrapper);
 
     try {
-      const history = await getHistory(mergedEvent.id);
+      // A kausikortti card with a derived baseline charts the derived
+      // series: the raw history.json curve climbs with single-game sales
+      // once match tickets open (the very distortion the derivation
+      // removes), so plotting it under a derived headline number would
+      // contradict the card's own stats. Empty until the first scrape
+      // after the derivation feature landed — fall back to raw until then.
+      let history = [];
+      if (mergedEvent.gameType === "kausikortti" && mergedEvent.seasonBaseline) {
+        history = await getSeasonBaselineHistory(mergedEvent.id);
+      }
+      if (history.length === 0) {
+        history = await getHistory(mergedEvent.id);
+      }
       buildChart(canvas, history);
     } catch (err) {
       const errorEl = document.createElement("p");
@@ -291,6 +327,20 @@ export function buildCard(
     note.className = "card__note";
     note.textContent = mergedEvent.note;
     article.append(note);
+  }
+
+  if (mergedEvent.gameType === "kausikortti" && mergedEvent.seasonBaseline) {
+    // Automatic companion to the derived headline number above (not an
+    // overrides.json note): without it, anyone comparing the card against
+    // the shop's own listing would see a smaller number here and assume
+    // the tracker lags.
+    const derivedNote = document.createElement("p");
+    derivedNote.className = "card__note";
+    derivedNote.textContent =
+      "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan paikka, " +
+      "joka on myyty kauden jokaiseen otteluun. Lippukaupan oma luku olisi suurempi, koska yksittäisen " +
+      "ottelulipun osto varaa paikan myös kausikorttilistauksesta.";
+    article.append(derivedNote);
   }
 
   article.append(body);

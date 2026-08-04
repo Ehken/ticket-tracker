@@ -196,6 +196,21 @@ async function resolveBaseline(mergedEvent, seats, kausikorttiEvents) {
     : undefined;
   if (!kausikorttiEvent) return NO_BASELINE; // not tracked yet — normal case, no warning
 
+  // Derived baseline first (attached in app.js from seasonBaseline.json —
+  // see scripts/lib/seasonBaseline.js): the kausikortti listing's raw
+  // soldSeatIds include every seat blocked by a single-game purchase, which
+  // is exactly what made single-bought seats render black (kausikortti)
+  // instead of yellow on game maps. Same svgHash gate as the raw path
+  // below; on mismatch, fall through to the raw file rather than giving up
+  // — it carries its own hash and gets the same check.
+  const derived = kausikorttiEvent.seasonBaseline;
+  if (derived && derived.svgHash === seats.svgHash) {
+    return {
+      soldSet: new Set(derived.seatIds),
+      sectionSold: new Map(derived.sections.map((row) => [row.section, row.sold])),
+    };
+  }
+
   let baselineSeats;
   try {
     baselineSeats = await getSeats(kausikorttiEvent.id);
