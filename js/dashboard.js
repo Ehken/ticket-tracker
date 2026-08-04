@@ -158,7 +158,11 @@ function buildTile({ label, value, sub, subClass, tag, info }) {
   if (tag) {
     const tagEl = document.createElement("span");
     tagEl.className = "dashboard-tile__tag";
-    tagEl.textContent = tag;
+    tagEl.textContent = tag.text;
+    if (tag.title) {
+      tagEl.title = tag.title;
+      tagEl.setAttribute("aria-label", tag.title);
+    }
     tile.append(tagEl);
   }
   return tile;
@@ -173,9 +177,10 @@ const FLOOR_INFO =
   "Tulevien otteluiden myynti vain kasvaa, joten todellinen keskiarvo on vähintään tämä.";
 
 const FORECAST_INFO =
-  "Malli olettaa, että kausi jatkaa tähänastisen datan mukaisesti. Se ei näe joukkueen " +
-  "menestystä, TV-otteluita eikä säätä. Vastustaja- ja viikonpäiväkertoimet perustuvat " +
-  "aiempien kausien yleisömääriin (liiga.fi).";
+  "Ennuste perustuu kauden omaan myyntivauhtiin sekä vastustaja- ja viikonpäiväkertoimiin, " +
+  "jotka on laskettu aiempien kausien yleisömääristä (liiga.fi). Ennen kuin kaudelta on " +
+  "pelattuja otteluita, arvio nojaa pelkkiin historiallisiin kertoimiin. Malli ei näe " +
+  "joukkueen menestystä, TV-otteluita eikä säätä.";
 
 function buildHeroTiles(state) {
   const {
@@ -185,7 +190,6 @@ function buildHeroTiles(state) {
     inScopeWithHistory,
     nowIso,
     forecastAvg,
-    forecastExperimental,
     showForecast,
     baselineIndex,
   } = state;
@@ -199,7 +203,9 @@ function buildHeroTiles(state) {
         label: "Kausikortteja",
         value: formatThousands(kausikorttiTotals.sold),
         sub: "koko kausi",
-        tag: kausikorttiFrozen ? "lukittu" : undefined,
+        // Icon, not the word — "lukittu" as text overlapped the tile's own
+        // label at common widths; the ⓘ carries the full explanation.
+        tag: kausikorttiFrozen ? { text: "\u{1F512}", title: "lukittu" } : undefined,
         info:
           "Ottelukohtaisista paikkatiedoista päätelty kausikorttimäärä — sama luku kuin " +
           "etusivun kausikorttikortissa. Kausitason luku: sarjasuodatin ei vaikuta tähän.",
@@ -247,8 +253,6 @@ function buildHeroTiles(state) {
       buildTile({
         label: "Yleisökeskiarvo · ennuste",
         value: formatThousands(Math.round(forecastAvg.average)),
-        sub: forecastAvg.mode === "index" ? "historiallisesta vetovoimasta" : "myyntivauhdista",
-        tag: forecastExperimental ? "kokeellinen" : undefined,
         info: FORECAST_INFO,
       })
     );
@@ -422,6 +426,11 @@ function buildKiirehdiPanel(state) {
     const soldOut = totals.available === 0;
 
     const metaParts = [];
+    // The bar draws sold/capacity, so the headline % must be the same
+    // quantity — showing the irtolippu-only % next to a visibly fuller bar
+    // read as a contradiction. The ranking still runs on irtolippu fill,
+    // shown here in the meta line.
+    if (fillPct !== null) metaParts.push(`irtolippujen täyttö ${formatFraction(fillPct)}`);
     if (soldOut) metaParts.push("loppuunmyyty");
     for (const section of premiumTriggers) metaParts.push(`${sectionLabel(section)} lähes loppu`);
     const estimate = soldOut
@@ -447,7 +456,7 @@ function buildKiirehdiPanel(state) {
     rows.push(
       buildRowBar({
         label: `${event.name} ${formatHelsinkiDate(event.start)}`,
-        value: fillPct !== null ? formatFraction(fillPct) : formatPercent(totals.sold, totals.total),
+        value: formatPercent(totals.sold, totals.total),
         kkFraction: kk / totals.total,
         ilFraction: Math.max(0, totals.sold - kk) / totals.total,
         meta: metaNode ?? (meta || null),
@@ -798,7 +807,6 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
       kausikorttiFrozen: kausikorttiEvent?.seasonBaselineFrozen === true,
       forecastByEventId,
       showForecast: visibility.show && forecastByEventId.size > 0,
-      forecastExperimental: visibility.experimental,
       forecastAvg: computeAvgAttendanceForecast(inScope, forecastByEventId),
     };
 
