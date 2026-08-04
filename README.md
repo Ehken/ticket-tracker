@@ -151,6 +151,21 @@ sitä listauksen raakalukujen sijaan. Jos johdettua tiedostoa ei ole (kauden
 otteluita ei vielä myynnissä), käytetään listauksen omia lukuja — ne ovat
 silloin vielä puhtaita.
 
+Johtaminen edellyttää, että vertailuun on aitoa näyttöä: paikka ei ole
+kausikortti vain, jos se on jossain tulevassa ottelussa myymättä. Siksi
+laskenta pysähtyy (viimeisin johdettu tiedosto jää voimaan sellaisenaan),
+kun tulevia otteluita on alle 5, tai kun alle 3 niistä on alle 90 %
+täyttöasteessa — loppuunmyyty loppukausi ei siis hivuta lukua kohti hallin
+kapasiteettia, vaan luku jäätyy viimeiseen luotettavaan arvoon.
+
+Luvun voi myös jäädyttää käsin: `overrides.json`-merkintä
+`"seasonBaselineFrozen": true` kausikorttitapahtumalle lukitsee johdetut
+tiedostot sellaisinaan, eikä scraperi enää koske niihin. Tarkoitettu
+käyttötapa: annetaan laskennan päivittyä niin kauan kuin otteluissa on
+reilusti vapaata kapasiteettia (esim. elokuun loppuun), ja lukitaan luku
+sitten loppukaudeksi. Päivitys myöhemmin: poista lippu, odota yksi
+scrape-ajo (tiedostot johdetaan uudelleen), lisää lippu takaisin.
+
 ## Testidata / suunnittelutila (`?mock=1`)
 
 Sivu tukee pysyvää suunnittelu- ja testitilaa: `.../?mock=1` lataa oikean
@@ -206,6 +221,9 @@ muokkausta varten. Kentät (kaikki valinnaisia):
 - `hidden`: `true` piilottaa tapahtuman kokonaan sivulta
 - `displayName`: korvaa scrapatun nimen
 - `note`: vapaa teksti, näytetään kortissa
+- `seasonBaselineFrozen`: `true` jäädyttää kausikorttitapahtuman johdetun
+  kausikorttimäärän (`seasonBaseline.json`) nykyiseen arvoonsa — scraperi ei
+  enää päivitä sitä. Ks. "Kausikorttien laskenta".
 
 Avaimena käytetään tapahtuman id:tä **väliviiva-muodossa** (esim. `"53-575"`,
 ei `"53:575"`), sama muoto kuin `data/events/`-kansioiden nimissä.
