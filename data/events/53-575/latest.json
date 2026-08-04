@@ -3,45 +3,45 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-08-04T09:50:17.546Z",
+  "fetchedAt": "2026-08-04T10:47:22.917Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 89,
-      "available": 82,
+      "sold": 93,
+      "available": 78,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 195,
-      "available": 73,
+      "sold": 192,
+      "available": 76,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 200,
-      "available": 46,
+      "sold": 201,
+      "available": 45,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 208,
-      "available": 36,
+      "sold": 209,
+      "available": 35,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 210,
-      "available": 37,
+      "sold": 212,
+      "available": 35,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 135,
-      "available": 15,
+      "sold": 136,
+      "available": 14,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -112,16 +112,16 @@
     },
     {
       "section": "C8",
-      "sold": 55,
+      "sold": 54,
       "available": 0,
-      "hold": 50,
+      "hold": 51,
       "total": 105,
       "disabled": true
     },
     {
       "section": "D1",
-      "sold": 126,
-      "available": 79,
+      "sold": 125,
+      "available": 80,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2894,
-    "available": 1523,
-    "hold": 559,
+    "sold": 2898,
+    "available": 1518,
+    "hold": 560,
     "total": 4976
   },
   "prices": {

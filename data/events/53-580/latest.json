@@ -1,9 +1,9 @@
 {
   "eventId": "53:580",
   "name": "SaiPa - KooKoo",
-  "start": "2026-09-19T15:30:00.000Z",
+  "start": "2026-09-19T14:00:00.000Z",
   "stop": "2026-09-19T20:00:00.000Z",
-  "fetchedAt": "2026-08-04T09:50:17.546Z",
+  "fetchedAt": "2026-08-04T10:47:22.917Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 159,
-      "available": 109,
+      "sold": 157,
+      "available": 111,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -112,9 +112,9 @@
     },
     {
       "section": "C8",
-      "sold": 55,
+      "sold": 54,
       "available": 0,
-      "hold": 50,
+      "hold": 51,
       "total": 105,
       "disabled": true
     },
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2597,
-    "available": 1821,
-    "hold": 558,
+    "sold": 2594,
+    "available": 1823,
+    "hold": 559,
     "total": 4976
   },
   "prices": {

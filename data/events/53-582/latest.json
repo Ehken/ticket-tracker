@@ -3,45 +3,45 @@
   "name": "SaiPa - Jokerit",
   "start": "2026-10-03T14:00:00.000Z",
   "stop": "2026-10-03T20:00:00.000Z",
-  "fetchedAt": "2026-08-04T09:50:17.546Z",
+  "fetchedAt": "2026-08-04T10:47:22.917Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 85,
-      "available": 86,
+      "sold": 89,
+      "available": 82,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 193,
-      "available": 75,
+      "sold": 189,
+      "available": 79,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 194,
-      "available": 52,
+      "sold": 195,
+      "available": 51,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 205,
-      "available": 39,
+      "sold": 206,
+      "available": 38,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 209,
-      "available": 38,
+      "sold": 212,
+      "available": 35,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 129,
-      "available": 21,
+      "sold": 130,
+      "available": 20,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -112,16 +112,16 @@
     },
     {
       "section": "C8",
-      "sold": 55,
+      "sold": 54,
       "available": 0,
-      "hold": 50,
+      "hold": 51,
       "total": 105,
       "disabled": true
     },
     {
       "section": "D1",
-      "sold": 120,
-      "available": 85,
+      "sold": 119,
+      "available": 86,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2815,
-    "available": 1567,
-    "hold": 594,
+    "sold": 2819,
+    "available": 1562,
+    "hold": 595,
     "total": 4976
   },
   "prices": {
