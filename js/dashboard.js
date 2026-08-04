@@ -4,7 +4,12 @@
 import { getHistory } from "./fetchData.js";
 import { filterBySeason, gameTypeLabel } from "./grouping.js";
 import { computeUnclassifiedEvents } from "./dashboardUnclassified.js";
-import { buildBaselineIndex, baselineForEvent, seasonForEvent } from "./dashboardBaseline.js";
+import {
+  buildBaselineIndex,
+  baselineForEvent,
+  baselineTotalsForKausikortti,
+  seasonForEvent,
+} from "./dashboardBaseline.js";
 import { computeTopMovers, computeSelloutEstimate } from "./dashboardTrends.js";
 import {
   computeKiirehdiRanking,
@@ -113,7 +118,7 @@ function buildTimingSubsection(title, rows, rowBuilder) {
 function buildSection1(kausikorttiInScope, matchInScope, baselineIndex) {
   const panel = buildPanel("Kauden kokonaiskuva");
 
-  const kausikorttiSold = kausikorttiInScope.reduce((sum, e) => sum + e.latest.totals.sold, 0);
+  const kausikorttiSold = kausikorttiInScope.reduce((sum, e) => sum + baselineTotalsForKausikortti(e).sold, 0);
 
   let irtolippuSold = 0;
   let nonBaselineCapacity = 0;

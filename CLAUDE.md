@@ -57,8 +57,15 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   `gameType` for that event) — see `scripts/fetch.js`.
 - Everything else under `data/` (`events.json`, `events/*/latest.json`,
   `events/*/history.json`, `events/*/sectionHistory.json`,
-  `events/*/seats.json`, `capacities/`) is machine-owned, written by
-  `scripts/fetch.js`.
+  `events/*/seats.json`, `events/*/seasonBaseline.json`,
+  `events/*/seasonBaselineHistory.json`, `capacities/`) is machine-owned,
+  written by `scripts/fetch.js`.
+- A kausikortti listing's own sold count is NOT a season-ticket count once
+  match tickets are on sale (single-game purchases block the seat there
+  too) — the true count is derived per game in
+  `scripts/lib/seasonBaseline.js` and consumed everywhere via
+  `seasonBaseline.json`; raw listing totals are only a fallback for
+  seasons with no derived file.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never

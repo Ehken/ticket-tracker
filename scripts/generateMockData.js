@@ -11,6 +11,7 @@ import { compareAitioIds } from "./lib/sections.js";
 import { sectionOfSeatId } from "../js/seatMapClassify.js";
 import { mergeClassification } from "../js/classify.js";
 import { appendSectionHistoryPointIfChanged, writeSectionHistoryIfChanged } from "./lib/dataStore.js";
+import { deriveSeasonBaseline } from "./lib/seasonBaseline.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -1206,6 +1207,63 @@ async function main() {
     );
   }
 
+  // --- Derived season baselines (the production derivation from
+  // scripts/lib/seasonBaseline.js run over the generated tree, mirroring
+  // updateSeasonBaselines' eligibility rules). Mock match events are strict
+  // supersets of their season's baseline (invariant above), so the derived
+  // numbers reproduce the kausikortti listing's exactly — the point is that
+  // ?mock=1 exercises all three frontend paths: the derived display
+  // (2026-27), the no-games-yet raw fallback (2027-28 has fewer games than
+  // MIN_GAMES_FOR_DERIVATION), and the archived-listing raw fallback
+  // (2025-26). ---
+  const seasonBaselineById = new Map();
+  const seasonBaselineHistoryById = new Map();
+  const classifiedEvents = events.map((event) => ({
+    event,
+    merged: mergeClassification(event, { overrides, autoclass }),
+  }));
+  for (const { event, merged } of classifiedEvents) {
+    if (merged.gameType !== "kausikortti" || merged.season == null || event.status !== "upcoming") continue;
+
+    const games = classifiedEvents
+      .filter(
+        (c) =>
+          c.merged.gameType !== "kausikortti" && c.merged.season === merged.season && c.event.status === "upcoming"
+      )
+      .map((c) => ({ seats: seatsById.get(c.event.id), latest: latestById.get(c.event.id) }));
+
+    const derived = deriveSeasonBaseline({
+      kausikorttiSeats: seatsById.get(event.id),
+      kausikorttiSections: latestById.get(event.id).sections,
+      games,
+    });
+    if (!derived) continue;
+
+    seasonBaselineById.set(event.id, {
+      season: merged.season,
+      svgHash: derived.svgHash,
+      gamesUsed: derived.gamesUsed,
+      totals: derived.totals,
+      sections: derived.sections,
+      seatIds: derived.seatIds,
+    });
+    // The derived series' past points can't be re-derived (there's only one
+    // generated "now"), but in mock data the derived count equals the
+    // listing's own at every instant (superset invariant, no
+    // contamination), so the kausikortti history reshaped to this series'
+    // fields IS the correct derived curve.
+    seasonBaselineHistoryById.set(
+      event.id,
+      historyById.get(event.id).map((point) => ({
+        t: point.t,
+        sold: point.sold,
+        soldSeated: point.soldSeated,
+        soldStanding: point.soldStanding,
+        gamesUsed: derived.gamesUsed,
+      }))
+    );
+  }
+
   // --- Write everything out ---
   await mkdir(mockDir, { recursive: true });
   await writeFile(path.join(mockDir, "events.json"), JSON.stringify(events, null, 2) + "\n");
@@ -1231,6 +1289,16 @@ async function main() {
       await writeFile(
         path.join(dir, "recentSeatActivity.json"),
         JSON.stringify(recentSeatActivityById.get(event.id), null, 2) + "\n"
+      );
+    }
+    if (seasonBaselineById.has(event.id)) {
+      await writeFile(
+        path.join(dir, "seasonBaseline.json"),
+        JSON.stringify(seasonBaselineById.get(event.id), null, 2) + "\n"
+      );
+      await writeFile(
+        path.join(dir, "seasonBaselineHistory.json"),
+        JSON.stringify(seasonBaselineHistoryById.get(event.id), null, 2) + "\n"
       );
     }
   }

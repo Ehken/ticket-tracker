@@ -1,4 +1,12 @@
-import { getEventsIndex, getOverrides, getAutoclass, getSchedule, getLatest, IS_MOCK } from "./fetchData.js";
+import {
+  getEventsIndex,
+  getOverrides,
+  getAutoclass,
+  getSchedule,
+  getLatest,
+  getSeasonBaseline,
+  IS_MOCK,
+} from "./fetchData.js";
 import { mergeClassification } from "./classify.js";
 import {
   computeSeasons,
@@ -83,6 +91,21 @@ async function main() {
   const withLatest = await attachLatest(visible);
   const { seasons, hasMultipleSeasons } = computeSeasons({ overrides, autoclass, schedule });
   const { kausikortti, rest } = splitKausikortti(withLatest);
+
+  // Only kausikortti events carry a derived baseline; a fetch failure (as
+  // opposed to a clean 404, which resolves to null) degrades to the raw
+  // listing data rather than dropping the event the way attachLatest does —
+  // the card is still fully renderable without it.
+  await Promise.all(
+    kausikortti.map(async (event) => {
+      try {
+        event.seasonBaseline = await getSeasonBaseline(event.id);
+      } catch (err) {
+        event.seasonBaseline = null;
+        console.error(`Failed to load seasonBaseline.json for ${event.id}:`, err);
+      }
+    })
+  );
 
   if (IS_DASHBOARD) {
     // Unreleased private preview — same data-source resolution as the

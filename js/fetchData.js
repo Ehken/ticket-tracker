@@ -67,6 +67,20 @@ export function getRecentSeatActivity(id) {
   });
 }
 
+// Derived season-ticket baseline for a kausikortti event (see
+// scripts/lib/seasonBaseline.js for why the listing's own numbers can't be
+// used directly once match tickets are on sale). Both files only exist once
+// the scraper has been able to derive one — a young season (no games on
+// sale yet) or a pre-feature checkout has neither, and every consumer falls
+// back to the raw listing data, which is exactly right in both cases.
+export function getSeasonBaseline(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seasonBaseline.json`, { fallbackOn404: null });
+}
+
+export function getSeasonBaselineHistory(id) {
+  return fetchJson(`${DATA_ROOT}/events/${toDashId(id)}/seasonBaselineHistory.json`, { fallbackOn404: [] });
+}
+
 const svgCache = new Map();
 
 export async function getCapacitiesSvg(hash) {
