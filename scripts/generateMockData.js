@@ -780,6 +780,13 @@ async function main() {
   // wouldn't reliably reach on its own.
   const NEAR_SELLOUT_INDEX = 8; // 2026-10-08 vs JYP
   const FLAT_VELOCITY_INDEX = 14; // 2026-11-13 vs Ilves
+  // A completely sold-out game (every seated section, standing and
+  // wheelchair at capacity): exercises the card at 100% fill — fill bar
+  // with no free zone, Ostettavissa 0, no "Halvin vapaa paikka" line
+  // (findCheapestAvailableSection returns null), and a seat map with no
+  // vapaa dots. Five days after SEASON_2026_27_NOW, so it renders as an
+  // upcoming, fully sold game rather than an archived one.
+  const SOLDOUT_INDEX = 13; // 2026-10-30 vs JYP
   // Two more hand-picked games demo aitiot sold through another channel —
   // a real (if speculative) scraper capability, not yet observed live.
   const AITIO_OCCUPANCY = {
@@ -801,7 +808,11 @@ async function main() {
   if (firstUpcomingRunkosarjaIndex === -1) {
     throw new Error("generateMockData: no upcoming runkosarja fixture found for the 1-ticket-left scenario");
   }
-  if (firstUpcomingRunkosarjaIndex === NEAR_SELLOUT_INDEX || firstUpcomingRunkosarjaIndex === FLAT_VELOCITY_INDEX) {
+  if (
+    firstUpcomingRunkosarjaIndex === NEAR_SELLOUT_INDEX ||
+    firstUpcomingRunkosarjaIndex === FLAT_VELOCITY_INDEX ||
+    firstUpcomingRunkosarjaIndex === SOLDOUT_INDEX
+  ) {
     throw new Error(
       `generateMockData: firstUpcomingRunkosarjaIndex (${firstUpcomingRunkosarjaIndex}) collides with a ` +
         "hardcoded scenario index — schedule.json has likely been reordered"
@@ -825,6 +836,15 @@ async function main() {
       sectionFractionOverrides = { C4: 0.97 }; // premium section individually near sold out
     } else if (index === FLAT_VELOCITY_INDEX) {
       pinRecentToFinal = true; // sales have plateaued — a real zero-velocity case
+    } else if (index === SOLDOUT_INDEX) {
+      // fixedFraction 1 bypasses soldWithBaseline's 0.99 popularity clamp,
+      // so sold === total exactly in every seated section; the aggregate
+      // overrides do the same for the two count-only crowd sections.
+      // (press stays 0-sold/all-hold and aitiot follow AITIO_OCCUPANCY as
+      // for any game — neither is publicly buyable, so the card still
+      // reads Ostettavissa 0.)
+      sectionFractionOverrides = Object.fromEntries(Object.keys(SEATED_CAPACITIES).map((s) => [s, 1]));
+      aggregateSoldOverrides = { seisomakatsomo: STANDING_CAPACITY, invalid: WHEELCHAIR_CAPACITY };
     } else if (index === firstUpcomingRunkosarjaIndex) {
       aggregateSoldOverrides = { seisomakatsomo: STANDING_CAPACITY - 1 }; // exactly 1 standing ticket left
     }

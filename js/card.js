@@ -28,10 +28,12 @@ function buildCheapestAvailableLine(mergedEvent, latest) {
 // capacity (4820): the shop data additionally lists the 9 aitio boxes'
 // 156 seats as sellable inventory, and 4976 - 156 = 4820 exactly. Shown
 // as an ⓘ popover on every card's Kapasiteetti stat so the mismatch
-// against publicly quoted figures doesn't read as a data error.
+// against publicly quoted figures doesn't read as a data error. The
+// balloon copy stays short and skips the aitio arithmetic — this comment
+// is where the full explanation lives. The \u00a0 escape in the string
+// keeps "4 820" from wrapping mid-number in the narrow popover.
 const CAPACITY_INFO =
-  "Kapasiteetti on laskettu lippukaupan (elippu.net) paikkadatasta, ja siihen sisältyvät myös " +
-  "aitiopaikat (156). Kisapuiston virallinen katsojakapasiteetti on 4 820.";
+  "Kapasiteetti on laskettu elippu.netin paikkadatasta. Kisapuiston virallinen katsojakapasiteetti on 4\u00a0820.";
 
 let statInfoIdCounter = 0;
 
@@ -69,35 +71,68 @@ function buildStat(label, value, { info } = {}) {
     popover.id = popoverId;
     popover.className = "card__stat-info-popover";
     popover.textContent = info;
-    popover.hidden = true;
 
-    // The document-level close listener exists only WHILE the popover is
-    // open — added on open, removed on close — so re-rendering cards on
-    // every filter change can't accumulate permanent global listeners
-    // (the exact leak the seat-map legend's scoping comment warns about).
-    // Capture-phase so a click landing anywhere (including the card
-    // header, which stops nothing) closes the popover before it acts.
-    function onDocumentClick(event) {
-      if (!span.contains(event.target)) setOpen(false);
-    }
-
-    function setOpen(open) {
-      popover.hidden = !open;
-      infoButton.setAttribute("aria-expanded", String(open));
-      if (open) document.addEventListener("click", onDocumentClick, { capture: true });
-      else document.removeEventListener("click", onDocumentClick, { capture: true });
-    }
-
-    infoButton.addEventListener("click", (event) => {
+    if (typeof popover.showPopover === "function") {
+      // .card has overflow:hidden (rounded corners), which clips an
+      // absolutely-positioned popover on a COLLAPSED card — the header is
+      // the whole card, so there's no room below the button inside the
+      // clip box. The native Popover API renders the element in the
+      // browser's top layer, escaping every ancestor clip and stacking
+      // context, and popover="auto" + popovertarget give light-dismiss
+      // (outside click) and Escape handling for free — including the
+      // dismiss-then-reactivate race a hand-rolled click toggle gets
+      // wrong. Top-layer elements have no natural anchor, so the toggle
+      // handler places it under the button, clamped to the viewport.
+      popover.setAttribute("popover", "auto");
+      infoButton.setAttribute("popovertarget", popoverId);
+      popover.addEventListener("toggle", (event) => {
+        const open = event.newState === "open";
+        infoButton.setAttribute("aria-expanded", String(open));
+        if (!open) return;
+        const buttonRect = infoButton.getBoundingClientRect();
+        const popoverWidth = popover.getBoundingClientRect().width;
+        const left = Math.max(8, Math.min(buttonRect.left, window.innerWidth - popoverWidth - 8));
+        popover.style.left = `${left}px`;
+        popover.style.top = `${buttonRect.bottom + 4}px`;
+      });
       // The stat lives inside the card header, whose own click listener
       // toggles card expansion — opening an explanation must not also
-      // expand/collapse the card.
-      event.stopPropagation();
-      setOpen(popover.hidden);
-    });
-    span.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setOpen(false);
-    });
+      // expand/collapse the card. (popovertarget's toggle is a default
+      // action, not propagation, so this doesn't interfere with it.)
+      infoButton.addEventListener("click", (event) => event.stopPropagation());
+    } else {
+      // Fallback for engines without the Popover API: the pre-existing
+      // absolute-positioned popover. Known limitation, accepted for old
+      // browsers only: clipped by the card box while the card is
+      // collapsed (works once expanded).
+      popover.hidden = true;
+
+      // The document-level close listener exists only WHILE the popover is
+      // open — added on open, removed on close — so re-rendering cards on
+      // every filter change can't accumulate permanent global listeners
+      // (the exact leak the seat-map legend's scoping comment warns about).
+      // Capture-phase so a click landing anywhere (including the card
+      // header, which stops nothing) closes the popover before it acts.
+      function onDocumentClick(event) {
+        if (!span.contains(event.target)) setOpen(false);
+      }
+
+      function setOpen(open) {
+        popover.hidden = !open;
+        infoButton.setAttribute("aria-expanded", String(open));
+        if (open) document.addEventListener("click", onDocumentClick, { capture: true });
+        else document.removeEventListener("click", onDocumentClick, { capture: true });
+      }
+
+      infoButton.addEventListener("click", (event) => {
+        // Same card-expansion guard as the Popover API path above.
+        event.stopPropagation();
+        setOpen(popover.hidden);
+      });
+      span.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+      });
+    }
 
     labelEl.append(" ");
     labelEl.append(infoButton);
@@ -403,17 +438,22 @@ export function buildCard(
     // the tracker lags.
     const derivedNote = document.createElement("p");
     derivedNote.className = "card__note";
-    derivedNote.textContent =
-      "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan paikka, " +
-      "joka on myyty kauden jokaiseen otteluun." +
-      // The pin is a display-relevant fact, not just scraper plumbing: a
-      // visitor comparing the card against the shop needs to know this
-      // number is deliberately held still, not lagging.
-      (mergedEvent.seasonBaselineFrozen
-        ? " Luku on lukittu eikä päivity automaattisesti; se tarkistetaan käsin kauden aikana."
-        : "") +
-      " Lippukaupan oma luku olisi suurempi, koska yksittäisen ottelulipun osto varaa paikan myös " +
-      "kausikorttilistauksesta.";
+    // Two variants, not a shared base with an inserted sentence: the pinned
+    // number's honest description ("an estimate, anchored to pre-single-
+    // sales seats, manually reviewed") differs in kind from the live
+    // derivation's ("recomputed from per-game data every scrape"), not just
+    // by one clause. Both end by attributing the raw figure to elippu.net's
+    // DATA rather than to a number the shop displays — the shop shows no
+    // season-ticket count anywhere; we compute it from their seat data.
+    derivedNote.textContent = mergedEvent.seasonBaselineFrozen
+      ? "Kausikorttimäärä on arvio: pohjana ovat ennen yksittäisten ottelulippujen myynnin alkamista " +
+        "myydyt paikat. Luku on lukittu ja tarkistetaan käsin kauden aikana, joten se voi ajoittain " +
+        "poiketa todellisesta esimerkiksi peruutusten vuoksi. Suoraan elippu.net-kaupan datasta " +
+        "laskettu luku olisi tätä suurempi, koska ottelulipun osto varaa paikan myös " +
+        "kausikorttilistauksesta."
+      : "Kausikorttimäärä on päätelty ottelukohtaisista paikkatiedoista: kausikortiksi lasketaan " +
+        "paikka, joka on myyty kauden jokaiseen otteluun. Suoraan elippu.net-kaupan datasta laskettu " +
+        "luku olisi tätä suurempi, koska ottelulipun osto varaa paikan myös kausikorttilistauksesta.";
     article.append(derivedNote);
   }
 
