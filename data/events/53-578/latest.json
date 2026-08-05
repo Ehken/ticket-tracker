@@ -3,7 +3,7 @@
   "name": "SaiPa - HC Plzen",
   "start": "2026-10-14T15:30:00.000Z",
   "stop": "2026-10-14T20:00:00.000Z",
-  "fetchedAt": "2026-08-05T07:47:19.580Z",
+  "fetchedAt": "2026-08-05T08:47:18.760Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,16 +16,16 @@
     },
     {
       "section": "A2",
-      "sold": 149,
-      "available": 119,
+      "sold": 147,
+      "available": 121,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 185,
-      "available": 61,
+      "sold": 186,
+      "available": 60,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -104,17 +104,17 @@
     },
     {
       "section": "C7",
-      "sold": 58,
+      "sold": 59,
       "available": 0,
-      "hold": 36,
+      "hold": 35,
       "total": 94,
       "disabled": true
     },
     {
       "section": "C8",
-      "sold": 45,
+      "sold": 44,
       "available": 0,
-      "hold": 60,
+      "hold": 61,
       "total": 105,
       "disabled": true
     },
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2567,
-    "available": 1805,
+    "sold": 2566,
+    "available": 1806,
     "hold": 604,
     "total": 4976
   },

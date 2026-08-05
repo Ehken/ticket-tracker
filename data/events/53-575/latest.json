@@ -3,7 +3,7 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-08-05T07:47:19.580Z",
+  "fetchedAt": "2026-08-05T08:47:18.760Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,16 +16,16 @@
     },
     {
       "section": "A2",
-      "sold": 201,
-      "available": 67,
+      "sold": 199,
+      "available": 69,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 205,
-      "available": 41,
+      "sold": 206,
+      "available": 40,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -104,24 +104,24 @@
     },
     {
       "section": "C7",
-      "sold": 58,
+      "sold": 59,
       "available": 0,
-      "hold": 36,
+      "hold": 35,
       "total": 94,
       "disabled": true
     },
     {
       "section": "C8",
-      "sold": 45,
+      "sold": 44,
       "available": 0,
-      "hold": 60,
+      "hold": 61,
       "total": 105,
       "disabled": true
     },
     {
       "section": "D1",
-      "sold": 129,
-      "available": 76,
+      "sold": 131,
+      "available": 74,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 3104,
-    "available": 1476,
+    "sold": 3105,
+    "available": 1475,
     "hold": 396,
     "total": 4976
   },
