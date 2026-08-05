@@ -187,6 +187,37 @@ npm run generate-mock
 joten sama komento tuottaa saman lopputuloksen uudelleen ajettuna (ellei
 generointilogiikkaa tai `data/schedule.json`:ää muuteta).
 
+## Jaettavat kuvat (`kuvat/`)
+
+Ottelusta saa somekuvan kahdella tavalla, ja molemmat piirretään samasta
+lähteestä (`js/shareImage.js`), joten ulkoasu ei voi erkaantua:
+
+- **Kortista napista** — avaa ottelun kortti ja valitse "Jaa kuvana:
+  Neliö / Story / Leveä". Kuva syntyy selaimessa napin painalluksen
+  hetken luvuilla (1080×1080 Instagram-julkaisuun, 1080×1920 storyyn,
+  1200×630 muuhun). Ei palvelinta, ei riippuvuuksia.
+- **Aina tuore osoite** — `kuvat/seuraava-ottelu.png` päivittyy
+  scrapen mukana, eli kuvan voi linkittää kertaalleen esim.
+  keskustelupalstalle tai Discordiin ja se pysyy ajan tasalla koko kauden.
+  Sama grafiikka on myös upotettavissa iframeen osoitteesta
+  `kuvat/seuraava-ottelu.html` (skaalautuu kehyksen leveyteen).
+
+Kuvan viesti on tarkoituksella myynnillinen: otsikkona on se mikä on
+loppumassa ("Vain 312 paikkaa vapaana", "LOPPUUNMYYTY"), ei neutraali
+myyntimäärä, ja alla mainitaan lähes loppuunmyyty katsomo sekä viime
+vuorokauden myynti. Kuvassa on aina `epävirallinen seuranta` -merkintä ja
+sivun osoite, jotta jaettua kuvaa ei sekoiteta seuran omaan viestintään.
+
+**Miksi kuvaa ei kirjoiteta joka tunti:** ~40 kt PNG tunnin välein
+kasvattaisi repoa satoja megatavuja kaudessa, eikä 20 lippua vanha
+markkinointikuva eroa tuoreesta. `scripts/generateShareImages.js`
+kirjoittaa uudelleen vain kun muutos näkyy kuvassa (eri ottelu, eri
+täyttöprosentti tasalukuna, tai ≥25 lipun muutos) — käytännössä
+muutaman kerran päivässä. Rasterointi PNG:ksi tehdään ajurin omalla
+esiasennetulla Chromella `fetch.yml`:ssä (ei npm-riippuvuutta), ja jos
+selainta ei löydy, ajo jatkuu normaalisti ja SVG committoidaan ilman
+tuoretta PNG:tä.
+
 ## Lipunmyynti lukuina (`?dashboard=1`)
 
 `.../?dashboard=1` näyttää seuranta-/analytiikkanäkymän — linkitetty
