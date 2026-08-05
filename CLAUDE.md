@@ -77,6 +77,17 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   committed — like schedule.json edits in spirit). The hourly scraper
   never touches it. Optional: the dashboard forecast degrades gracefully
   without it.
+- `kuvat/` is machine-owned output, not data: the next game's share
+  graphic (SVG + iframe-embeddable HTML + rasterised PNG), written by
+  `scripts/generateShareImages.js` at the end of a scrape. It is
+  deliberately NOT rewritten every run — see `shouldRegenerate` there;
+  hourly PNG commits would add hundreds of MB per season. The PNG is
+  rasterised in `fetch.yml` with the runner's own preinstalled Chrome:
+  that is a runner-image system binary, NOT an npm dependency, so the
+  zero-dependency rule above still holds — do not "fix" it by adding
+  puppeteer/sharp. The graphic's design is shared verbatim with the
+  browser's own download button (`js/shareImage.js`), so change it there,
+  never in one caller only.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never

@@ -74,13 +74,30 @@ jobs:
         continue-on-error: true # so a per-event failure still lets the commit step
         # below preserve whatever other events DID succeed
 
+      - name: Generate share graphic
+        id: shareimages
+        run: node scripts/generateShareImages.js | tee /dev/stderr | grep '^shareImagesWritten=' >> "$GITHUB_OUTPUT"
+        continue-on-error: true # a marketing graphic must never fail the scrape
+
+      - name: Rasterise share graphic to PNG
+        if: steps.shareimages.outputs.shareImagesWritten == 'true'
+        continue-on-error: true # see scripts/generateShareImages.js: no Chrome means the SVG still commits
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)"
+          if [ -n "$CHROME_BIN" ]; then
+            "$CHROME_BIN" --headless --disable-gpu --no-sandbox --screenshot="$PWD/kuvat/seuraava-ottelu.png" \
+              --window-size=1200,630 "file://$PWD/kuvat/seuraava-ottelu.html"
+          else
+            echo "No Chrome binary found on this runner — leaving the SVG as the freshest asset"
+          fi
+
       - name: Commit and push data changes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/ kuvat/
           if ! git diff --cached --quiet; then
             git commit -m "chore: update ticket data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
             remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"

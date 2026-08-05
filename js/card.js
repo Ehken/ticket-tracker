@@ -7,6 +7,7 @@ import { buildSeatMapPanel } from "./seatMap.js";
 import { findCheapestAvailableSection, formatPrice } from "./prices.js";
 import { sectionLabel } from "./sectionLabels.js";
 import { nextTabIndex } from "./tabs.js";
+import { buildShareRow } from "./shareImageDownload.js";
 
 // Omitted for kausikortti events: a season-ticket price (e.g. 852 €) shown
 // in this same "Halvin vapaa paikka" phrasing could be misread as a
@@ -404,6 +405,18 @@ export function buildCard(
 
     const cheapestLine = buildCheapestAvailableLine(mergedEvent, latest);
     if (cheapestLine) body.append(cheapestLine);
+
+    // Shareable graphic (js/shareImage.js). Match events only: the image's
+    // whole message is "this many seats left to this game", which a season-
+    // ticket listing has no equivalent of. The season-ticket count is
+    // passed through so the fill bar can separate season tickets from
+    // singles the way every other bar on the site does.
+    if (mergedEvent.gameType !== "kausikortti") {
+      const seasonBaseline = kausikorttiEvents.find((k) => k.season === mergedEvent.season)?.seasonBaseline;
+      body.append(
+        buildShareRow(mergedEvent, latest, { kausikortti: seasonBaseline?.totals?.sold ?? 0 })
+      );
+    }
   }
 
   async function setExpanded(next) {
