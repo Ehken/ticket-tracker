@@ -3,7 +3,7 @@
   "name": "SaiPa - HPK",
   "start": "2026-10-15T15:30:00.000Z",
   "stop": "2026-10-15T20:00:00.000Z",
-  "fetchedAt": "2026-08-07T06:18:41.283Z",
+  "fetchedAt": "2026-08-07T06:47:20.157Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1004,
-      "available": 1134,
+      "sold": 1005,
+      "available": 1133,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2489,
-    "available": 1884,
+    "sold": 2490,
+    "available": 1883,
     "hold": 603,
     "total": 4976
   },
