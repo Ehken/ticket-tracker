@@ -3,7 +3,7 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-08-08T13:56:24.822Z",
+  "fetchedAt": "2026-08-08T14:47:21.331Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 168,
-      "available": 100,
+      "sold": 167,
+      "available": 101,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -32,8 +32,8 @@
     },
     {
       "section": "A4",
-      "sold": 196,
-      "available": 48,
+      "sold": 197,
+      "available": 47,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 109,
-      "available": 96,
+      "sold": 111,
+      "available": 94,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2642,
-    "available": 1731,
+    "sold": 2644,
+    "available": 1729,
     "hold": 603,
     "total": 4976
   },
