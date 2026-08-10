@@ -3,7 +3,7 @@
   "name": "SaiPa - Jokerit",
   "start": "2026-10-03T14:00:00.000Z",
   "stop": "2026-10-03T20:00:00.000Z",
-  "fetchedAt": "2026-08-10T08:50:43.120Z",
+  "fetchedAt": "2026-08-10T09:47:19.998Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,24 +24,24 @@
     },
     {
       "section": "A3",
-      "sold": 204,
-      "available": 42,
+      "sold": 205,
+      "available": 41,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 209,
-      "available": 35,
+      "sold": 208,
+      "available": 36,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 229,
-      "available": 18,
+      "sold": 230,
+      "available": 17,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 144,
-      "available": 61,
+      "sold": 145,
+      "available": 60,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1011,
-      "available": 1127,
+      "sold": 1014,
+      "available": 1124,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2925,
-    "available": 1448,
+    "sold": 2930,
+    "available": 1443,
     "hold": 603,
     "total": 4976
   },
