@@ -3,7 +3,7 @@
   "name": "SaiPa - K-Espoo",
   "start": "2026-09-15T15:30:00.000Z",
   "stop": "2026-09-15T20:00:00.000Z",
-  "fetchedAt": "2026-08-10T20:03:43.453Z",
+  "fetchedAt": "2026-08-10T20:47:25.373Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 137,
-      "available": 131,
+      "sold": 136,
+      "available": 132,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2488,
-    "available": 1885,
+    "sold": 2487,
+    "available": 1886,
     "hold": 603,
     "total": 4976
   },
