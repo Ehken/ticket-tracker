@@ -3,7 +3,7 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-08-12T10:19:40.172Z",
+  "fetchedAt": "2026-08-12T10:47:20.157Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,24 +16,24 @@
     },
     {
       "section": "A2",
-      "sold": 217,
-      "available": 51,
+      "sold": 215,
+      "available": 53,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 220,
-      "available": 26,
+      "sold": 216,
+      "available": 30,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 236,
-      "available": 8,
+      "sold": 235,
+      "available": 9,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 143,
-      "available": 7,
+      "sold": 144,
+      "available": 6,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -104,8 +104,8 @@
     },
     {
       "section": "C7",
-      "sold": 64,
-      "available": 30,
+      "sold": 62,
+      "available": 32,
       "hold": 0,
       "total": 94,
       "disabled": false
@@ -120,9 +120,9 @@
     },
     {
       "section": "D1",
-      "sold": 155,
+      "sold": 156,
       "available": 0,
-      "hold": 50,
+      "hold": 49,
       "total": 205,
       "disabled": true
     },
@@ -136,16 +136,16 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1033,
-      "available": 1105,
+      "sold": 1032,
+      "available": 1106,
       "hold": 0,
       "total": 2138,
       "disabled": false
     },
     {
       "section": "invalid",
-      "sold": 7,
-      "available": 5,
+      "sold": 6,
+      "available": 6,
       "hold": 0,
       "total": 12,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 3255,
-    "available": 1311,
-    "hold": 410,
+    "sold": 3246,
+    "available": 1321,
+    "hold": 409,
     "total": 4976
   },
   "prices": {
