@@ -3,45 +3,45 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-08-17T10:48:30.916Z",
+  "fetchedAt": "2026-08-17T11:39:15.690Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 95,
-      "available": 76,
+      "sold": 85,
+      "available": 86,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 175,
-      "available": 93,
+      "sold": 171,
+      "available": 97,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 192,
-      "available": 54,
+      "sold": 194,
+      "available": 52,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 207,
-      "available": 37,
+      "sold": 205,
+      "available": 39,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 203,
-      "available": 44,
+      "sold": 202,
+      "available": 45,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -56,8 +56,8 @@
     },
     {
       "section": "C1",
-      "sold": 29,
-      "available": 79,
+      "sold": 31,
+      "available": 77,
       "hold": 0,
       "total": 108,
       "disabled": false
@@ -96,17 +96,17 @@
     },
     {
       "section": "C6",
-      "sold": 92,
-      "available": 21,
+      "sold": 93,
+      "available": 20,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 63,
+      "sold": 64,
       "available": 0,
-      "hold": 31,
+      "hold": 30,
       "total": 94,
       "disabled": true
     },
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1050,
-      "available": 1088,
+      "sold": 1051,
+      "available": 1087,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2743,
-    "available": 1642,
-    "hold": 591,
+    "sold": 2733,
+    "available": 1653,
+    "hold": 590,
     "total": 4976
   },
   "prices": {
