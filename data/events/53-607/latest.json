@@ -3,7 +3,7 @@
   "name": "SaiPa - Pelicans",
   "start": "2027-03-09T16:30:00.000Z",
   "stop": "2027-03-09T21:00:00.000Z",
-  "fetchedAt": "2026-08-20T08:47:15.627Z",
+  "fetchedAt": "2026-08-20T08:56:10.983Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -48,8 +48,8 @@
     },
     {
       "section": "A6",
-      "sold": 85,
-      "available": 35,
+      "sold": 74,
+      "available": 46,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 100,
-      "available": 50,
+      "sold": 95,
+      "available": 55,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2386,
-    "available": 2000,
+    "sold": 2370,
+    "available": 2016,
     "hold": 590,
     "total": 4976
   },
