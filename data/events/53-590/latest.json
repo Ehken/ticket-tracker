@@ -3,7 +3,7 @@
   "name": "SaiPa - Lukko",
   "start": "2026-11-24T16:30:00.000Z",
   "stop": "2026-11-24T21:00:00.000Z",
-  "fetchedAt": "2026-08-21T12:47:17.400Z",
+  "fetchedAt": "2026-08-21T13:10:02.509Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 95,
-      "available": 55,
+      "sold": 96,
+      "available": 54,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 72,
-      "available": 133,
+      "sold": 74,
+      "available": 131,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2359,
-    "available": 2027,
+    "sold": 2362,
+    "available": 2024,
     "hold": 590,
     "total": 4976
   },
