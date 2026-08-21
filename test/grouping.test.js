@@ -17,7 +17,6 @@ import {
   buildTimeline,
   groupByMonth,
   gameTypeLabel,
-  shouldAutoExpandKausikortti,
 } from "../js/grouping.js";
 
 function ev(overrides) {
@@ -273,11 +272,4 @@ test("gameTypeLabel maps 'muu' to the unclassified label and passes through know
   assert.equal(gameTypeLabel("muu"), "(luokittelematon)");
   assert.equal(gameTypeLabel("runkosarja"), "Runkosarja");
   assert.equal(gameTypeLabel("chl"), "CHL");
-});
-
-test("shouldAutoExpandKausikortti: expanded only when it's the sole strip and there are zero games", () => {
-  assert.equal(shouldAutoExpandKausikortti(1, 0), true);
-  assert.equal(shouldAutoExpandKausikortti(1, 5), false);
-  assert.equal(shouldAutoExpandKausikortti(2, 0), false);
-  assert.equal(shouldAutoExpandKausikortti(3, 4), false);
 });

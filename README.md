@@ -117,8 +117,6 @@ paikallisesti esim. `npx serve .` repon juuresta ja avaa selain.
 
 Ominaisuudet:
 
-- **Kausikorttiraita** — kausikortin oma kortti aina ylimpänä, sisältää oman
-  myyntikäyränsä ja täyttöprosenttinsa.
 - **Karsivat suodattimet** (`js/filterBar.js`) — kausi, sarjataso, vastustaja,
   sekä valinta näytetäänkö jo pelatut ottelut (`?pelatut=1`).
 - **Aikajana** (`#timeline`) — tulevat/pelatut ottelut kortteina, kunkin oma
@@ -145,9 +143,11 @@ myyty kausikorttilistauksessa **ja** kauden jokaisessa tulevassa
 ottelussa — aito kausikortti näkyy myytynä joka ottelussa, irtolippu vain
 yhdessä. Seisomakatsomolle (ei paikka-ID:itä) käytetään otteluiden
 pienintä myytyä määrää. Tulos kirjoitetaan tiedostoon
-`events/{id}/seasonBaseline.json`, ja kausikorttikortti, istumakarttojen
-kausikortti/irtolippu-jako sekä dashboardin irtolippulaskenta käyttävät
-sitä listauksen raakalukujen sijaan. Jos johdettua tiedostoa ei ole (kauden
+`events/{id}/seasonBaseline.json`, ja istumakarttojen
+kausikortti/irtolippu-jako, jakokuvan täyttöpalkki sekä dashboardin
+irtolippulaskenta käyttävät sitä listauksen raakalukujen sijaan.
+Kausikorttitapahtumaa itseään ei näytetä käyttöliittymässä lainkaan — se on
+pelkkä laskennan lähde. Jos johdettua tiedostoa ei ole (kauden
 otteluita ei vielä myynnissä), käytetään listauksen omia lukuja — ne ovat
 silloin vielä puhtaita.
 
@@ -223,10 +223,10 @@ tuoretta PNG:tä.
 `.../?dashboard=1` näyttää seuranta-/analytiikkanäkymän — linkitetty
 etusivun otsikosta ("Lipunmyynti lukuina →") ja takaisin. Sisältö:
 
-- **Tunnusluvut**: kausikortit, myydyt irtoliput (+24 h muutos),
-  yleisökeskiarvo pelatuista, yleisökeskiarvo nykymyynnillä (alaraja),
-  loppuunmyytyjen määrä ja seuraava ottelu. Sarjasuodatin (oletuksena
-  Runkosarja) rajaa kaiken paitsi kausikorttiluvun.
+- **Tunnusluvut**: myydyt irtoliput (+24 h muutos), yleisökeskiarvo
+  pelatuista, yleisökeskiarvo nykymyynnillä (alaraja), loppuunmyytyjen
+  määrä ja seuraava ottelu. Sarjasuodatin (oletuksena Runkosarja) rajaa
+  kaikki luvut.
 - **Yleisömäärä ottelu kerrallaan**: pinottu pylväs per ottelu
   (kausikortit + irtoliput), tulevat ottelut vaalennettuina,
   loppuunmyydyt merkittyinä.
@@ -288,7 +288,8 @@ muokkausta varten. Kentät (kaikki valinnaisia):
 - `note`: vapaa teksti, näytetään kortissa
 - `seasonBaselineFrozen`: `true` jäädyttää kausikorttitapahtuman johdetun
   kausikorttimäärän (`seasonBaseline.json`) nykyiseen arvoonsa — scraperi ei
-  enää päivitä sitä. Ks. "Kausikorttien laskenta".
+  enää päivitä sitä. Vaikuttaa vain dataan; käyttöliittymässä lukitusta ei
+  näytetä. Ks. "Kausikorttien laskenta".
 
 Avaimena käytetään tapahtuman id:tä **väliviiva-muodossa** (esim. `"53-575"`,
 ei `"53:575"`), sama muoto kuin `data/events/`-kansioiden nimissä.

@@ -107,16 +107,6 @@ header.site-header h1 {
   margin-bottom: 1rem;
 }
 
-.section {
-  margin-bottom: 2rem;
-}
-
-.section h2 {
-  font-size: 1.1rem;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.3rem;
-}
-
 /* Filter bar */
 
 .filter-bar {

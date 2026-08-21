@@ -25,9 +25,10 @@ export function mergeClassification(event, { overrides, autoclass }) {
     hidden: override.hidden ?? false,
     note: override.note ?? "",
     // Human-owned pin on the derived season-ticket baseline (see
-    // scripts/lib/seasonBaseline.js). Surfaced to the frontend so the
-    // kausikortti card's note can say the number is deliberately held
-    // still. No autoclass fallback: only overrides.json can set this.
+    // scripts/lib/seasonBaseline.js). Merged through to the frontend, but
+    // nothing renders it any more — the season-ticket listing itself was
+    // removed from the UI, so the pin is a data-side concern only. No
+    // autoclass fallback: only overrides.json can set this.
     seasonBaselineFrozen: override.seasonBaselineFrozen ?? false,
     status: event.status,
     start: event.start,
