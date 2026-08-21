@@ -183,7 +183,3 @@ export function groupByMonth(sortedEvents) {
 
   return groups;
 }
-
-export function shouldAutoExpandKausikortti(stripCount, finalEventsCount) {
-  return stripCount === 1 && finalEventsCount === 0;
-}

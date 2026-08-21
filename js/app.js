@@ -23,7 +23,6 @@ import {
   buildTimeline,
   groupByMonth,
   NO_GAMES_YET_TEXT,
-  shouldAutoExpandKausikortti,
 } from "./grouping.js";
 import { buildCard } from "./card.js";
 import { buildFilterBar } from "./filterBar.js";
@@ -115,12 +114,17 @@ async function main() {
 
   const withLatest = await attachLatest(visible);
   const { seasons, hasMultipleSeasons } = computeSeasons({ overrides, autoclass, schedule });
+  // Kausikortti events are never rendered as listings of their own (no card
+  // on the front page, no tile on the dashboard). They are still split out
+  // and loaded because every match view derives its season-ticket baseline
+  // from them: the seat map's kausikortti/irtolippu split, the share
+  // graphic's fill bar and the dashboard's whole irtolippu calculation.
   const { kausikortti, rest } = splitKausikortti(withLatest);
 
   // Only kausikortti events carry a derived baseline; a fetch failure (as
   // opposed to a clean 404, which resolves to null) degrades to the raw
   // listing data rather than dropping the event the way attachLatest does —
-  // the card is still fully renderable without it.
+  // every consumer falls back to the listing's own numbers.
   await Promise.all(
     kausikortti.map(async (event) => {
       try {
@@ -144,10 +148,6 @@ async function main() {
   function render() {
     const raw = readUrlState();
     const kausi = resolveKausi(raw.kausi, seasons, rest);
-
-    const kausikorttiForSeason = filterBySeason(kausikortti, kausi).sort((a, b) =>
-      (b.season ?? "").localeCompare(a.season ?? "")
-    );
 
     let sarja = "kaikki";
     let vastustaja = "kaikki";
@@ -179,21 +179,6 @@ async function main() {
     if (raw.sarja !== undefined && raw.sarja !== sarja) corrections.sarja = undefined;
     if (raw.vastustaja !== undefined && raw.vastustaja !== vastustaja) corrections.vastustaja = undefined;
     if (Object.keys(corrections).length > 0) writeUrlState(corrections);
-
-    // Kausikortti strip(s) — expanded by default only when it's the sole
-    // visible content on the page (required fix: no longer always-expanded).
-    const kausikorttiContainer = document.getElementById("kausikortit-cards");
-    kausikorttiContainer.replaceChildren();
-    const autoExpand = shouldAutoExpandKausikortti(kausikorttiForSeason.length, finalEvents.length);
-    for (const event of kausikorttiForSeason) {
-      kausikorttiContainer.append(
-        buildCard(event, event.latest, {
-          preExpanded: autoExpand,
-          showSeasonBadge: kausi === "kaikki",
-          kausikorttiEvents: kausikortti,
-        })
-      );
-    }
 
     const filterBarContainer = document.getElementById("filter-bar-container");
     const timelineContainer = document.getElementById("timeline");

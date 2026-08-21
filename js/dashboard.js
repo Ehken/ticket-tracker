@@ -18,7 +18,6 @@ import { computeUnclassifiedEvents } from "./dashboardUnclassified.js";
 import {
   buildBaselineIndex,
   baselineForEvent,
-  baselineTotalsForKausikortti,
   seasonForEvent,
 } from "./dashboardBaseline.js";
 import { computeTopMovers, computeSelloutEstimate } from "./dashboardTrends.js";
@@ -184,8 +183,6 @@ const FORECAST_INFO =
 
 function buildHeroTiles(state) {
   const {
-    kausikorttiTotals,
-    kausikorttiFrozen,
     inScope,
     inScopeWithHistory,
     nowIso,
@@ -196,22 +193,6 @@ function buildHeroTiles(state) {
 
   const hero = document.createElement("div");
   hero.className = "dashboard-hero";
-
-  if (kausikorttiTotals) {
-    hero.append(
-      buildTile({
-        label: "Kausikortteja",
-        value: formatThousands(kausikorttiTotals.sold),
-        sub: "koko kausi",
-        // Icon, not the word — "lukittu" as text overlapped the tile's own
-        // label at common widths; the ⓘ carries the full explanation.
-        tag: kausikorttiFrozen ? { text: "\u{1F512}", title: "lukittu" } : undefined,
-        info:
-          "Ottelukohtaisista paikkatiedoista päätelty kausikorttimäärä — sama luku kuin " +
-          "etusivun kausikorttikortissa. Kausitason luku: sarjasuodatin ei vaikuta tähän.",
-      })
-    );
-  }
 
   const irtoliput = computeIrtoliputTotal(inScope, baselineIndex);
   const delta = computeSold24hDelta(inScopeWithHistory, nowIso);
@@ -786,9 +767,6 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
     }
   }
 
-  const kausikorttiEvent = kausikorttiInScope[0] ?? null;
-  const kausikorttiTotals = kausikorttiEvent ? baselineTotalsForKausikortti(kausikorttiEvent) : null;
-
   const availability = computeSarjaAvailability(seasonEvents);
 
   async function render() {
@@ -803,8 +781,6 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
       inScopeWithHistory: inScope,
       baselineIndex,
       nowIso,
-      kausikorttiTotals,
-      kausikorttiFrozen: kausikorttiEvent?.seasonBaselineFrozen === true,
       forecastByEventId,
       showForecast: visibility.show && forecastByEventId.size > 0,
       forecastAvg: computeAvgAttendanceForecast(inScope, forecastByEventId),

@@ -154,6 +154,11 @@ function buildChevron() {
   return chevron;
 }
 
+// No caller passes a kausikortti event any more — the season-ticket
+// listing was removed from the UI (data and per-game baselines are
+// unchanged; see js/app.js). The branches below are kept so buildCard
+// stays a correct, general card builder if one is ever rendered again.
+//
 // mergedEvent.gameType === "kausikortti" changes three things below, all
 // derived from this single check rather than caller-supplied flags: a
 // flag per difference would make an inconsistent state representable (a
