@@ -3,7 +3,7 @@
   "name": "SaiPa - HIFK",
   "start": "2026-10-17T14:00:00.000Z",
   "stop": "2026-10-17T20:00:00.000Z",
-  "fetchedAt": "2026-08-22T08:48:26.021Z",
+  "fetchedAt": "2026-08-22T09:41:38.168Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,24 +24,24 @@
     },
     {
       "section": "A3",
-      "sold": 171,
-      "available": 75,
+      "sold": 170,
+      "available": 76,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 181,
-      "available": 63,
+      "sold": 182,
+      "available": 62,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 181,
-      "available": 66,
+      "sold": 183,
+      "available": 64,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -56,8 +56,8 @@
     },
     {
       "section": "C1",
-      "sold": 33,
-      "available": 75,
+      "sold": 35,
+      "available": 73,
       "hold": 0,
       "total": 108,
       "disabled": false
@@ -136,16 +136,16 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1014,
-      "available": 1124,
+      "sold": 1017,
+      "available": 1121,
       "hold": 0,
       "total": 2138,
       "disabled": false
     },
     {
       "section": "invalid",
-      "sold": 6,
-      "available": 6,
+      "sold": 7,
+      "available": 5,
       "hold": 0,
       "total": 12,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2504,
-    "available": 1884,
+    "sold": 2512,
+    "available": 1876,
     "hold": 588,
     "total": 4976
   },
