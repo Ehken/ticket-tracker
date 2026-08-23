@@ -3,7 +3,7 @@
   "name": "SaiPa - HC Dynamo Pardubice",
   "start": "2026-09-10T15:30:00.000Z",
   "stop": "2026-09-10T20:00:00.000Z",
-  "fetchedAt": "2026-08-23T04:51:38.835Z",
+  "fetchedAt": "2026-08-23T05:44:16.974Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 130,
-      "available": 138,
+      "sold": 129,
+      "available": 139,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2466,
-    "available": 2134,
+    "sold": 2465,
+    "available": 2135,
     "hold": 376,
     "total": 4976
   },
