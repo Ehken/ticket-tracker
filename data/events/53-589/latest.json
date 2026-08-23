@@ -3,7 +3,7 @@
   "name": "SaiPa - TPS",
   "start": "2026-11-20T16:30:00.000Z",
   "stop": "2026-11-20T21:00:00.000Z",
-  "fetchedAt": "2026-08-23T20:47:17.741Z",
+  "fetchedAt": "2026-08-23T21:35:00.154Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,8 +24,8 @@
     },
     {
       "section": "A3",
-      "sold": 165,
-      "available": 81,
+      "sold": 164,
+      "available": 82,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2408,
-    "available": 2012,
+    "sold": 2407,
+    "available": 2013,
     "hold": 556,
     "total": 4976
   },
