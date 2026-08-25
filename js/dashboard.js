@@ -181,7 +181,7 @@ const FORECAST_INFO =
   "pelattuja otteluita, arvio nojaa pelkkiin historiallisiin kertoimiin. Malli ei näe " +
   "joukkueen menestystä, TV-otteluita eikä säätä.";
 
-function buildHeroTiles(state) {
+export function buildHeroTiles(state) {
   const {
     inScope,
     inScopeWithHistory,
@@ -267,7 +267,7 @@ function buildHeroTiles(state) {
 // irtoliput, faded when the game is still upcoming (current sales, not an
 // outcome), red ring when sold out, and — when the forecast is visible —
 // an outlined extension for expected additional sales.
-function buildTimelinePanel(state) {
+export function buildTimelinePanel(state) {
   const { inScope, baselineIndex, forecastByEventId, showForecast } = state;
   if (inScope.length === 0) return null;
 
@@ -364,7 +364,7 @@ function buildTrendRow(event, delta) {
 
 // Panels return null instead of a "Kertyy dataa…" placeholder — an empty
 // analysis earns no screen space (explicit requirement of the redesign).
-function buildTrendsPanel(state) {
+export function buildTrendsPanel(state) {
   const { inScopeWithHistory, nowIso } = state;
   const movers24h = computeTopMovers(inScopeWithHistory, 24, nowIso).slice(0, 5);
   const movers7d = computeTopMovers(inScopeWithHistory, 24 * 7, nowIso).slice(0, 5);
@@ -451,7 +451,10 @@ function buildKiirehdiPanel(state) {
 // Top-selling games by total sold tickets — the "which single games are
 // hottest" complement to Trendaa nyt's velocity view and Vastustajat's
 // per-opponent averages.
-function buildTopGamesPanel(state) {
+// `expandable: false` is the front page's summary strip: a hard top-N list
+// with no "Näytä kaikki" fold, because the strip is a teaser for the full
+// dashboard rather than the place to read the whole ranking.
+export function buildTopGamesPanel(state, { limit = ROW_LIMIT, expandable = true } = {}) {
   const { inScope, baselineIndex } = state;
   if (inScope.length === 0) return null;
 
@@ -480,7 +483,11 @@ function buildTopGamesPanel(state) {
       });
     });
 
-  appendExpandableRows(panel, rows);
+  if (expandable) {
+    appendExpandableRows(panel, rows, limit);
+  } else {
+    for (const row of rows.slice(0, limit)) panel.append(row);
+  }
   return panel;
 }
 
@@ -693,12 +700,15 @@ function buildSarjaChips(availability, active, onSelect) {
   return bar;
 }
 
-export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule }) {
-  const container = document.getElementById("dashboard-container");
-  container.hidden = false;
-
-  // Copies — the dashboard attaches .history and resolves effective
-  // .season, and must never mutate the objects the normal view holds onto.
+// Season-scoped preparation shared by the dashboard page and the front
+// page's summary strip (js/summaryStrip.js): copies every event, attaches
+// .history and an effective .season, then derives the baseline index, the
+// observation instant and the attendance forecast. Async and relatively
+// expensive (one history.json per event), so callers cache the result per
+// season instead of calling it again on every re-render.
+export async function prepareSeasonState({ kausikortti, matchEvents, kausi }) {
+  // Copies — this attaches .history and resolves effective .season, and must
+  // never mutate the objects the normal view holds onto.
   const kausikorttiInScope = filterBySeason(kausikortti, kausi).map((e) => ({ ...e }));
   const seasonEvents = filterBySeason(matchEvents, kausi).map((e) => ({
     ...e,
@@ -767,24 +777,45 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
     }
   }
 
-  const availability = computeSarjaAvailability(seasonEvents);
+  return {
+    seasonEvents,
+    baselineIndex,
+    nowIso,
+    forecastByEventId,
+    visibility,
+    availability: computeSarjaAvailability(seasonEvents),
+  };
+}
+
+// One sarja slice of an already-prepared season. Pure and synchronous, which
+// is what lets both the dashboard chips and the front page's sarja filter
+// re-render without refetching a thing.
+export function scopeStateToSarja(base, sarja) {
+  const inScope = filterBySarja(base.seasonEvents, sarja);
+  return {
+    sarja,
+    inScope,
+    inScopeWithHistory: inScope,
+    baselineIndex: base.baselineIndex,
+    nowIso: base.nowIso,
+    forecastByEventId: base.forecastByEventId,
+    showForecast: base.visibility.show && base.forecastByEventId.size > 0,
+    forecastAvg: computeAvgAttendanceForecast(inScope, base.forecastByEventId),
+  };
+}
+
+export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule }) {
+  const container = document.getElementById("dashboard-container");
+  container.hidden = false;
+
+  const base = await prepareSeasonState({ kausikortti, matchEvents, kausi });
+  const { availability } = base;
 
   async function render() {
     // No ?sarja= means the dashboard's own default (runkosarja);
     // resolveSarja degrades either to "kaikki" when it has no events.
     const sarja = resolveSarja(readUrlState().sarja ?? DEFAULT_SARJA, availability);
-
-    const inScope = filterBySarja(seasonEvents, sarja);
-    const state = {
-      sarja,
-      inScope,
-      inScopeWithHistory: inScope,
-      baselineIndex,
-      nowIso,
-      forecastByEventId,
-      showForecast: visibility.show && forecastByEventId.size > 0,
-      forecastAvg: computeAvgAttendanceForecast(inScope, forecastByEventId),
-    };
+    const state = scopeStateToSarja(base, sarja);
 
     container.replaceChildren();
     container.append(buildSarjaChips(availability, sarja, (value) => {

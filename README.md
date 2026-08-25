@@ -119,6 +119,13 @@ Ominaisuudet:
 
 - **Karsivat suodattimet** (`js/filterBar.js`) — kausi, sarjataso, vastustaja,
   sekä valinta näytetäänkö jo pelatut ottelut (`?pelatut=1`).
+- **Tilannenauha "Kauden luvut"** (`js/summaryStrip.js`) — suodattimien alla
+  kokoon taittuva nauha, jossa kauden tunnusluvut, "Yleisömäärä ottelu kerrallaan",
+  viisi myydyintä ottelua ja "Trendaa nyt" — samat rakentajat kuin
+  `?dashboard=1`:llä, joten luvut eivät voi erota näkymien välillä. Seuraa
+  vain kausi- ja sarjavalintaa (ei vastustajaa eikä pelatut-valintaa, jotta
+  se pysyy kauden yleiskuvana). Oletuksena **kiinni**, ja tila muistetaan
+  selainkohtaisesti (`localStorage`); kiinni oleva nauha ei hae mitään.
 - **Aikajana** (`#timeline`) — tulevat/pelatut ottelut kortteina, kunkin oma
   myyntikäyrä (Chart.js, ks. alla) ja tarkat luvut.
 - **Istumakartta** — tapahtuman oma paikkakartta SVG:nä, väritettynä
@@ -221,7 +228,10 @@ tuoretta PNG:tä.
 ## Lipunmyynti lukuina (`?dashboard=1`)
 
 `.../?dashboard=1` näyttää seuranta-/analytiikkanäkymän — linkitetty
-etusivun otsikosta ("Lipunmyynti lukuina →") ja takaisin. Sisältö:
+etusivun otsikosta ("Lipunmyynti lukuina →") ja takaisin, sekä etusivun
+tilannenauhasta ("Kaikki luvut →"). Neljä ensimmäistä kohtaa alla näkyvät
+myös etusivun tilannenauhassa (ks. Frontend); dashboard on niiden täysi
+versio ja ainoa paikka, jossa loput paneelit ovat. Sisältö:
 
 - **Tunnusluvut**: myydyt irtoliput (+24 h muutos), yleisökeskiarvo
   pelatuista, yleisökeskiarvo nykymyynnillä (alaraja), loppuunmyytyjen

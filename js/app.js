@@ -28,6 +28,7 @@ import { buildCard } from "./card.js";
 import { buildFilterBar } from "./filterBar.js";
 import { readUrlState, writeUrlState, IS_DASHBOARD } from "./urlState.js";
 import { renderDashboard } from "./dashboard.js";
+import { buildSummaryStrip } from "./summaryStrip.js";
 import { formatHelsinkiTime } from "./format.js";
 
 async function attachLatest(mergedEvents) {
@@ -137,13 +138,20 @@ async function main() {
   );
 
   if (IS_DASHBOARD) {
-    // Unreleased private preview — same data-source resolution as the
-    // normal view (incl. ?mock=1), but renders a completely separate page
-    // instead. No visible link to it from the normal UI.
+    // Same data-source resolution as the normal view (incl. ?mock=1), but
+    // renders a completely separate page instead. Reachable from the header
+    // link and from the front page's summary strip, both of which carry the
+    // current query params across.
     const kausi = resolveKausi(readUrlState().kausi, seasons, rest);
     await renderDashboard({ kausikortti, matchEvents: rest, kausi, schedule });
     return;
   }
+
+  // Built once, not per render(): it owns its open/closed state and its
+  // per-season history cache, both of which a rebuild would throw away.
+  const summaryStrip = buildSummaryStrip({ kausikortti, matchEvents: rest });
+  const summaryStripContainer = document.getElementById("summary-strip-container");
+  summaryStripContainer.append(summaryStrip.element);
 
   function render() {
     const raw = readUrlState();
@@ -185,7 +193,9 @@ async function main() {
 
     if (rest.length === 0) {
       // True empty-shop state (today's real production reality): hide the
-      // filter bar entirely and show the "not on sale yet" placeholder.
+      // filter bar and the numbers strip entirely and show the "not on sale
+      // yet" placeholder.
+      summaryStripContainer.hidden = true;
       filterBarContainer.hidden = true;
       filterBarContainer.replaceChildren();
       timelineContainer.replaceChildren();
@@ -196,6 +206,7 @@ async function main() {
       return;
     }
 
+    summaryStripContainer.hidden = false;
     filterBarContainer.hidden = false;
     filterBarContainer.replaceChildren(
       buildFilterBar({
@@ -260,6 +271,11 @@ async function main() {
         }
       }
     }
+
+    // Last, and deliberately not awaited: the cards above are already in the
+    // DOM by the time this can touch the network, so the strip's own data
+    // never delays them. A closed strip fetches nothing at all.
+    void summaryStrip.update({ kausi, sarja });
   }
 
   render();
