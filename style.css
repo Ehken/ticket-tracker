@@ -360,11 +360,6 @@ header.site-header h1 {
   max-width: 100%;
 }
 
-.card__cheapest-available {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-}
-
 .card__error {
   color: var(--accent);
 }
@@ -1982,44 +1977,3 @@ header.site-header h1 {
   font-variant-numeric: tabular-nums;
 }
 
-/* Shareable-graphic controls (js/shareImageDownload.js) — the PNG is
-   generated in the browser on click, so these are plain buttons with no
-   loading surface beyond their own disabled state. */
-
-.card__share-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.5rem;
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-}
-
-.card__share-label {
-  color: var(--muted);
-}
-
-.card__share-button {
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card-bg);
-  color: var(--fg);
-  cursor: pointer;
-}
-
-.card__share-button:hover:not(:disabled) {
-  background: var(--hover-bg);
-}
-
-.card__share-button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.card__share-status {
-  color: var(--accent);
-  font-size: 0.78rem;
-}

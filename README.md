@@ -201,13 +201,9 @@ generointilogiikkaa tai `data/schedule.json`:ää muuteta).
 
 ## Jaettavat kuvat (`kuvat/`)
 
-Ottelusta saa somekuvan kahdella tavalla, ja molemmat piirretään samasta
-lähteestä (`js/shareImage.js`), joten ulkoasu ei voi erkaantua:
+Seuraavasta ottelusta julkaistaan somekuva osoitteeseen `kuvat/`
+(`js/shareImage.js`):
 
-- **Kortista napista** — avaa ottelun kortti ja valitse "Jaa kuvana:
-  Neliö / Story / Leveä". Kuva syntyy selaimessa napin painalluksen
-  hetken luvuilla (1080×1080 Instagram-julkaisuun, 1080×1920 storyyn,
-  1200×630 muuhun). Ei palvelinta, ei riippuvuuksia.
 - **Aina tuore osoite** — `kuvat/seuraava-ottelu.png` päivittyy
   scrapen mukana, eli kuvan voi linkittää kertaalleen esim.
   keskustelupalstalle tai Discordiin ja se pysyy ajan tasalla koko kauden.
