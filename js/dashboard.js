@@ -204,8 +204,8 @@ export function buildHeroTiles(state) {
       subClass: delta !== null && delta > 0 ? "dashboard-tile__sub--up" : undefined,
       info:
         "24 h -muutos on nettomuutos kaikista otteluista yhteens\u00e4: uudet myynnit miinus " +
-        "vapautuneet paikat (esim. rauenneet varaukset). Trendaa nyt n\u00e4ytt\u00e4\u00e4 yksitt\u00e4isten " +
-        "otteluiden suurimmat nousut, joten sen luvut voivat olla t\u00e4t\u00e4 suurempia.",
+        "vapautuneet paikat (esim. rauenneet varaukset). Irtolippujen myynti -paneelit n\u00e4ytt\u00e4v\u00e4t " +
+        "yksitt\u00e4isten otteluiden suurimmat nousut, joten niiden luvut voivat olla t\u00e4t\u00e4 suurempia.",
     })
   );
 
@@ -362,33 +362,29 @@ function buildTrendRow(event, delta) {
   return row;
 }
 
+// One panel per time window, not one panel with two stacked subsections:
+// side by side the two windows are comparable at a glance, and three even
+// columns beat two uneven ones. Both callers iterate this list, so the
+// windows and their wording can't drift apart between the strip and the
+// dashboard.
+//
+// "Irtolippujen myynti" is what the number literally is: a game's season-
+// ticket base doesn't move mid-season, so every change in its sold count is
+// single-ticket movement.
+export const TREND_WINDOWS = [
+  { hours: 24, subtitle: "edelliset 24 tuntia" },
+  { hours: 24 * 7, subtitle: "edelliset 7 vuorokautta" },
+];
+
 // Panels return null instead of a "Kertyy dataa…" placeholder — an empty
 // analysis earns no screen space (explicit requirement of the redesign).
-export function buildTrendsPanel(state) {
+export function buildTrendsPanel(state, { hours, subtitle, limit = ROW_LIMIT } = {}) {
   const { inScopeWithHistory, nowIso } = state;
-  const movers24h = computeTopMovers(inScopeWithHistory, 24, nowIso).slice(0, 5);
-  const movers7d = computeTopMovers(inScopeWithHistory, 24 * 7, nowIso).slice(0, 5);
-  if (movers24h.length === 0 && movers7d.length === 0) return null;
+  const movers = computeTopMovers(inScopeWithHistory, hours, nowIso).slice(0, limit);
+  if (movers.length === 0) return null;
 
-  const panel = buildPanel("Trendaa nyt");
-  if (movers24h.length > 0) {
-    const sub = document.createElement("div");
-    sub.className = "dashboard-subsection";
-    const h = document.createElement("h3");
-    h.textContent = "Viimeiset 24 tuntia";
-    sub.append(h);
-    for (const { event, delta } of movers24h) sub.append(buildTrendRow(event, delta));
-    panel.append(sub);
-  }
-  if (movers7d.length > 0) {
-    const sub = document.createElement("div");
-    sub.className = "dashboard-subsection";
-    const h = document.createElement("h3");
-    h.textContent = "Viimeiset 7 vuorokautta";
-    sub.append(h);
-    for (const { event, delta } of movers7d) sub.append(buildTrendRow(event, delta));
-    panel.append(sub);
-  }
+  const panel = buildPanel("Irtolippujen myynti", subtitle);
+  for (const { event, delta } of movers) panel.append(buildTrendRow(event, delta));
   return panel;
 }
 
@@ -449,7 +445,7 @@ function buildKiirehdiPanel(state) {
 }
 
 // Top-selling games by total sold tickets — the "which single games are
-// hottest" complement to Trendaa nyt's velocity view and Vastustajat's
+// hottest" complement to the Irtolippujen myynti panels' velocity view and Vastustajat's
 // per-opponent averages.
 // `expandable: false` is the front page's summary strip: a hard top-N list
 // with no "Näytä kaikki" fold, because the strip is a teaser for the full
@@ -833,7 +829,7 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
     const panels = [
       timeline,
       buildTopGamesPanel(state),
-      buildTrendsPanel(state),
+      ...TREND_WINDOWS.map((window) => buildTrendsPanel(state, window)),
       buildKiirehdiPanel(state),
       buildOpponentsPanel(state),
       await buildHeatmapPanel(state),

@@ -15,6 +15,7 @@ import {
   buildTimelinePanel,
   buildTopGamesPanel,
   buildTrendsPanel,
+  TREND_WINDOWS,
 } from "./dashboard.js";
 
 const STORAGE_KEY = "saipa-lipputilanne:summaryStripOpen";
@@ -25,9 +26,17 @@ const TITLE = "Kauden luvut";
 // title does.
 const HINT = "Tunnusluvut, yleisömäärät, myydyimmät ottelut ja trendit";
 
-// A hard top-5, no "Näytä kaikki" fold: the strip is a teaser for the full
+// Hard limits, no "Näytä kaikki" fold: the strip is a teaser for the full
 // dashboard, not the place to read a whole ranking.
-const STRIP_ROW_LIMIT = 5;
+//
+// The two counts differ on purpose. The three panels sit in one grid row, so
+// they stretch to a shared height, and a row of Myydyimmät ottelut is about
+// half again as tall as a trend row (label+value, bar, meta line vs. one
+// line with a sparkline). Matching the counts left one column with a large
+// dead gap at the bottom; these numbers are tuned so all three columns end
+// at roughly the same place. Re-measure if either row's anatomy changes.
+const TOP_GAMES_ROWS = 5;
+const TREND_ROWS = 8;
 
 // Closed by default — the card list is what the front page is for, and the
 // strip's data (one history.json per game) is only fetched once someone opens
@@ -123,10 +132,12 @@ export function buildSummaryStrip({ kausikortti, matchEvents }) {
       timeline.classList.add("dashboard-panel--wide");
       grid.append(timeline);
     }
-    const topGames = buildTopGamesPanel(state, { limit: STRIP_ROW_LIMIT, expandable: false });
+    const topGames = buildTopGamesPanel(state, { limit: TOP_GAMES_ROWS, expandable: false });
     if (topGames) grid.append(topGames);
-    const trends = buildTrendsPanel(state);
-    if (trends) grid.append(trends);
+    for (const window of TREND_WINDOWS) {
+      const trends = buildTrendsPanel(state, { ...window, limit: TREND_ROWS });
+      if (trends) grid.append(trends);
+    }
 
     body.replaceChildren(buildHeroTiles(state), grid);
   }
