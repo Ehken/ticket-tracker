@@ -592,9 +592,11 @@ header.site-header h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   width: 100%;
   background: none;
   border: none;
+  border-left: 4px solid transparent;
   color: inherit;
   font: inherit;
   font-weight: 600;
@@ -606,6 +608,51 @@ header.site-header h1 {
 
 .summary-strip__toggle:hover {
   background: var(--hover-bg);
+}
+
+.summary-strip__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+/* Collapsed is the only state where this row has to sell itself: closed by
+   default means nothing below it is visible, so the shut strip is an
+   invitation, not a heading. It gets the weight — bigger type, more room, a
+   line saying what's inside, and the site's own irtolippu yellow as a rail
+   and a wash. Expanded, it drops all of that and goes back to being a plain
+   header for the content underneath it. */
+.summary-strip__toggle[aria-expanded="false"] {
+  padding: 0.9rem 1rem;
+  border-left-color: var(--seat-irtolippu);
+  background: rgba(255, 212, 0, 0.09);
+}
+
+.summary-strip__toggle[aria-expanded="false"]:hover {
+  background: rgba(255, 212, 0, 0.18);
+}
+
+.summary-strip__toggle[aria-expanded="false"] .summary-strip__title {
+  font-size: 1.15rem;
+}
+
+.summary-strip__toggle[aria-expanded="false"] .card__chevron {
+  width: 0.7em;
+  height: 0.7em;
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+}
+
+.summary-strip__hint {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Expanded, the title alone is enough — the panels below say the rest. */
+.summary-strip__toggle[aria-expanded="true"] .summary-strip__hint {
+  display: none;
 }
 
 .summary-strip__body {
@@ -620,15 +667,6 @@ header.site-header h1 {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.summary-strip__more {
-  display: block;
-  margin-top: 1rem;
-  text-align: right;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--accent);
 }
 
 /* Dashboard (?dashboard=1) */
@@ -1082,7 +1120,7 @@ header.site-header h1 {
 /* The selected segment is a solid --card-bg chip inset in the tinted
    track — "this is the current selection," not "this is a primary
    action" (unlike --accent, which is reserved for that vocabulary
-   elsewhere on the card, e.g. "Osta liput"). */
+   elsewhere on the site). */
 .card__tab[aria-selected="true"] {
   background: var(--card-bg);
   color: var(--fg);
@@ -1808,17 +1846,6 @@ header.site-header h1 {
   font-size: 0.8rem;
   font-style: normal;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.seatmap-cta {
-  margin: 0.6rem 0 0;
-  font-size: 0.85rem;
-  color: var(--fg);
-}
-
-.seatmap-cta__link {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 /* Shared by the pin and hover tooltips (js/seatMap.js) — two elements,

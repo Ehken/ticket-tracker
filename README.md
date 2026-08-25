@@ -144,12 +144,17 @@ alkaa: yksittäisen ottelulipun osto varaa saman paikan myös
 kausikorttilistauksesta, joten listauksen luku kasvaa irtolippujen tahdissa
 vaikka yhtään uutta kausikorttia ei myytäisi.
 
-Todellinen kausikorttimäärä johdetaan siksi ottelukohtaisesta datasta
-(`scripts/lib/seasonBaseline.js`): kausikortiksi lasketaan paikka, joka on
-myyty kausikorttilistauksessa **ja** kauden jokaisessa tulevassa
-ottelussa — aito kausikortti näkyy myytynä joka ottelussa, irtolippu vain
-yhdessä. Seisomakatsomolle (ei paikka-ID:itä) käytetään otteluiden
-pienintä myytyä määrää. Tulos kirjoitetaan tiedostoon
+Todellinen kausikorttimäärä johdetaan siksi **pelkästä** ottelukohtaisesta
+datasta (`scripts/lib/seasonBaseline.js`): kausikortiksi lasketaan paikka,
+joka on myyty kauden jokaisessa tulevassa ottelussa — aito kausikortti näkyy
+myytynä joka ottelussa, irtolippu vain yhdessä. Seisomakatsomolle ja
+inva-paikoille (ei paikka-ID:itä) käytetään otteluiden pienintä myytyä
+määrää. Aitioita ja lehdistöpaikkoja ei lasketa lainkaan: joka ottelussa
+varattu aitio on aitiohaltija toisella myyntikanavalla, ei kausikortti.
+
+Listauksen omat luvut eivät ole laskennassa mukana millään tavalla — ei
+lähtöjoukkona eikä kattona. Ne ovat juuri se saastunut luku, jonka
+korvaamiseksi koko johtaminen on olemassa. Tulos kirjoitetaan tiedostoon
 `events/{id}/seasonBaseline.json`, ja istumakarttojen
 kausikortti/irtolippu-jako, jakokuvan täyttöpalkki sekä dashboardin
 irtolippulaskenta käyttävät sitä listauksen raakalukujen sijaan.

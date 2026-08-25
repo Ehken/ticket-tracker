@@ -3,9 +3,9 @@
   "svgHash": "mock-fixture",
   "gamesUsed": 34,
   "totals": {
-    "sold": 2554,
+    "sold": 2582,
     "soldSeated": 1534,
-    "soldStanding": 1015
+    "soldStanding": 1042
   },
   "sections": [
     {
@@ -74,11 +74,11 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1015
+      "sold": 1042
     },
     {
       "section": "invalid",
-      "sold": 5
+      "sold": 6
     },
     {
       "section": "press",

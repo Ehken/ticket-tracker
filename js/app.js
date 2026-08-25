@@ -56,25 +56,28 @@ function renderUpdatedAt(events) {
   el.textContent = `Päivitetty ${formatHelsinkiTime(latestSeen)}`;
 }
 
-// Two-way navigation between the front page and the dashboard. Built in
-// JS rather than as a static href so the link carries the CURRENT query
-// params (kausi, mock, …) across — a dashboard link that dropped ?mock=1
-// would silently flip the viewer from test data to production.
+// One-way navigation: the dashboard gets a link back to the front page, the
+// front page has no link to the dashboard. The front page's own "Kauden
+// luvut" strip is what a reader is meant to find there, and a second link
+// to a fuller version of the same numbers competed with it; ?dashboard=1 is
+// reachable by URL for anyone who wants the rest of the panels.
+//
+// Built in JS rather than as a static href so the link carries the CURRENT
+// query params (kausi, mock, …) across — a link that dropped ?mock=1 would
+// silently flip the viewer from test data to production.
 function renderSiteNav() {
+  if (!IS_DASHBOARD) return;
   const nav = document.getElementById("site-nav");
   if (!nav) return;
+
   const params = new URLSearchParams(window.location.search);
+  params.delete("dashboard");
+  params.delete("forecast");
+  params.delete("sarja"); // dashboard-scoped; the front page resolves its own
+
   const link = document.createElement("a");
   link.className = "site-nav__link";
-  if (IS_DASHBOARD) {
-    params.delete("dashboard");
-    params.delete("forecast");
-    params.delete("sarja"); // dashboard-scoped; the front page resolves its own
-    link.textContent = "← Lipputilanne";
-  } else {
-    params.set("dashboard", "1");
-    link.textContent = "Lipunmyynti lukuina →";
-  }
+  link.textContent = "← Lipputilanne";
   const query = params.toString();
   link.href = `${window.location.pathname}${query ? `?${query}` : ""}`;
   nav.append(link);

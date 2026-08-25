@@ -18,10 +18,12 @@ import {
 } from "./dashboard.js";
 
 const STORAGE_KEY = "saipa-lipputilanne:summaryStripOpen";
-// Deliberately NOT "Lipunmyynti lukuina": that is the header link to the
-// full dashboard, and the same label twice on one screen for two different
-// destinations reads as a duplicate rather than a summary of it.
 const TITLE = "Kauden luvut";
+
+// Shown only while collapsed. Closed-by-default means the strip has to earn
+// its own click, and "what is behind this" does that far better than a bare
+// title does.
+const HINT = "Tunnusluvut, yleisömäärät, myydyimmät ottelut ja trendit";
 
 // A hard top-5, no "Näytä kaikki" fold: the strip is a teaser for the full
 // dashboard, not the place to read a whole ranking.
@@ -50,22 +52,6 @@ function writeOpenPreference(open) {
   }
 }
 
-// Same reasoning as app.js's renderSiteNav: carry the CURRENT query params
-// across so the link can't silently flip the reader to another season — or out
-// of ?mock=1. sarja is written explicitly even when it's "kaikki", because the
-// dashboard's own no-param default is runkosarja, not kaikki.
-function buildDashboardLink(sarja) {
-  const params = new URLSearchParams(window.location.search);
-  params.set("dashboard", "1");
-  params.set("sarja", sarja);
-
-  const link = document.createElement("a");
-  link.className = "summary-strip__more";
-  link.href = `${window.location.pathname}?${params.toString()}`;
-  link.textContent = "Kaikki luvut →";
-  return link;
-}
-
 function buildMessage(className, text) {
   const p = document.createElement("p");
   p.className = className;
@@ -89,12 +75,19 @@ export function buildSummaryStrip({ kausikortti, matchEvents }) {
   toggle.className = "summary-strip__toggle";
   toggle.setAttribute("aria-controls", body.id);
 
+  const label = document.createElement("span");
+  label.className = "summary-strip__label";
   const title = document.createElement("span");
   title.className = "summary-strip__title";
   title.textContent = TITLE;
+  const hint = document.createElement("span");
+  hint.className = "summary-strip__hint";
+  hint.textContent = HINT;
+  label.append(title, hint);
+
   const chevron = document.createElement("span");
   chevron.className = "card__chevron";
-  toggle.append(title, chevron);
+  toggle.append(label, chevron);
 
   element.append(toggle, body);
 
@@ -135,7 +128,7 @@ export function buildSummaryStrip({ kausikortti, matchEvents }) {
     const trends = buildTrendsPanel(state);
     if (trends) grid.append(trends);
 
-    body.replaceChildren(buildHeroTiles(state), grid, buildDashboardLink(sarja));
+    body.replaceChildren(buildHeroTiles(state), grid);
   }
 
   async function draw() {

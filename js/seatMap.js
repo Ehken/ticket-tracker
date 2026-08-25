@@ -314,10 +314,7 @@ function renderSeatMap({ mapContainer, mergedEvent, latest, seats, recency, base
     hasNewlySoldMarks,
   });
 
-  const cta = buildCta(mergedEvent, latest);
-  const children = [legend, svgWrapper];
-  if (cta) children.push(cta);
-  mapContainer.replaceChildren(...children);
+  mapContainer.replaceChildren(legend, svgWrapper);
 
   // Layout-independent — no getBBox calls, so safe regardless of whether
   // this container is currently visible.
@@ -851,32 +848,6 @@ function replaceSectionLabels(svg, latest, bands) {
     hideBakedNameLabel(svg, shapeEl, row.section);
     addSeatedSectionLabel(svg, row.section, shapeEl.getBBox(), bands);
   }
-}
-
-const CTA_LINK_TEXT = "Osta liput";
-
-// Kausikortti events have their own sales flow (season-ticket renewal, not
-// the public elippu.net shop), and there's nothing to promote once a match
-// is sold out — so this only ever renders for a match event with real
-// availability left.
-function buildCta(mergedEvent, latest) {
-  if (mergedEvent.gameType === "kausikortti") return null;
-  const available = latest.totals.available;
-  if (available <= 0) return null;
-
-  const cta = document.createElement("p");
-  cta.className = "seatmap-cta";
-  cta.append(`Auta tekemään Kisapuistosta keltamusta — vapaita paikkoja ${formatThousands(available)} `);
-
-  const link = document.createElement("a");
-  link.className = "seatmap-cta__link";
-  link.href = `https://elippu.net/saipa/${mergedEvent.id}`;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = CTA_LINK_TEXT;
-  cta.append(link);
-
-  return cta;
 }
 
 // Seated sections are sparse individual circles with real gaps between

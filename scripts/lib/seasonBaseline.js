@@ -15,6 +15,13 @@ import {
 // scraper's HTML-parsing dependencies).
 const COUNT_ONLY_SECTIONS = new Set(["seisomakatsomo", "invalid", "press", "aitiot"]);
 
+// Count-only sections that are not season-ticket inventory at all: a box
+// occupied at every game is a box holder and press seats are press, neither
+// is a season ticket. Both already render as their own state on the seat map
+// and are excluded from the irtolippu math everywhere else, so they stay at
+// zero here rather than being swept in by the min-over-games rule below.
+const CHANNEL_ONLY_SECTIONS = new Set(["press", "aitiot"]);
+
 // Below this many usable games, the intersection stops being evidence: with
 // only a couple of games on sale, a seat bought as a single ticket to each
 // of them is indistinguishable from a season ticket. When the season winds
@@ -48,10 +55,20 @@ export const MAX_TRUSTED_FILL = 0.9;
 // single-ticket sales. (Verified on real data 2026-08-03/04: the listing
 // grew by ~200 seats in a day while the per-game sold floor stayed flat.)
 // What a real season ticket does that a single ticket can't is appear as
-// sold in EVERY game of the season — so the true season set is derived as:
+// sold in EVERY game of the season — so the true season set is derived from
+// the games alone, with the listing playing no part in the arithmetic:
 //
-//   seated:      kausikortti soldSeatIds ∩ soldSeatIds of every usable game
-//   count-only:  min(kausikortti sold, min over games of that section's sold)
+//   seated:      soldSeatIds of every usable game, intersected
+//   count-only:  min over games of that section's sold
+//
+// The listing used to seed both (an intersection starting from its
+// soldSeatIds, and a cap on the count-only min). That made the derivation
+// depend on the very number it exists to replace: a seat the shop had not
+// yet flagged in the listing was excluded even when every single game showed
+// it sold, and the count-only cap could only ever drag the floor toward a
+// contaminated figure. Dropping it changes nothing on data where the listing
+// is a superset (verified on 2026-08-25 real data: byte-identical result),
+// and removes a contaminated input in every case where it isn't.
 //
 // Both directions of error are conservative: a single-ticket buyer would
 // need a ticket to every remaining game to be miscounted as a season ticket,
@@ -68,7 +85,10 @@ export const MAX_TRUSTED_FILL = 0.9;
 // (mild overcount), while treating absence as empty would wrongly zero the
 // whole intersection.
 export function deriveSeasonBaseline({ kausikorttiSeats, kausikorttiSections, games }) {
-  if (!kausikorttiSeats || !Array.isArray(kausikorttiSeats.soldSeatIds)) return null;
+  // The listing's seats.json is still required, but only for its svgHash:
+  // it names the map generation every game has to agree with before their
+  // seat ids can be intersected at all.
+  if (!kausikorttiSeats?.svgHash) return null;
 
   const usable = games.filter(
     (g) => g?.seats && Array.isArray(g.seats.soldSeatIds) && g.seats.svgHash === kausikorttiSeats.svgHash && g.latest
@@ -81,8 +101,10 @@ export function deriveSeasonBaseline({ kausikorttiSeats, kausikorttiSections, ga
   });
   if (slackGames.length < MIN_SLACK_GAMES) return null;
 
-  let seatIds = kausikorttiSeats.soldSeatIds;
-  for (const game of usable) {
+  // Seeded from the first usable game, not from the listing — see above.
+  // `usable` is non-empty here: MIN_GAMES_FOR_DERIVATION is >= 1.
+  let seatIds = usable[0].seats.soldSeatIds;
+  for (const game of usable.slice(1)) {
     const gameSold = new Set(game.seats.soldSeatIds);
     seatIds = seatIds.filter((id) => gameSold.has(id));
     if (seatIds.length === 0) break;
@@ -98,12 +120,18 @@ export function deriveSeasonBaseline({ kausikorttiSeats, kausikorttiSections, ga
     if (!COUNT_ONLY_SECTIONS.has(row.section)) {
       return { section: row.section, sold: seatedBySection[row.section] ?? 0 };
     }
-    let sold = row.sold;
+    if (CHANNEL_ONLY_SECTIONS.has(row.section)) return { section: row.section, sold: 0 };
+
+    // Every game's count is the season floor plus that game's own singles,
+    // so the lowest count any game reports is the tightest bound on the
+    // floor available. No game reporting the section at all leaves no
+    // evidence, which counts as none of it being season tickets.
+    let sold = Infinity;
     for (const game of usable) {
       const gameRow = game.latest.sections.find((r) => r.section === row.section);
       if (gameRow && gameRow.sold < sold) sold = gameRow.sold;
     }
-    return { section: row.section, sold };
+    return { section: row.section, sold: Number.isFinite(sold) ? sold : 0 };
   });
 
   const sold = sections.reduce((sum, row) => sum + row.sold, 0);

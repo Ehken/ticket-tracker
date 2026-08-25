@@ -86,7 +86,7 @@ test("deriveSeasonBaseline keeps only seats sold in every usable game", () => {
   assert.equal(derived.svgHash, HASH);
 });
 
-test("deriveSeasonBaseline takes the min across games for count-only sections, capped by the listing's own count", () => {
+test("deriveSeasonBaseline takes the min across games for count-only sections, ignoring the listing's own count", () => {
   const games = makeGames(MIN_GAMES_FOR_DERIVATION);
   const derived = deriveSeasonBaseline({
     kausikorttiSeats: KK_SEATS,
@@ -94,17 +94,57 @@ test("deriveSeasonBaseline takes the min across games for count-only sections, c
     games,
   });
 
-  // min game standing is 150, above nothing — listing says 100, games say
-  // >=150, so the listing's own 100 is the cap that wins.
-  assert.equal(derived.sections.find((r) => r.section === "seisomakatsomo").sold, 100);
+  // Lowest standing count any game reports is 150. The listing's own 100 is
+  // NOT a cap: it's contaminated by single-ticket sales like every other
+  // number on that listing, so it plays no part in the arithmetic.
+  assert.equal(derived.sections.find((r) => r.section === "seisomakatsomo").sold, 150);
+  // Same for wheelchair: games say 3, listing says 2, games win.
+  assert.equal(derived.sections.find((r) => r.section === "invalid").sold, 3);
 
-  // A game with LESS standing than the listing pulls the min down.
+  // A quieter game pulls the min down.
   const withQuietGame = deriveSeasonBaseline({
     kausikorttiSeats: KK_SEATS,
     kausikorttiSections: KK_SECTIONS,
     games: [...games.slice(0, -1), game({ sold: SEASON_SEATS, standing: 80 })],
   });
   assert.equal(withQuietGame.sections.find((r) => r.section === "seisomakatsomo").sold, 80);
+});
+
+test("deriveSeasonBaseline counts a seat sold in every game even when the listing does not report it", () => {
+  // D1-1-001 is sold in every single game but absent from the listing's own
+  // soldSeatIds — under the old listing-seeded intersection it was dropped.
+  const extra = "D1-1-001";
+  const games = makeGames(MIN_GAMES_FOR_DERIVATION).map((g) => ({
+    ...g,
+    seats: seats([...g.seats.soldSeatIds, extra]),
+  }));
+
+  const derived = deriveSeasonBaseline({
+    kausikorttiSeats: KK_SEATS,
+    kausikorttiSections: [...KK_SECTIONS, { section: "D1", sold: 0 }],
+    games,
+  });
+
+  assert.ok(derived.seatIds.includes(extra));
+  assert.equal(derived.sections.find((r) => r.section === "D1").sold, 1);
+});
+
+test("deriveSeasonBaseline never counts press or aitiot as season tickets", () => {
+  // Boxes occupied at every game are a box holder on another sales channel,
+  // not season tickets — the min-over-games rule must not sweep them in.
+  const games = makeGames(MIN_GAMES_FOR_DERIVATION).map((g) => ({
+    ...g,
+    latest: latestWith([...g.latest.sections, { section: "aitiot", sold: 40 }, { section: "press", sold: 12 }]),
+  }));
+
+  const derived = deriveSeasonBaseline({
+    kausikorttiSeats: KK_SEATS,
+    kausikorttiSections: [...KK_SECTIONS, { section: "aitiot", sold: 40 }, { section: "press", sold: 12 }],
+    games,
+  });
+
+  assert.equal(derived.sections.find((r) => r.section === "aitiot").sold, 0);
+  assert.equal(derived.sections.find((r) => r.section === "press").sold, 0);
 });
 
 test("deriveSeasonBaseline totals follow the history.json convention (seated excludes standing and wheelchair)", () => {
@@ -114,8 +154,9 @@ test("deriveSeasonBaseline totals follow the history.json convention (seated exc
     games: makeGames(MIN_GAMES_FOR_DERIVATION),
   });
 
-  // seated 3 (A1: 2, C3: 1) + standing 100 + wheelchair 2
-  assert.deepEqual(derived.totals, { sold: 105, soldSeated: 3, soldStanding: 100 });
+  // seated 3 (A1: 2, C3: 1) + standing 150 + wheelchair 3, all three taken
+  // from the games rather than the listing.
+  assert.deepEqual(derived.totals, { sold: 156, soldSeated: 3, soldStanding: 150 });
 });
 
 test("deriveSeasonBaseline skips games with a mismatched svgHash or missing data instead of zeroing the intersection", () => {
@@ -134,7 +175,7 @@ test("deriveSeasonBaseline skips games with a mismatched svgHash or missing data
   assert.deepEqual(derived.seatIds, ["A1-1-001", "A1-1-002", "C3-2-001"]);
 });
 
-test("deriveSeasonBaseline returns null below the minimum game count or without kausikortti seats", () => {
+test("deriveSeasonBaseline returns null below the minimum game count or without the listing's map hash", () => {
   assert.equal(
     deriveSeasonBaseline({
       kausikorttiSeats: KK_SEATS,
@@ -277,12 +318,12 @@ test("updateSeasonBaselines writes seasonBaseline.json and appends history for a
   const baseline = JSON.parse(await readFile(path.join(dataDir, "events", "90-000", "seasonBaseline.json"), "utf8"));
   assert.equal(baseline.season, "2026-27");
   assert.deepEqual(baseline.seatIds, ["A1-1-001", "A1-1-002", "C3-2-001"]);
-  assert.equal(baseline.totals.sold, 105);
+  assert.equal(baseline.totals.sold, 156);
 
   const history = JSON.parse(
     await readFile(path.join(dataDir, "events", "90-000", "seasonBaselineHistory.json"), "utf8")
   );
-  assert.deepEqual(history, [{ t: "t1", sold: 105, soldSeated: 3, soldStanding: 100, gamesUsed: 5 }]);
+  assert.deepEqual(history, [{ t: "t1", sold: 156, soldSeated: 3, soldStanding: 150, gamesUsed: 5 }]);
 
   // Second run with unchanged data: both files byte-identical (no new point).
   await updateSeasonBaselines({ dataDir, index, overrides, autoclass, nowISO: "t2", log: silentLog });
