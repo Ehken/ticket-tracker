@@ -117,6 +117,12 @@ paikallisesti esim. `npx serve .` repon juuresta ja avaa selain.
 
 Ominaisuudet:
 
+- **Lippukauppalinkit** — sivun yläreunassa keltainen nappi
+  `elippu.net/saipa`-kauppaan (staattinen `index.html`:ssä, joten se näkyy
+  vaikka datan lataus epäonnistuisi), ja jokaisen avatun ottelukortin lopussa
+  hillitty linkki juuri sen ottelun sivulle (`js/card.js`). Loppuunmyydystä
+  ottelusta korttilinkki jätetään pois. Sivu seuraa SaiPan lipunmyyntiä, joten
+  sen kuuluu myös ohjata ostamaan.
 - **Karsivat suodattimet** (`js/filterBar.js`) — kausi, sarjataso, vastustaja,
   sekä valinta näytetäänkö jo pelatut ottelut (`?pelatut=1`).
 - **Tilannenauha "Kauden luvut"** (`js/summaryStrip.js`) — suodattimien alla
@@ -127,6 +133,8 @@ Ominaisuudet:
   vain kausi- ja sarjavalintaa (ei vastustajaa eikä pelatut-valintaa, jotta
   se pysyy kauden yleiskuvana). Oletuksena **kiinni**, ja tila muistetaan
   selainkohtaisesti (`localStorage`); kiinni oleva nauha ei hae mitään.
+  Otsikkorivi näyttää auki ja kiinni täsmälleen samalta — vain nuoli kääntyy,
+  kuten ottelukorteissa.
 - **Aikajana** (`#timeline`) — tulevat/pelatut ottelut kortteina, kunkin oma
   myyntikäyrä (Chart.js, ks. alla) ja tarkat luvut.
 - **Istumakartta** — tapahtuman oma paikkakartta SVG:nä, väritettynä

@@ -24,7 +24,7 @@ const TITLE = "Kauden luvut";
 // Shown only while collapsed. Closed-by-default means the strip has to earn
 // its own click, and "what is behind this" does that far better than a bare
 // title does.
-const HINT = "Tunnusluvut, yleisömäärät, myydyimmät ottelut ja trendit";
+const HINT = "Tunnusluvut, yleisömäärät, myydyimmät ottelut ja irtolippujen myynti";
 
 // Hard limits, no "Näytä kaikki" fold: the strip is a teaser for the full
 // dashboard, not the place to read a whole ranking.

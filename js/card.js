@@ -317,6 +317,27 @@ function buildTabs(entries) {
   return { wrapper, notifyShown: () => entries[selectedIndex].onShow?.() };
 }
 
+const SHOP_BASE_URL = "https://elippu.net/saipa";
+
+// The quiet sibling of the header's own shop link: same destination family,
+// but this one lands on THIS game's page. Hidden once a game is sold out —
+// a "buy tickets" link to a game with nothing left is a dead end, and the
+// card's own stats already say so.
+function buildBuyLink(mergedEvent, latest) {
+  if (mergedEvent.gameType === "kausikortti") return null;
+  if (latest.totals.available <= 0) return null;
+
+  const link = document.createElement("a");
+  link.className = "card__buy-link";
+  // Event ids carry a colon ("53:575") and the shop's own listing links
+  // are /saipa/53:575 — see EVENT_LINK_RE in scripts/lib/listing.js.
+  link.href = `${SHOP_BASE_URL}/${mergedEvent.id}`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "Osta liput tähän otteluun →";
+  return link;
+}
+
 export function buildCard(
   mergedEvent,
   latest,
@@ -388,6 +409,9 @@ export function buildCard(
       chartWrapper.replaceWith(errorEl);
       console.error(`Failed to load history for ${mergedEvent.id}:`, err);
     }
+
+    const buyLink = buildBuyLink(mergedEvent, latest);
+    if (buyLink) body.append(buyLink);
   }
 
   async function setExpanded(next) {
