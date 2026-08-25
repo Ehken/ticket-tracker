@@ -65,7 +65,12 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   too) — the true count is derived per game in
   `scripts/lib/seasonBaseline.js` and consumed everywhere via
   `seasonBaseline.json`; raw listing totals are only a fallback for
-  seasons with no derived file. The derivation freezes (keeps the last
+  seasons with no derived file. The derivation uses the GAMES ALONE:
+  seated = intersection of every usable game's `soldSeatIds`, count-only
+  sections = min over games. The listing is neither a seed nor a cap — it
+  is the contaminated number being replaced. `press` and `aitiot` are
+  never season tickets (another sales channel) and stay at zero.
+  The derivation freezes (keeps the last
   file) when its evidence runs out: fewer than 5 usable upcoming games,
   or fewer than 3 of them under 90% fill — a sold-out season tail must
   never creep the count toward full capacity. It can also be frozen by
