@@ -28,6 +28,16 @@
     <!-- Filled by js/app.js: front page gets a link to the dashboard and
          vice versa, preserving the current query params (kausi, mock). -->
     <nav id="site-nav" class="site-nav"></nav>
+
+    <!-- This site tracks SaiPa's ticket sales; it should send people to buy
+         them, not just watch the numbers. Static rather than JS-built: it is
+         the one thing here that must render even if the data load fails. -->
+    <p class="site-cta">
+      <a class="site-cta__link" href="https://elippu.net/saipa" target="_blank" rel="noopener noreferrer">
+        Osta liput elippu.net-kaupasta →
+      </a>
+    </p>
+
     <p id="updated-at"></p>
     <p class="disclaimer">
       Luvut perustuvat elippu.net-verkkokaupan julkisiin myyntitietoihin eivätkä välttämättä vastaa toteutunutta

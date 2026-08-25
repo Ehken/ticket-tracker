@@ -558,6 +558,40 @@ header.site-header h1 {
   }
 }
 
+/* Shop call-to-action. Yellow-on-black is the site's own sales palette
+   (--seat-irtolippu / --seat-kausikortti), which is deliberately identical
+   in both colour schemes, so this reads as the page's one primary action in
+   light and dark alike without a per-theme variant. */
+
+.site-cta {
+  margin: 0.5rem 0 0.35rem;
+}
+
+.site-cta__link {
+  display: inline-block;
+  background: var(--seat-irtolippu);
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+}
+
+.site-cta__link:hover {
+  filter: brightness(0.93);
+}
+
+/* The per-card version is deliberately quiet — a text link in the site's
+   action colour, not a second yellow button competing with the header's. */
+.card__buy-link {
+  display: inline-block;
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 /* Header navigation between the front page and the dashboard */
 
 .site-nav {
@@ -583,26 +617,28 @@ header.site-header h1 {
   margin-bottom: 1rem;
 }
 
+/* Identical open and closed, exactly like .card__header: only the chevron
+   turns. A header that restyled itself on expand made the strip look like a
+   different component mid-click, and the eye lost the thing it just hit. */
 .summary-strip__toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
-  background: none;
   border: none;
-  border-left: 4px solid transparent;
+  border-left: 4px solid var(--seat-irtolippu);
+  background: rgba(255, 212, 0, 0.09);
   color: inherit;
   font: inherit;
   font-weight: 600;
-  font-size: 0.9rem;
   text-align: left;
-  padding: 0.6rem 1rem;
+  padding: 0.9rem 1rem;
   cursor: pointer;
 }
 
 .summary-strip__toggle:hover {
-  background: var(--hover-bg);
+  background: rgba(255, 212, 0, 0.18);
 }
 
 .summary-strip__label {
@@ -612,27 +648,14 @@ header.site-header h1 {
   min-width: 0;
 }
 
-/* Collapsed is the only state where this row has to sell itself: closed by
-   default means nothing below it is visible, so the shut strip is an
-   invitation, not a heading. It gets the weight — bigger type, more room, a
-   line saying what's inside, and the site's own irtolippu yellow as a rail
-   and a wash. Expanded, it drops all of that and goes back to being a plain
-   header for the content underneath it. */
-.summary-strip__toggle[aria-expanded="false"] {
-  padding: 0.9rem 1rem;
-  border-left-color: var(--seat-irtolippu);
-  background: rgba(255, 212, 0, 0.09);
-}
-
-.summary-strip__toggle[aria-expanded="false"]:hover {
-  background: rgba(255, 212, 0, 0.18);
-}
-
-.summary-strip__toggle[aria-expanded="false"] .summary-strip__title {
+/* Closed by default, so the row has to earn its click: bigger type, a line
+   saying what's inside, and the site's own irtolippu yellow as a rail and a
+   wash. All of it stays once open. */
+.summary-strip__title {
   font-size: 1.15rem;
 }
 
-.summary-strip__toggle[aria-expanded="false"] .card__chevron {
+.summary-strip__toggle .card__chevron {
   width: 0.7em;
   height: 0.7em;
   border-right-width: 3px;
@@ -643,11 +666,6 @@ header.site-header h1 {
   font-weight: 400;
   font-size: 0.78rem;
   color: var(--muted);
-}
-
-/* Expanded, the title alone is enough — the panels below say the rest. */
-.summary-strip__toggle[aria-expanded="true"] .summary-strip__hint {
-  display: none;
 }
 
 .summary-strip__body {
