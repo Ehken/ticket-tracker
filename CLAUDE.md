@@ -90,9 +90,9 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   rasterised in `fetch.yml` with the runner's own preinstalled Chrome:
   that is a runner-image system binary, NOT an npm dependency, so the
   zero-dependency rule above still holds — do not "fix" it by adding
-  puppeteer/sharp. The graphic's design is shared verbatim with the
-  browser's own download button (`js/shareImage.js`), so change it there,
-  never in one caller only.
+  puppeteer/sharp. The design lives in `js/shareImage.js`; the card's own
+  "Jaa kuvana" download buttons that used to share it were removed from
+  the UI, so the published `kuvat/` graphic is now the only caller.
 - `data/mock/` is a fully separate tree for `?mock=1`, regenerated via
   `npm run generate-mock` (deterministic — same command, same output,
   unless the generation logic or `data/schedule.json` changes). Never

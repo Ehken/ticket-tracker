@@ -1,8 +1,9 @@
-// Shareable game graphics — the same pure SVG builder feeds two callers:
-// the browser's "Lataa kuva" button (js/shareImageDownload.js rasterises it
-// to PNG client-side) and the hourly scrape (scripts/generateShareImages.js
-// + a headless-Chrome step in fetch.yml publishes kuvat/*.png for forum
-// hotlinks and embeds). One design, one source of truth.
+// Shareable game graphics — a pure SVG builder feeding the hourly scrape
+// (scripts/generateShareImages.js + a headless-Chrome step in fetch.yml
+// publishes kuvat/*.png for forum hotlinks and embeds). It used to feed a
+// second caller, the card's own "Jaa kuvana" download buttons; those were
+// removed from the UI, and the published kuvat/ graphic is now the only way
+// to share a game as an image.
 //
 // Deliberately scarcity-forward copy: a neutral "2 607 myyty" moves no
 // tickets, "vain 312 paikkaa vapaana" does. The urgency tier picks both the
