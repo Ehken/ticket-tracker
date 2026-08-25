@@ -3,8 +3,8 @@
   "svgHash": "790414387bd710934274e91874989f093014f26f",
   "gamesUsed": 35,
   "totals": {
-    "sold": 2373,
-    "soldSeated": 1349,
+    "sold": 2374,
+    "soldSeated": 1350,
     "soldStanding": 1019
   },
   "sections": [
@@ -58,7 +58,7 @@
     },
     {
       "section": "C7",
-      "sold": 66
+      "sold": 67
     },
     {
       "section": "C8",
@@ -1304,6 +1304,7 @@
     "C7-9-072",
     "C7-9-073",
     "C7-9-074",
+    "C7-9-075",
     "C7-9-076",
     "C7-9-077",
     "C7-9-078",

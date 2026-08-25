@@ -3,7 +3,7 @@
   "name": "SaiPa - Jukurit",
   "start": "2027-03-20T15:00:00.000Z",
   "stop": "2027-03-20T21:00:00.000Z",
-  "fetchedAt": "2026-08-25T11:47:20.057Z",
+  "fetchedAt": "2026-08-25T12:47:17.391Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -104,9 +104,9 @@
     },
     {
       "section": "C7",
-      "sold": 66,
+      "sold": 67,
       "available": 0,
-      "hold": 28,
+      "hold": 27,
       "total": 94,
       "disabled": true
     },
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2384,
+    "sold": 2385,
     "available": 2004,
-    "hold": 588,
+    "hold": 587,
     "total": 4976
   },
   "prices": {
@@ -204,9 +204,9 @@
         "1060": 44
       },
       "19": {
-        "958": 26,
         "1060": 38,
-        "1074": 15
+        "1074": 15,
+        "1310": 26
       },
       "20": {
         "1060": 24,
@@ -228,14 +228,6 @@
       }
     },
     "products": {
-      "958": {
-        "id": "958",
-        "name": "Saimaan keltamustat RY jäsen",
-        "vat": 13.5,
-        "bundle": false,
-        "type": "ticket",
-        "group": "Verkkomyyntipiste"
-      },
       "1060": {
         "id": "1060",
         "name": "Aikuinen",
@@ -263,6 +255,14 @@
       "1074": {
         "id": "1074",
         "name": "Perhelippu",
+        "vat": 13.5,
+        "bundle": false,
+        "type": "ticket",
+        "group": "Verkkokauppa Runkosarja"
+      },
+      "1310": {
+        "id": "1310",
+        "name": "Saimaan keltamustat RY jäsen kerta",
         "vat": 13.5,
         "bundle": false,
         "type": "ticket",
