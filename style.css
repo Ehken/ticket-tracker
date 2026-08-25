@@ -212,7 +212,8 @@ header.site-header h1 {
   margin-left: 0; /* .card__title's flex `gap` already provides the ~8px spacing */
 }
 
-.card__header[aria-expanded="true"] .card__chevron {
+.card__header[aria-expanded="true"] .card__chevron,
+.summary-strip__toggle[aria-expanded="true"] .card__chevron {
   transform: rotate(45deg); /* expanded: "v" */
 }
 
@@ -572,6 +573,62 @@ header.site-header h1 {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--fg);
+}
+
+/* Etusivun tilannenauha (js/summaryStrip.js) — kauden luvut ottelulistan
+   yläpuolella. Sisältö on dashboardin omia paneeleita, joten niiden tyylit
+   tulevat sellaisenaan alta; täällä on vain nauhan oma kuori. */
+
+.summary-strip {
+  /* The .card anatomy above, so the strip reads as part of the same list. */
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.summary-strip__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+
+.summary-strip__toggle:hover {
+  background: var(--hover-bg);
+}
+
+.summary-strip__body {
+  /* The page's own ground, not --card-bg: the panels inside are themselves
+     bordered cards, and card-on-card reads as a doubled frame. */
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+}
+
+.summary-strip__loading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.summary-strip__more {
+  display: block;
+  margin-top: 1rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 /* Dashboard (?dashboard=1) */

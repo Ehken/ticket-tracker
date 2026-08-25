@@ -1,8 +1,9 @@
 // URL query params (?kausi=, ?sarja=, ?vastustaja=, ?pelatut=) are the single
 // source of truth for filter state — shareable links, no localStorage.
 //
-// The one deliberate exception: js/recencyPreference.js uses localStorage
-// for the "show recently freed/sold seat marks" toggle. The distinction
+// Two deliberate exceptions, both localStorage: js/recencyPreference.js
+// (the "show recently freed/sold seat marks" toggle) and js/summaryStrip.js
+// (whether the front page's numbers strip is open). The distinction
 // is WHAT vs. HOW — the URL carries WHAT is being viewed (filters:
 // shareable, meant to reproduce the same view for anyone who opens the
 // link), localStorage carries HOW this person prefers to view it
@@ -12,10 +13,10 @@
 // localStorage, it doesn't apply — that's the WHAT axis, and belongs in
 // the URL like everything else on this page.
 
-// Private preview: ?dashboard=1 renders the dashboard instead of the normal
-// view. Resolved once at load, same pattern as fetchData.js's IS_MOCK — the
-// "← Takaisin" link is a real navigation, not a soft re-render, so this
-// never needs to change within a single page life.
+// ?dashboard=1 renders the dashboard instead of the normal view. Resolved
+// once at load, same pattern as fetchData.js's IS_MOCK — the "← Lipputilanne"
+// link back is a real navigation, not a soft re-render, so this never needs
+// to change within a single page life.
 export const IS_DASHBOARD = new URLSearchParams(window.location.search).get("dashboard") === "1";
 
 // ?forecast=1: reveal the dashboard's attendance forecast before its
