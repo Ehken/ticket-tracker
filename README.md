@@ -121,7 +121,8 @@ Ominaisuudet:
   sekä valinta näytetäänkö jo pelatut ottelut (`?pelatut=1`).
 - **Tilannenauha "Kauden luvut"** (`js/summaryStrip.js`) — suodattimien alla
   kokoon taittuva nauha, jossa kauden tunnusluvut, "Yleisömäärä ottelu kerrallaan",
-  viisi myydyintä ottelua ja "Trendaa nyt" — samat rakentajat kuin
+  viisi myydyintä ottelua sekä irtolippujen myynti kahdessa
+  aikaikkunassa (edelliset 24 h ja 7 vrk) — samat rakentajat kuin
   `?dashboard=1`:llä, joten luvut eivät voi erota näkymien välillä. Seuraa
   vain kausi- ja sarjavalintaa (ei vastustajaa eikä pelatut-valintaa, jotta
   se pysyy kauden yleiskuvana). Oletuksena **kiinni**, ja tila muistetaan
