@@ -3,7 +3,7 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-08-26T09:01:52.753Z",
+  "fetchedAt": "2026-08-26T09:47:16.874Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 242,
-      "available": 5,
+      "sold": 241,
+      "available": 6,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -73,10 +73,10 @@
     {
       "section": "C3",
       "sold": 144,
-      "available": 6,
-      "hold": 0,
+      "available": 0,
+      "hold": 6,
       "total": 150,
-      "disabled": false
+      "disabled": true
     },
     {
       "section": "C4",
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 3516,
-    "available": 1073,
-    "hold": 387,
+    "sold": 3515,
+    "available": 1068,
+    "hold": 393,
     "total": 4976
   },
   "prices": {
