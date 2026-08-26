@@ -3,7 +3,7 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-08-26T17:09:02.240Z",
+  "fetchedAt": "2026-08-26T17:47:20.596Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,16 +16,16 @@
     },
     {
       "section": "A2",
-      "sold": 174,
-      "available": 94,
+      "sold": 175,
+      "available": 93,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 202,
-      "available": 44,
+      "sold": 194,
+      "available": 52,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -56,8 +56,8 @@
     },
     {
       "section": "C1",
-      "sold": 42,
-      "available": 66,
+      "sold": 40,
+      "available": 68,
       "hold": 0,
       "total": 108,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 119,
-      "available": 31,
+      "sold": 118,
+      "available": 32,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 94,
-      "available": 19,
+      "sold": 93,
+      "available": 20,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1116,
-      "available": 1022,
+      "sold": 1114,
+      "available": 1024,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2896,
-    "available": 1533,
+    "sold": 2883,
+    "available": 1546,
     "hold": 547,
     "total": 4976
   },
