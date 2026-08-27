@@ -3,7 +3,7 @@
   "name": "SaiPa - TPS",
   "start": "2026-11-20T16:30:00.000Z",
   "stop": "2026-11-20T21:00:00.000Z",
-  "fetchedAt": "2026-08-27T16:47:17.424Z",
+  "fetchedAt": "2026-08-27T17:47:17.473Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,8 +24,8 @@
     },
     {
       "section": "A3",
-      "sold": 165,
-      "available": 81,
+      "sold": 164,
+      "available": 82,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1034,
-      "available": 1104,
+      "sold": 1033,
+      "available": 1105,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2435,
-    "available": 1985,
+    "sold": 2433,
+    "available": 1987,
     "hold": 556,
     "total": 4976
   },
