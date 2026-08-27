@@ -3,9 +3,9 @@
   "svgHash": "790414387bd710934274e91874989f093014f26f",
   "gamesUsed": 35,
   "totals": {
-    "sold": 2385,
-    "soldSeated": 1347,
-    "soldStanding": 1033
+    "sold": 2388,
+    "soldSeated": 1349,
+    "soldStanding": 1034
   },
   "sections": [
     {
@@ -54,7 +54,7 @@
     },
     {
       "section": "C6",
-      "sold": 81
+      "sold": 83
     },
     {
       "section": "C7",
@@ -74,7 +74,7 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1033
+      "sold": 1034
     },
     {
       "section": "invalid",
@@ -1177,6 +1177,8 @@
     "C6-2-002",
     "C6-2-003",
     "C6-2-004",
+    "C6-2-008",
+    "C6-3-020",
     "C6-4-023",
     "C6-4-024",
     "C6-5-036",
