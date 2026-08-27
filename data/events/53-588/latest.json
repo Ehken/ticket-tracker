@@ -3,7 +3,7 @@
   "name": "SaiPa - Ilves",
   "start": "2026-11-13T16:30:00.000Z",
   "stop": "2026-11-13T21:00:00.000Z",
-  "fetchedAt": "2026-08-27T02:47:17.495Z",
+  "fetchedAt": "2026-08-27T03:47:19.683Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 186,
-      "available": 61,
+      "sold": 187,
+      "available": 60,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2403,
-    "available": 1985,
+    "sold": 2404,
+    "available": 1984,
     "hold": 588,
     "total": 4976
   },
