@@ -3,7 +3,7 @@
   "name": "SaiPa - HK Nitra",
   "start": "2026-09-12T14:00:00.000Z",
   "stop": "2026-09-12T20:00:00.000Z",
-  "fetchedAt": "2026-08-28T07:47:16.268Z",
+  "fetchedAt": "2026-08-28T08:47:15.814Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 93,
-      "available": 112,
+      "sold": 95,
+      "available": 110,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1155,
-      "available": 983,
+      "sold": 1156,
+      "available": 982,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2617,
-    "available": 1985,
+    "sold": 2620,
+    "available": 1982,
     "hold": 374,
     "total": 4976
   },
