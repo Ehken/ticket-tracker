@@ -3,7 +3,7 @@
   "name": "SaiPa - Sport",
   "start": "2027-02-05T16:30:00.000Z",
   "stop": "2027-02-05T21:00:00.000Z",
-  "fetchedAt": "2026-08-29T14:47:20.851Z",
+  "fetchedAt": "2026-08-29T15:47:18.063Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1037,
-      "available": 1101,
+      "sold": 1038,
+      "available": 1100,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2392,
-    "available": 1998,
+    "sold": 2393,
+    "available": 1997,
     "hold": 586,
     "total": 4976
   },
