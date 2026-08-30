@@ -3,7 +3,7 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-08-30T02:47:14.504Z",
+  "fetchedAt": "2026-08-30T03:47:20.587Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1156,
-      "available": 982,
+      "sold": 1157,
+      "available": 981,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 3016,
-    "available": 1729,
+    "sold": 3017,
+    "available": 1728,
     "hold": 231,
     "total": 4976
   },
