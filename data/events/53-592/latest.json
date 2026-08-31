@@ -3,7 +3,7 @@
   "name": "SaiPa - Jukurit",
   "start": "2026-12-05T15:00:00.000Z",
   "stop": "2026-12-05T21:00:00.000Z",
-  "fetchedAt": "2026-08-31T08:47:17.372Z",
+  "fetchedAt": "2026-08-31T09:47:19.955Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -32,8 +32,8 @@
     },
     {
       "section": "A4",
-      "sold": 170,
-      "available": 74,
+      "sold": 166,
+      "available": 78,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -48,8 +48,8 @@
     },
     {
       "section": "A6",
-      "sold": 74,
-      "available": 46,
+      "sold": 72,
+      "available": 48,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 81,
-      "available": 32,
+      "sold": 83,
+      "available": 30,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -112,9 +112,9 @@
     },
     {
       "section": "C8",
-      "sold": 55,
+      "sold": 56,
       "available": 0,
-      "hold": 50,
+      "hold": 49,
       "total": 105,
       "disabled": true
     },
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1047,
-      "available": 1091,
+      "sold": 1046,
+      "available": 1092,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2402,
-    "available": 1988,
-    "hold": 586,
+    "sold": 2398,
+    "available": 1993,
+    "hold": 585,
     "total": 4976
   },
   "prices": {
@@ -214,7 +214,7 @@
         "1073": 12
       },
       "21": {
-        "1060": 12
+        "1060": 18
       },
       "22": {
         "1060": 38,
