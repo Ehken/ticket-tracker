@@ -401,7 +401,12 @@ export function buildCard(
       if (history.length === 0) {
         history = await getHistory(mergedEvent.id);
       }
-      buildChart(canvas, history);
+      // A kausikortti listing's `start` is the sales-window boundary, not a
+      // fixture date (the card hides it for that reason), so a "7 days
+      // before the game" reference point would be meaningless there.
+      buildChart(canvas, history, {
+        eventStart: mergedEvent.gameType === "kausikortti" ? null : mergedEvent.start,
+      });
     } catch (err) {
       const errorEl = document.createElement("p");
       errorEl.className = "card__error";

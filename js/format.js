@@ -42,3 +42,9 @@ export function formatHelsinkiDateTime(iso) {
   const date = new Date(iso);
   return `${dateTimeFormatter.format(date)} klo ${timeFormatter.format(date)}`;
 }
+
+// Just the day and month ("31.8.") — the chart's reference-point labels
+// pair this with the value and nothing else.
+export function formatHelsinkiDayMonth(iso) {
+  return dateTimeFormatter.format(new Date(iso));
+}
