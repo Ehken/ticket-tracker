@@ -3,8 +3,8 @@
   "svgHash": "790414387bd710934274e91874989f093014f26f",
   "gamesUsed": 35,
   "totals": {
-    "sold": 2404,
-    "soldSeated": 1325,
+    "sold": 2403,
+    "soldSeated": 1324,
     "soldStanding": 1074
   },
   "sections": [
@@ -26,7 +26,7 @@
     },
     {
       "section": "A5",
-      "sold": 177
+      "sold": 176
     },
     {
       "section": "A6",
@@ -654,7 +654,6 @@
     "A5-4-060",
     "A5-4-067",
     "A5-4-068",
-    "A5-4-075",
     "A5-5-077",
     "A5-5-078",
     "A5-5-079",
