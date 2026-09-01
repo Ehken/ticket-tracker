@@ -3,7 +3,7 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-09-01T15:00:52.644Z",
+  "fetchedAt": "2026-09-01T15:10:37.545Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,32 +16,32 @@
     },
     {
       "section": "A2",
-      "sold": 223,
-      "available": 45,
+      "sold": 225,
+      "available": 43,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 207,
-      "available": 39,
+      "sold": 209,
+      "available": 37,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 224,
-      "available": 20,
+      "sold": 226,
+      "available": 18,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 218,
-      "available": 29,
+      "sold": 220,
+      "available": 27,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -64,16 +64,16 @@
     },
     {
       "section": "C2",
-      "sold": 52,
-      "available": 68,
+      "sold": 50,
+      "available": 70,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C3",
-      "sold": 149,
-      "available": 1,
+      "sold": 150,
+      "available": 0,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -136,16 +136,16 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1678,
-      "available": 460,
+      "sold": 1685,
+      "available": 453,
       "hold": 0,
       "total": 2138,
       "disabled": false
     },
     {
       "section": "invalid",
-      "sold": 11,
-      "available": 1,
+      "sold": 10,
+      "available": 2,
       "hold": 0,
       "total": 12,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 3878,
-    "available": 969,
+    "sold": 3891,
+    "available": 956,
     "hold": 129,
     "total": 4976
   },
