@@ -3,7 +3,7 @@
   "name": "SaiPa - Ässät",
   "start": "2026-09-23T15:30:00.000Z",
   "stop": "2026-09-23T20:00:00.000Z",
-  "fetchedAt": "2026-09-01T08:20:29.698Z",
+  "fetchedAt": "2026-09-01T08:30:38.324Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1058,
-      "available": 1080,
+      "sold": 1059,
+      "available": 1079,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2409,
-    "available": 1978,
+    "sold": 2410,
+    "available": 1977,
     "hold": 589,
     "total": 4976
   },
