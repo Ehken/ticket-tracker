@@ -3,7 +3,7 @@
   "name": "SaiPa kausikortit 2026-2027",
   "start": "2026-07-31T21:00:00.000Z",
   "stop": "2027-03-15T22:00:00.000Z",
-  "fetchedAt": "2026-09-01T13:20:30.543Z",
+  "fetchedAt": "2026-09-01T13:30:43.635Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 241,
-      "available": 6,
+      "sold": 245,
+      "available": 2,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -64,9 +64,9 @@
     },
     {
       "section": "C2",
-      "sold": 85,
+      "sold": 84,
       "available": 0,
-      "hold": 35,
+      "hold": 36,
       "total": 120,
       "disabled": true
     },
@@ -96,17 +96,17 @@
     },
     {
       "section": "C6",
-      "sold": 108,
-      "available": 5,
+      "sold": 110,
+      "available": 3,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 67,
+      "sold": 69,
       "available": 0,
-      "hold": 27,
+      "hold": 25,
       "total": 94,
       "disabled": true
     },
@@ -136,16 +136,16 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1589,
-      "available": 549,
+      "sold": 1599,
+      "available": 539,
       "hold": 0,
       "total": 2138,
       "disabled": false
     },
     {
       "section": "invalid",
-      "sold": 9,
-      "available": 3,
+      "sold": 10,
+      "available": 2,
       "hold": 0,
       "total": 12,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 4172,
-    "available": 588,
-    "hold": 216,
+    "sold": 4190,
+    "available": 571,
+    "hold": 215,
     "total": 4976
   },
   "prices": {
