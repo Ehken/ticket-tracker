@@ -649,5 +649,12 @@
     "soldSeated": 1320,
     "soldStanding": 1074,
     "gamesUsed": 35
+  },
+  {
+    "t": "2026-09-01T12:10:39.143Z",
+    "sold": 2400,
+    "soldSeated": 1320,
+    "soldStanding": 1075,
+    "gamesUsed": 35
   }
 ]

@@ -3,7 +3,7 @@
   "name": "SaiPa - Pelicans",
   "start": "2026-12-28T16:30:00.000Z",
   "stop": "2026-12-28T21:00:00.000Z",
-  "fetchedAt": "2026-09-01T12:00:47.781Z",
+  "fetchedAt": "2026-09-01T12:10:39.143Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1074,
-      "available": 1064,
+      "sold": 1075,
+      "available": 1063,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2408,
-    "available": 1979,
+    "sold": 2409,
+    "available": 1978,
     "hold": 589,
     "total": 4976
   },
