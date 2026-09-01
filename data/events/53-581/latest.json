@@ -3,7 +3,7 @@
   "name": "SaiPa - Ässät",
   "start": "2026-09-23T15:30:00.000Z",
   "stop": "2026-09-23T20:00:00.000Z",
-  "fetchedAt": "2026-09-01T07:50:34.944Z",
+  "fetchedAt": "2026-09-01T08:00:51.046Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 183,
-      "available": 64,
+      "sold": 184,
+      "available": 63,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -72,16 +72,16 @@
     },
     {
       "section": "C3",
-      "sold": 94,
-      "available": 56,
+      "sold": 93,
+      "available": 57,
       "hold": 0,
       "total": 150,
       "disabled": false
     },
     {
       "section": "C4",
-      "sold": 102,
-      "available": 18,
+      "sold": 101,
+      "available": 19,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2414,
-    "available": 1973,
+    "sold": 2413,
+    "available": 1974,
     "hold": 589,
     "total": 4976
   },
