@@ -3,7 +3,7 @@
   "name": "SaiPa - Tappara",
   "start": "2026-09-01T15:30:00.000Z",
   "stop": "2026-09-01T20:30:00.000Z",
-  "fetchedAt": "2026-09-01T13:47:16.370Z",
+  "fetchedAt": "2026-09-01T13:50:28.425Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,32 +16,32 @@
     },
     {
       "section": "A2",
-      "sold": 227,
-      "available": 41,
+      "sold": 233,
+      "available": 35,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 210,
-      "available": 36,
+      "sold": 212,
+      "available": 34,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 225,
-      "available": 19,
+      "sold": 224,
+      "available": 20,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 220,
-      "available": 27,
+      "sold": 215,
+      "available": 32,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -56,8 +56,8 @@
     },
     {
       "section": "C1",
-      "sold": 53,
-      "available": 55,
+      "sold": 51,
+      "available": 57,
       "hold": 0,
       "total": 108,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 104,
-      "available": 9,
+      "sold": 102,
+      "available": 11,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -128,24 +128,24 @@
     },
     {
       "section": "D2",
-      "sold": 41,
-      "available": 174,
+      "sold": 40,
+      "available": 175,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1621,
-      "available": 517,
+      "sold": 1625,
+      "available": 513,
       "hold": 0,
       "total": 2138,
       "disabled": false
     },
     {
       "section": "invalid",
-      "sold": 10,
-      "available": 2,
+      "sold": 9,
+      "available": 3,
       "hold": 0,
       "total": 12,
       "disabled": false
