@@ -3,7 +3,7 @@
   "name": "SaiPa - Kalpa",
   "start": "2026-12-11T16:30:00.000Z",
   "stop": "2026-12-11T21:00:00.000Z",
-  "fetchedAt": "2026-09-01T08:40:27.680Z",
+  "fetchedAt": "2026-09-01T08:47:16.056Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1060,
-      "available": 1078,
+      "sold": 1062,
+      "available": 1076,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2394,
-    "available": 1993,
+    "sold": 2396,
+    "available": 1991,
     "hold": 589,
     "total": 4976
   },
