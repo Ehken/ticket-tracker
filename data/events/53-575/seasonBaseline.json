@@ -4,8 +4,8 @@
   "gamesUsed": 34,
   "totals": {
     "sold": 2409,
-    "soldSeated": 1323,
-    "soldStanding": 1081
+    "soldSeated": 1322,
+    "soldStanding": 1082
   },
   "sections": [
     {
@@ -18,7 +18,7 @@
     },
     {
       "section": "A3",
-      "sold": 162
+      "sold": 161
     },
     {
       "section": "A4",
@@ -74,7 +74,7 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1081
+      "sold": 1082
     },
     {
       "section": "invalid",
@@ -313,7 +313,6 @@
     "A3-12-244",
     "A3-12-245",
     "A3-12-246",
-    "A3-3-013",
     "A3-4-053",
     "A3-4-054",
     "A3-5-055",
