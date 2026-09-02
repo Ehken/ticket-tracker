@@ -3,7 +3,7 @@
   "name": "SaiPa - Jokerit",
   "start": "2026-10-03T14:00:00.000Z",
   "stop": "2026-10-03T20:00:00.000Z",
-  "fetchedAt": "2026-09-02T15:47:18.390Z",
+  "fetchedAt": "2026-09-02T16:47:19.808Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,24 +16,24 @@
     },
     {
       "section": "A2",
-      "sold": 267,
-      "available": 1,
+      "sold": 266,
+      "available": 2,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 231,
-      "available": 15,
+      "sold": 230,
+      "available": 16,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 235,
-      "available": 9,
+      "sold": 233,
+      "available": 11,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -48,17 +48,17 @@
     },
     {
       "section": "A6",
-      "sold": 118,
-      "available": 2,
+      "sold": 119,
+      "available": 1,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 105,
+      "sold": 104,
       "available": 0,
-      "hold": 3,
+      "hold": 4,
       "total": 108,
       "disabled": true
     },
@@ -80,8 +80,8 @@
     },
     {
       "section": "C4",
-      "sold": 118,
-      "available": 2,
+      "sold": 119,
+      "available": 1,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 110,
-      "available": 3,
+      "sold": 106,
+      "available": 7,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1146,
-      "available": 992,
+      "sold": 1144,
+      "available": 994,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 3415,
-    "available": 1055,
-    "hold": 506,
+    "sold": 3406,
+    "available": 1063,
+    "hold": 507,
     "total": 4976
   },
   "prices": {
