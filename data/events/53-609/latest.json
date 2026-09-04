@@ -3,7 +3,7 @@
   "name": "SaiPa - Jukurit",
   "start": "2027-03-20T15:00:00.000Z",
   "stop": "2027-03-20T21:00:00.000Z",
-  "fetchedAt": "2026-09-04T19:47:20.375Z",
+  "fetchedAt": "2026-09-04T20:47:19.958Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,8 +24,8 @@
     },
     {
       "section": "A3",
-      "sold": 162,
-      "available": 84,
+      "sold": 161,
+      "available": 85,
       "hold": 0,
       "total": 246,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2472,
-    "available": 1918,
+    "sold": 2471,
+    "available": 1919,
     "hold": 586,
     "total": 4976
   },
