@@ -3,7 +3,7 @@
   "name": "SaiPa - HIFK",
   "start": "2026-10-17T14:00:00.000Z",
   "stop": "2026-10-17T20:00:00.000Z",
-  "fetchedAt": "2026-09-04T10:47:22.521Z",
+  "fetchedAt": "2026-09-04T11:47:17.545Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -72,16 +72,16 @@
     },
     {
       "section": "C3",
-      "sold": 105,
-      "available": 45,
+      "sold": 107,
+      "available": 43,
       "hold": 0,
       "total": 150,
       "disabled": false
     },
     {
       "section": "C4",
-      "sold": 107,
-      "available": 13,
+      "sold": 106,
+      "available": 14,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2723,
-    "available": 1667,
+    "sold": 2724,
+    "available": 1666,
     "hold": 586,
     "total": 4976
   },
