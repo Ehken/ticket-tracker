@@ -3,7 +3,7 @@
   "name": "SaiPa - Kärpät",
   "start": "2027-01-16T15:00:00.000Z",
   "stop": "2027-01-16T21:00:00.000Z",
-  "fetchedAt": "2026-09-06T05:56:45.848Z",
+  "fetchedAt": "2026-09-06T06:47:19.012Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,32 +16,32 @@
     },
     {
       "section": "A2",
-      "sold": 113,
-      "available": 155,
+      "sold": 114,
+      "available": 154,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 163,
-      "available": 83,
+      "sold": 165,
+      "available": 81,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 168,
-      "available": 76,
+      "sold": 169,
+      "available": 75,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 176,
-      "available": 71,
+      "sold": 179,
+      "available": 68,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -56,8 +56,8 @@
     },
     {
       "section": "C1",
-      "sold": 17,
-      "available": 91,
+      "sold": 20,
+      "available": 88,
       "hold": 0,
       "total": 108,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2470,
-    "available": 1920,
+    "sold": 2480,
+    "available": 1910,
     "hold": 586,
     "total": 4976
   },
