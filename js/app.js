@@ -5,8 +5,12 @@ import {
   getSchedule,
   getLatest,
   getSeasonBaseline,
+  getAnnouncedAttendance,
+  getAttendanceManual,
   IS_MOCK,
 } from "./fetchData.js";
+import { mergeAnnounced } from "./announcedAttendance.js";
+import { toHelsinkiDateString } from "../scripts/lib/schedule.js";
 import { mergeClassification } from "./classify.js";
 import {
   computeSeasons,
@@ -104,12 +108,17 @@ async function main() {
   renderMockBanner();
   renderSiteNav();
 
-  const [eventsIndex, overrides, autoclass, schedule] = await Promise.all([
+  const [eventsIndex, overrides, autoclass, schedule, announcedFetched, announcedManual] = await Promise.all([
     getEventsIndex(),
     getOverrides(),
     getAutoclass(),
     getSchedule(),
+    // Optional both: a missing file resolves to null/[] and the comparison
+    // simply doesn't render. It must never be able to break the card list.
+    getAnnouncedAttendance().catch(() => null),
+    getAttendanceManual().catch(() => []),
   ]);
+  const announcedByDate = mergeAnnounced({ fetched: announcedFetched, manual: announcedManual });
 
   const merged = eventsIndex.map((event) => mergeClassification(event, { overrides, autoclass }));
   const visible = merged.filter((e) => !e.hidden);
@@ -146,13 +155,13 @@ async function main() {
     // link and from the front page's summary strip, both of which carry the
     // current query params across.
     const kausi = resolveKausi(readUrlState().kausi, seasons, rest);
-    await renderDashboard({ kausikortti, matchEvents: rest, kausi, schedule });
+    await renderDashboard({ kausikortti, matchEvents: rest, kausi, schedule, announcedByDate });
     return;
   }
 
   // Built once, not per render(): it owns its open/closed state and its
   // per-season history cache, both of which a rebuild would throw away.
-  const summaryStrip = buildSummaryStrip({ kausikortti, matchEvents: rest });
+  const summaryStrip = buildSummaryStrip({ kausikortti, matchEvents: rest, announcedByDate });
   const summaryStripContainer = document.getElementById("summary-strip-container");
   summaryStripContainer.append(summaryStrip.element);
 
@@ -269,6 +278,7 @@ async function main() {
               showSeasonBadge: kausi === "kaikki",
               showGameTypeLabel: sarja === "kaikki",
               kausikorttiEvents: kausikortti,
+              announced: announcedByDate.get(toHelsinkiDateString(event.start)) ?? null,
             })
           );
         }

@@ -82,6 +82,19 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
   committed — like schedule.json edits in spirit). The hourly scraper
   never touches it. Optional: the dashboard forecast degrades gracefully
   without it.
+- `data/announcedAttendance.json` (machine) and `data/attendanceManual.json`
+  (**human-owned**) are the RUNNING season's ilmoitetut yleisömäärät, kept
+  in two files on purpose. The first is rewritten wholesale by
+  `scripts/fetchAnnouncedAttendance.js` (daily, `fetch-attendance.yml`, never
+  the scrape path); the second holds the CHL games liiga.fi's endpoint will
+  never carry and is only ever edited by hand — a bad fetch must not be able
+  to destroy a number nobody can re-derive. Merged at read time in
+  `js/announcedAttendance.js`, manual winning on a date collision, the same
+  relationship `overrides.json` has with `autoclass.json`. Do NOT fold either
+  into `attendanceHistory.json`: that file feeds the forecast's indices, and
+  mixing the running season in would make the model partly forecast itself.
+  The join to our events is on the Helsinki DATE alone; opponent names only
+  raise a warning on the `?dashboard=1` diagnostics panel, never gate a match.
 - `kuvat/` is machine-owned output, not data: the next game's share
   graphic (SVG + iframe-embeddable HTML + rasterised PNG), written by
   `scripts/generateShareImages.js` at the end of a scrape. It is
@@ -100,7 +113,12 @@ Instructions for working in this repo (`saipa-lipputilanne` / ticket-tracker).
 
 ## Scrape workflows and the external trigger
 
-- Two workflows, two cadences: `.github/workflows/fetch.yml` (hourly
+- Three workflows now, but only two are scrapes. `fetch-attendance.yml`
+  (daily, `40 6 * * *`) fetches announced attendance and is deliberately its
+  own workflow so a liiga.fi outage can never cost a ticket sample. It DOES
+  share the `fetch-and-commit` concurrency group — that is push
+  serialisation, not coupling, and all three commit to `data/`.
+- Two scrape workflows, two cadences: `.github/workflows/fetch.yml` (hourly
   baseline, **never gated**) and `.github/workflows/fetch-intensive.yml`
   (10-minute game-day/watch-date cadence, **always gated** by
   `scripts/checkGameWindow.js` — including on `workflow_dispatch`, so a

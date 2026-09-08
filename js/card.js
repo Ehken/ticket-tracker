@@ -17,6 +17,18 @@ import { nextTabIndex } from "./tabs.js";
 const CAPACITY_INFO =
   "Kapasiteetti on laskettu elippu.netin paikkadatasta. Kisapuiston virallinen katsojakapasiteetti on 4\u00a0820.";
 
+// Shown on a played game's Ilmoitettu yleisö stat, and reused by the
+// dashboard's own panel so the caveat is worded once. The point it has to
+// make: this is not a turnstile count either — Liiga counts a season-ticket
+// holder as present whether or not they attend — so the gap between the two
+// numbers is a difference of counting methods, not people who stayed home.
+// (The aitio arithmetic in CAPACITY_INFO's comment above is one known
+// component of that gap; the comparison deliberately does not correct for it.)
+export const ANNOUNCED_INFO =
+  "Ilmoitettu yleisö on liiga.fi:n julkaisema luku, CHL-otteluissa käsin syötetty. Se ei ole " +
+  "porttilaskenta: kausikortin haltija lasketaan mukaan riippumatta siitä, kävikö hän paikalla. " +
+  "Ero myytyihin lippuihin on kahden laskutavan ero, ei tulematta jääneiden määrä.";
+
 let statInfoIdCounter = 0;
 
 // Same interaction pattern as the seat-map legend's ⓘ (js/seatMap.js's
@@ -146,7 +158,12 @@ function buildChevron() {
 // kausikortti card showing "Osuus kapasiteetista" but still displaying a
 // raw date, because some future call site forgot to pass a flag) where
 // deriving all three from one condition makes that unrepresentable.
-function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, showGameTypeLabel = false } = {}) {
+function buildHeader(
+  mergedEvent,
+  totals,
+  expanded,
+  { showSeasonBadge = false, showGameTypeLabel = false, announced = null } = {}
+) {
   const isKausikortti = mergedEvent.gameType === "kausikortti";
 
   const header = document.createElement("button");
@@ -237,6 +254,12 @@ function buildHeader(mergedEvent, totals, expanded, { showSeasonBadge = false, s
     // they were the same scale.
     buildStat(isKausikortti ? "Osuus kapasiteetista" : "Täyttö", formatPercent(totals.sold, totals.total))
   );
+
+  // No "is this game played?" check is needed: an announced figure only
+  // exists once the game has been played, so its presence is the predicate.
+  if (announced && !isKausikortti) {
+    headline.append(buildStat("Ilmoitettu yleisö", formatThousands(announced.attendance), { info: ANNOUNCED_INFO }));
+  }
 
   header.append(title, headline, buildFillBar(totals));
   return header;
@@ -346,6 +369,7 @@ export function buildCard(
     showSeasonBadge = false,
     showGameTypeLabel = false,
     kausikorttiEvents = [],
+    announced = null,
   } = {}
 ) {
   const article = document.createElement("article");
@@ -356,6 +380,7 @@ export function buildCard(
   const header = buildHeader(mergedEvent, latest.totals, expanded, {
     showSeasonBadge,
     showGameTypeLabel,
+    announced,
   });
 
   const body = document.createElement("div");

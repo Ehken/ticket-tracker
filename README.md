@@ -260,6 +260,16 @@ versio ja ainoa paikka, jossa loput paneelit ovat. Sisältö:
   saa näkyviin parametrilla `?forecast=1` (kokeellinen tila, joka ennen
   pelattuja otteluita perustuu pelkkiin historiallisiin kertoimiin).
   Malli ei näe joukkueen menestystä, TV-valintoja eikä säätä.
+- **Ilmoitettu yleisö**: pelatut ottelut riveittäin, myyty vs. ilmoitettu
+  ja niiden ero lippuina. Kauden keskiarvo näytetään otsikkorivillä vasta
+  kun otteluita on vähintään viisi JA keskiarvo on riittävän tarkka
+  (95 %:n väli enintään ±3 prosenttiyksikköä) — yksittäisen ottelun
+  prosenttilukua ei näytetä lainkaan. Näkyy myös etusivun
+  tilannenauhassa. Ks. "Ilmoitettu yleisö vs. myydyt liput" alla.
+- **Ilmoitetut yleisöt · poikkeamat** (vain dashboardilla): ilmoitetut
+  luvut joille ei löydy ottelua, päivämäärällä yhdistetyt ottelut joiden
+  vastustajan nimi eroaa, ja CHL-ottelut joiden luku on vielä
+  syöttämättä.
 - **Kiirehdi**, **Vastustajat** (yleisökeskiarvo), **Katsomot**
   (halli lämpökarttana), **Viikonpäivät ja ajankohdat** — tyhjät osiot
   piilotetaan kokonaan.
@@ -278,6 +288,69 @@ Aja komento, tarkista diff ja committaa. Jos tiedostoa ei ole, ennuste
 toimii ilman vastustaja-/viikonpäiväkertoimia (kertoimet ≡ 1) eikä
 mikään muu riko. Päivitä kauden päätyttyä lisäämällä uusi kausi
 skriptin `API_SEASONS`-listaan.
+
+### Ilmoitettu yleisö vs. myydyt liput
+
+Sivuston yleisöluku on **myytyjä lippuja**, ei porttilaskentaa. Kauden
+ensimmäinen ottelu antoi ensimmäisen vertailukohdan: myytyjä 3 864,
+ilmoitettu yleisö 3 342, ero 522. Yksi ottelu ei todista mitään — vertailu
+kerätään ottelu kerrallaan, ja kauden keskiarvo julkaistaan vasta kun luku
+on riittävän vakaa.
+
+**Ilmoitettu yleisö ei ole sekään porttilaskenta.** Kausikortin haltija
+lasketaan mukaan riippumatta siitä, kävikö hän paikalla, joten ero on
+kahden eri laskutavan ero — ei tulematta jääneiden määrä. Yksi tunnettu
+osa erosta: liiga.fi:n loppuunmyyty-lukema on 4 820 ja meidän
+kapasiteettimme 4 976, ja erotus on tasan aitioiden 156 paikkaa. Aitiot
+ovat siis meidän luvussamme ja pois heidän luvustaan. Vertailu käyttää
+silti raakaa `totals.sold`-lukua; jos tätä joskus muutetaan, ottelun
+aitiomyynti on aina johdettavissa `latest.json`:in `sections[]`-listasta
+eikä mikään tallennettu rakenne muutu.
+
+Kaksi tiedostoa, kaksi luottamustasoa:
+
+| Tiedosto | Omistaja | Sisältö |
+| --- | --- | --- |
+| `data/announcedAttendance.json` | kone | Kuluvan kauden liiga.fi-luvut. Kirjoitetaan kokonaan uusiksi joka ajolla. |
+| `data/attendanceManual.json` | **ihminen** | CHL-otteluiden luvut. Mikään skripti ei kirjoita tähän. |
+
+Erillään siksi, että yksikään rikkinäinen haku ei voi tuhota käsin
+syötettyä lukua, jota ei saa mistään takaisin. Yhdistäminen tehdään
+lukuhetkellä (`js/announcedAttendance.js`), ja käsin syötetty voittaa
+päivämääräosumassa — sama suhde kuin `overrides.json`:illa on
+`autoclass.json`:iin.
+
+CHL-luvun lisääminen ottelun jälkeen (`data/attendanceManual.json`):
+
+```json
+[
+  {
+    "date": "2026-09-10",
+    "opponent": "HC Dynamo Pardubice",
+    "season": "2026-27",
+    "attendance": 4102,
+    "source": "chl.hockey, haettu 2026-09-11"
+  }
+]
+```
+
+`source` on pakollinen ja vapaamuotoinen: seura, CHL:n sivu ja lehdistö
+ilmoittavat eri lukuja, ja helmikuussa on hyvä tietää mistä luku on.
+Puuttuva CHL-luku näkyy `?dashboard=1`-näkymän poikkeuslistalla, joten sitä
+ei tarvitse muistaa ulkoa.
+
+Haku ajetaan omassa työnkulussaan `.github/workflows/fetch-attendance.yml`
+kerran vuorokaudessa — tarkoituksella erillään lippuscrapesta, jotta
+liiga.fi:n katkos ei voi maksaa yhtään myyntinäytettä. Kausi päätellään
+`data/schedule.json`:in uusimmasta `season`-arvosta, eli sama käsin tehty
+muokkaus joka aloittaa kauden vaihtaa myös haettavan kauden. Turnaukset:
+runkosarja, playoffs, playout ja valmistavat ottelut — CHL on ainoa sarja
+jota rajapinta ei koskaan sisällä.
+
+Yhdistäminen otteluihimme tehdään **pelkällä päivämäärällä**: yhdelläkään
+SaiPan kotiottelulla ei ole päivämääräkaveria. Vastustajan nimeä käytetään
+vain varoituksen antamiseen — nimivertailu on juuri se, joka hajosi
+elokuussa 2026, eikä se saa enää pudottaa yhtään lukua hiljaisesti.
 
 ## Ajaminen paikallisesti
 

@@ -12,6 +12,7 @@ import { sectionOfSeatId } from "../js/seatMapClassify.js";
 import { mergeClassification } from "../js/classify.js";
 import { appendSectionHistoryPointIfChanged, writeSectionHistoryIfChanged } from "./lib/dataStore.js";
 import { deriveSeasonBaseline } from "./lib/seasonBaseline.js";
+import { toHelsinkiDateString } from "./lib/schedule.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -1332,12 +1333,74 @@ async function main() {
     games: attendanceGames,
   };
 
+  // --- Synthetic announced-attendance fixtures for ?mock=1 ---
+  //
+  // Deliberately covers every branch of js/announcedAttendance.js, because
+  // real data currently exercises exactly one of them (one played game):
+  //
+  //   90:002 Tappara      fetched figure          -> compared
+  //   90:003 Pardubice    manual (CHL) figure     -> compared, and its
+  //                       opponent string differs from the event name, so
+  //                       the date join still lands and the ?dashboard=1
+  //                       diagnostics report the name disagreement
+  //   90:004 Nitra        CHL, no manual row      -> awaitingManual
+  //   90:001 Jukurit      played, no figure yet   -> awaitingFetch
+  //   2026-08-14          figure, no event at all -> unmatched
+  //
+  // Two comparable games is below the publication floor on purpose: ?mock=1
+  // must show the gate holding, not a season ratio derived from two numbers.
+  // Announced figures are a fixed fraction of each game's own sold count so
+  // they stay plausible when the generator's seeded sales change.
+  const announcedFor = (id, fraction) => {
+    const event = events.find((e) => e.id === id);
+    const sold = latestById.get(id).totals.sold;
+    return {
+      date: toHelsinkiDateString(event.start),
+      start: event.start,
+      opponent: event.name.replace(/^SaiPa\s*-\s*/, ""),
+      attendance: Math.round(sold * fraction),
+    };
+  };
+
+  const announcedAttendance = {
+    source: "generateMockData.js (synteettinen — ei oikeaa liiga.fi-dataa)",
+    season: "2026-27",
+    fetchedAt: SEASON_2026_27_NOW,
+    games: [
+      { ...announcedFor("90:002", 0.865), tournament: "runkosarja", season: "2026-27" },
+      // No event on this date in any dataset — the mock's stand-in for the
+      // real 2026-08-14 pre-season game, which was announced at 316 and was
+      // never sold through this shop.
+      {
+        date: "2026-08-14",
+        start: "2026-08-14T11:30:00.000Z",
+        opponent: "JYP",
+        tournament: "valmistavat_ottelut",
+        attendance: 316,
+        season: "2026-27",
+      },
+    ].sort((a, b) => a.start.localeCompare(b.start)),
+  };
+
+  const attendanceManual = [
+    {
+      ...announcedFor("90:003", 0.91),
+      // Shortened on purpose: liiga.fi and the CHL site disagree about club
+      // prefixes, and the join must survive that on date alone.
+      opponent: "Dynamo Pardubice",
+      season: "2026-27",
+      source: "chl.hockey, haettu 2026-09-11",
+    },
+  ];
+
   // --- Write everything out ---
   await mkdir(mockDir, { recursive: true });
   await writeFile(path.join(mockDir, "events.json"), JSON.stringify(events, null, 2) + "\n");
   await writeFile(path.join(mockDir, "overrides.json"), JSON.stringify(overrides, null, 2) + "\n");
   await writeFile(path.join(mockDir, "autoclass.json"), JSON.stringify(autoclass, null, 2) + "\n");
   await writeFile(path.join(mockDir, "attendanceHistory.json"), JSON.stringify(attendanceHistory, null, 2) + "\n");
+  await writeFile(path.join(mockDir, "announcedAttendance.json"), JSON.stringify(announcedAttendance, null, 2) + "\n");
+  await writeFile(path.join(mockDir, "attendanceManual.json"), JSON.stringify(attendanceManual, null, 2) + "\n");
 
   // Every mock event shares capacitiesHash/svgHash "mock-fixture" — without
   // these files, ?mock=1's seat-map fetch 404s for every event. Copy the

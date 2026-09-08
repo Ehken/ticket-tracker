@@ -1,0 +1,71 @@
+name: Fetch announced attendance
+
+# Once a day, and deliberately its own workflow rather than a step inside
+# fetch.yml. The ticket scrape is the thing that cannot be missed — every run
+# it skips is a sales sample that never comes back — so a liiga.fi outage,
+# a schema change or a bad JSON body must be able to fail here and nowhere
+# else. That is failure isolation, and it is the whole reason this file
+# exists separately.
+#
+# Concurrency runs the OTHER way on purpose: this job shares the scrapes'
+# fetch-and-commit group. All three push data/ to the same branch, and the
+# commit step below deliberately fails on conflict rather than resolving it
+# (see the comment there, inherited from fetch.yml). Letting this run
+# alongside a scrape would create exactly the race that costs a sample.
+#
+# 06:40 UTC — early enough that a figure published the evening before is in
+# by breakfast, and off both the scrapes' :17 and their */10 grid. Once a
+# day is plenty: liiga.fi publishes a game's spectator count once and does
+# not revise it.
+"on":
+  schedule:
+    - cron: "40 6 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: fetch-and-commit
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-attendance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          # Same reasoning as fetch.yml's checkout: the branch's current
+          # tip, not the SHA pinned when this run was queued, so a delayed
+          # scheduled run doesn't rebase onto a base that predates another
+          # run's push.
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v7
+        with:
+          # Keep in sync with package.json's engines.node and the two
+          # scrape workflows.
+          node-version: "24"
+
+      - name: Fetch announced attendance
+        run: node scripts/fetchAnnouncedAttendance.js
+
+      - name: Commit and push data changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Only this job's own output file. data/attendanceManual.json is
+          # human-owned and must never be picked up by an automated commit,
+          # and nothing else in data/ is this job's to write.
+          git add data/announcedAttendance.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update announced attendance ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            # KEEP this failing loudly on conflict — same rule as fetch.yml.
+            git pull --rebase "$remote" "$GITHUB_REF_NAME"
+            git push "$remote" "HEAD:$GITHUB_REF_NAME"
+          fi

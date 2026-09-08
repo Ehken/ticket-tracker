@@ -15,6 +15,7 @@ import {
   buildTimelinePanel,
   buildTopGamesPanel,
   buildTrendsPanel,
+  buildAnnouncedPanel,
   TREND_WINDOWS,
 } from "./dashboard.js";
 
@@ -68,7 +69,7 @@ function buildMessage(className, text) {
   return p;
 }
 
-export function buildSummaryStrip({ kausikortti, matchEvents }) {
+export function buildSummaryStrip({ kausikortti, matchEvents, announcedByDate }) {
   const element = document.createElement("section");
   element.className = "summary-strip";
 
@@ -134,6 +135,12 @@ export function buildSummaryStrip({ kausikortti, matchEvents }) {
     }
     const topGames = buildTopGamesPanel(state, { limit: TOP_GAMES_ROWS, expandable: false });
     if (topGames) grid.append(topGames);
+    // Same builder as the dashboard's, so the per-game numbers and the gated
+    // season ratio can never differ between the two surfaces. The diagnostics
+    // panel is deliberately NOT here — unmatched figures are an owner's
+    // maintenance list, not front-page reading.
+    const announced = buildAnnouncedPanel(state);
+    if (announced) grid.append(announced);
     for (const window of TREND_WINDOWS) {
       const trends = buildTrendsPanel(state, { ...window, limit: TREND_ROWS });
       if (trends) grid.append(trends);
@@ -154,7 +161,7 @@ export function buildSummaryStrip({ kausikortti, matchEvents }) {
     if (!base) {
       body.replaceChildren(buildMessage("summary-strip__loading", "Ladataan lukuja…"));
       try {
-        base = await prepareSeasonState({ kausikortti, matchEvents, kausi });
+        base = await prepareSeasonState({ kausikortti, matchEvents, kausi, announcedByDate });
       } catch (err) {
         console.error("Failed to prepare summary strip data:", err);
         if (token === renderToken) {
