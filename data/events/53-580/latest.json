@@ -3,7 +3,7 @@
   "name": "SaiPa - KooKoo",
   "start": "2026-09-19T14:00:00.000Z",
   "stop": "2026-09-19T20:00:00.000Z",
-  "fetchedAt": "2026-09-08T12:47:19.675Z",
+  "fetchedAt": "2026-09-08T13:47:21.786Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 171,
-      "available": 97,
+      "sold": 172,
+      "available": 96,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 208,
-      "available": 39,
+      "sold": 209,
+      "available": 38,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -72,8 +72,8 @@
     },
     {
       "section": "C3",
-      "sold": 119,
-      "available": 31,
+      "sold": 120,
+      "available": 30,
       "hold": 0,
       "total": 150,
       "disabled": false
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 132,
-      "available": 73,
+      "sold": 137,
+      "available": 68,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 866,
-      "available": 1272,
+      "sold": 865,
+      "available": 1273,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2778,
-    "available": 1816,
+    "sold": 2785,
+    "available": 1809,
     "hold": 382,
     "total": 4976
   },
