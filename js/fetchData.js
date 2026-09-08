@@ -88,6 +88,21 @@ export function getAttendanceHistory() {
   return fetchJson(`${DATA_ROOT}/attendanceHistory.json`, { fallbackOn404: null });
 }
 
+// The running season's announced spectator figures, refreshed daily by
+// scripts/fetchAnnouncedAttendance.js. Deliberately a different file from
+// attendanceHistory.json above — that one is completed seasons and feeds the
+// forecast's indices.
+export function getAnnouncedAttendance() {
+  return fetchJson(`${DATA_ROOT}/announcedAttendance.json`, { fallbackOn404: null });
+}
+
+// Hand-entered announced figures (the CHL games liiga.fi never carries).
+// Human-owned; no script writes it. Kept apart from the fetched file so that
+// no broken fetch can destroy a number nobody can re-derive.
+export function getAttendanceManual() {
+  return fetchJson(`${DATA_ROOT}/attendanceManual.json`, { fallbackOn404: [] });
+}
+
 const svgCache = new Map();
 
 export async function getCapacitiesSvg(hash) {

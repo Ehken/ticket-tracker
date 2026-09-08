@@ -3,7 +3,13 @@
 // unit-tested (DOM assembly, same convention as app.js/card.js); every
 // number on it comes from tested pure modules (dashboardHero, -Forecast,
 // -Baseline, -Trends, -Rankings, -Timing, -Heatmap).
-import { getHistory, getAttendanceHistory, getCapacitiesSvg } from "./fetchData.js";
+import {
+  getHistory,
+  getAttendanceHistory,
+  getAnnouncedAttendance,
+  getAttendanceManual,
+  getCapacitiesSvg,
+} from "./fetchData.js";
 import {
   filterBySeason,
   filterBySarja,
@@ -15,6 +21,12 @@ import {
 } from "./grouping.js";
 import { readUrlState, writeUrlState, FORCE_FORECAST } from "./urlState.js";
 import { computeUnclassifiedEvents } from "./dashboardUnclassified.js";
+import {
+  mergeAnnounced,
+  joinAnnouncedToEvents,
+  findUnmatchedAnnounced,
+  computeAnnouncedRatio,
+} from "./announcedAttendance.js";
 import {
   buildBaselineIndex,
   baselineForEvent,
@@ -44,7 +56,7 @@ import {
 } from "./dashboardTiming.js";
 import { heatColor } from "./dashboardHeatmap.js";
 import { buildSparkline } from "./chart.js";
-import { buildStat } from "./card.js";
+import { buildStat, ANNOUNCED_INFO } from "./card.js";
 import { formatThousands, formatPercent, formatHelsinkiDate } from "./format.js";
 import { sectionLabel } from "./sectionLabels.js";
 
@@ -171,6 +183,20 @@ const ATTENDANCE_INFO =
   "Yleisömäärä tarkoittaa tässä myytyjä lippuja (kausikortit + irtoliput + seisomapaikat), " +
   "ei laskettua yleisöä.";
 
+// The tile keeps showing myydyt liput. Once enough pelatut otteluita have an
+// ilmoitettu yleisö to publish a ratio (js/announcedAttendance.js decides
+// when), the ⓘ says how the two numbers have compared — otherwise the
+// disclaimer would keep implying the gap is unknown when it is measured.
+// Never inline the ratio without checking `published`: an ungated ratio in
+// this text would be exactly the lie the gate exists to prevent.
+function attendanceInfo(ratio) {
+  if (!ratio?.published) return ATTENDANCE_INFO;
+  return (
+    `${ATTENDANCE_INFO} Pelatuissa otteluissa ilmoitettu yleisö on ollut keskimäärin ` +
+    `${formatFraction(ratio.ratio)} myydyistä lipuista (${ratio.gameCount} ottelua).`
+  );
+}
+
 const FLOOR_INFO =
   "Kaikki ottelut nykyisellä myynnillä: pelatut lopullisin luvuin, tulevat tämänhetkisin. " +
   "Tulevien otteluiden myynti vain kasvaa, joten todellinen keskiarvo on vähintään tämä.";
@@ -215,7 +241,7 @@ export function buildHeroTiles(state) {
       label: "Yleisökeskiarvo · pelatut",
       value: played ? formatThousands(Math.round(played.average)) : "–",
       sub: played ? `${played.gameCount} ottelua` : "ei pelattuja otteluita",
-      info: ATTENDANCE_INFO,
+      info: attendanceInfo(state.announcedRatio),
     })
   );
 
@@ -680,6 +706,105 @@ function buildUnclassifiedPanel(allEvents, schedule) {
   return panel;
 }
 
+const ANNOUNCED_STATE_TEXT = {
+  awaitingFetch: "ilmoitettua yleisöä ei ole vielä julkaistu",
+  awaitingManual: "ilmoitettu yleisö syöttämättä (CHL)",
+};
+
+// Per-game rows carry the difference in tickets, never a per-game percentage:
+// one game's ratio moves with walk-ups and weather, and a percentage invites
+// reading a single game as a rate. The percentage belongs to the gated
+// season aggregate in the subtitle and nowhere else.
+export function buildAnnouncedPanel(state) {
+  const rows = state.announcedRows ?? [];
+  if (rows.length === 0) return null;
+
+  const ratio = state.announcedRatio;
+  // The panel title already names the quantity, so the subtitle does not
+  // repeat it — buildPanel renders them as "Title — subtitle".
+  const subtitle = ratio?.published
+    ? `keskimäärin ${formatFraction(ratio.ratio)} myydyistä lipuista (${ratio.gameCount} ottelua)`
+    : `vertailtuja otteluita ${ratio?.gameCount ?? 0} — keskiarvoa ei näytetä ennen kuin luku on riittävän vakaa`;
+
+  const panel = buildPanel("Ilmoitettu yleisö", subtitle);
+  for (const row of rows) {
+    const element = document.createElement("div");
+    element.className = "dashboard-announced-row";
+
+    const label = document.createElement("span");
+    label.textContent = `${extractOpponentDisplay(row.event.name) ?? row.event.name} (${formatHelsinkiDate(row.event.start)})`;
+
+    const detail = document.createElement("span");
+    detail.className = "dashboard-announced-row__detail";
+    detail.textContent =
+      row.state === "compared"
+        ? `myyty ${formatThousands(row.sold)} · ilmoitettu ${formatThousands(row.announced)} · ero ${formatDelta(row.difference)}`
+        : `myyty ${formatThousands(row.sold)} · ${ANNOUNCED_STATE_TEXT[row.state]}`;
+
+    element.append(label, detail);
+    panel.append(element);
+  }
+
+  // The caveat travels with the numbers rather than living only in the card's
+  // ⓘ — a panel of differences with no explanation of what the two numbers
+  // are is exactly how "ero" gets read as "no-shows".
+  const note = document.createElement("p");
+  note.className = "dashboard-announced-note";
+  note.textContent = ANNOUNCED_INFO;
+  panel.append(note);
+
+  return panel;
+}
+
+// ?dashboard=1 only. The same job buildUnclassifiedPanel does for events the
+// scraper could not classify: an announced figure that fails to land on a
+// game, or lands on one whose opponent name disagrees, has to be visible
+// somewhere rather than silently dropped. Name matching is what broke in
+// August 2026 — here a name disagreement is reported, not acted on.
+function buildAnnouncedDiagnosticsPanel(state) {
+  const unmatched = state.announcedUnmatched ?? [];
+  // Every sarja, not just the selected one — a missing CHL figure is exactly
+  // what this panel is for, and the dashboard's default chip is Runkosarja.
+  const allRows = state.announcedRowsAllSarjat ?? [];
+  const mismatches = allRows.filter((r) => r.nameMismatch);
+  const pending = allRows.filter((r) => r.state === "awaitingManual");
+  if (unmatched.length === 0 && mismatches.length === 0 && pending.length === 0) return null;
+
+  const panel = buildPanel("Ilmoitetut yleisöt · poikkeamat");
+
+  const addRow = (label, detail) => {
+    const element = document.createElement("div");
+    element.className = "dashboard-announced-row";
+    const left = document.createElement("span");
+    left.textContent = label;
+    const right = document.createElement("span");
+    right.className = "dashboard-announced-row__detail";
+    right.textContent = detail;
+    element.append(left, right);
+    panel.append(element);
+  };
+
+  for (const entry of unmatched) {
+    addRow(
+      `${entry.opponent ?? "tuntematon vastustaja"} (${entry.date})`,
+      `ilmoitettu ${formatThousands(entry.attendance)} · ei vastaavaa ottelua myynnissä · lähde: ${entry.source}`
+    );
+  }
+  for (const row of mismatches) {
+    addRow(
+      `${row.event.name} (${formatHelsinkiDate(row.event.start)})`,
+      `yhdistetty päivämäärällä, mutta nimi eroaa: "${row.nameMismatch.theirs}"`
+    );
+  }
+  for (const row of pending) {
+    addRow(
+      `${row.event.name} (${formatHelsinkiDate(row.event.start)})`,
+      "odottaa käsin syötettyä lukua data/attendanceManual.json-tiedostoon"
+    );
+  }
+  return panel;
+}
+
 function buildSarjaChips(availability, active, onSelect) {
   const bar = document.createElement("div");
   bar.className = "dashboard-chips";
@@ -702,7 +827,7 @@ function buildSarjaChips(availability, active, onSelect) {
 // observation instant and the attendance forecast. Async and relatively
 // expensive (one history.json per event), so callers cache the result per
 // season instead of calling it again on every re-render.
-export async function prepareSeasonState({ kausikortti, matchEvents, kausi }) {
+export async function prepareSeasonState({ kausikortti, matchEvents, kausi, announcedByDate = new Map() }) {
   // Copies — this attaches .history and resolves effective .season, and must
   // never mutate the objects the normal view holds onto.
   const kausikorttiInScope = filterBySeason(kausikortti, kausi).map((e) => ({ ...e }));
@@ -779,6 +904,16 @@ export async function prepareSeasonState({ kausikortti, matchEvents, kausi }) {
     nowIso,
     forecastByEventId,
     visibility,
+    announcedByDate,
+    // Both of these are deliberately UNSCOPED, for the same reason
+    // buildUnclassifiedPanel gets the unfiltered event list: the diagnostics
+    // are a maintenance list, and a CHL game whose figure is missing must not
+    // disappear because the sarja chip says Runkosarja. announcedUnmatched
+    // additionally ignores the season scope — an announced figure the season
+    // picker filtered out is not "unmatched", and the one real case (a
+    // pre-season game never sold through this shop) sits outside any season.
+    announcedUnmatched: findUnmatchedAnnounced(matchEvents, announcedByDate),
+    announcedRowsAllSarjat: joinAnnouncedToEvents(seasonEvents, announcedByDate),
     availability: computeSarjaAvailability(seasonEvents),
   };
 }
@@ -788,6 +923,9 @@ export async function prepareSeasonState({ kausikortti, matchEvents, kausi }) {
 // re-render without refetching a thing.
 export function scopeStateToSarja(base, sarja) {
   const inScope = filterBySarja(base.seasonEvents, sarja);
+  // Scoped, unlike announcedUnmatched above: the per-game rows and the ratio
+  // describe whatever the sarja chips currently select.
+  const announcedRows = joinAnnouncedToEvents(inScope, base.announcedByDate ?? new Map());
   return {
     sarja,
     inScope,
@@ -797,14 +935,18 @@ export function scopeStateToSarja(base, sarja) {
     forecastByEventId: base.forecastByEventId,
     showForecast: base.visibility.show && base.forecastByEventId.size > 0,
     forecastAvg: computeAvgAttendanceForecast(inScope, base.forecastByEventId),
+    announcedRows,
+    announcedRatio: computeAnnouncedRatio(announcedRows),
+    announcedUnmatched: base.announcedUnmatched ?? [],
+    announcedRowsAllSarjat: base.announcedRowsAllSarjat ?? [],
   };
 }
 
-export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule }) {
+export async function renderDashboard({ kausikortti, matchEvents, kausi, schedule, announcedByDate }) {
   const container = document.getElementById("dashboard-container");
   container.hidden = false;
 
-  const base = await prepareSeasonState({ kausikortti, matchEvents, kausi });
+  const base = await prepareSeasonState({ kausikortti, matchEvents, kausi, announcedByDate });
   const { availability } = base;
 
   async function render() {
@@ -825,6 +967,8 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
     if (timeline) timeline.classList.add("dashboard-panel--wide");
     const unclassified = buildUnclassifiedPanel([...kausikortti, ...matchEvents], schedule);
     if (unclassified) unclassified.classList.add("dashboard-panel--wide");
+    const announcedDiagnostics = buildAnnouncedDiagnosticsPanel(state);
+    if (announcedDiagnostics) announcedDiagnostics.classList.add("dashboard-panel--wide");
 
     const panels = [
       timeline,
@@ -834,7 +978,9 @@ export async function renderDashboard({ kausikortti, matchEvents, kausi, schedul
       buildOpponentsPanel(state),
       await buildHeatmapPanel(state),
       buildTimingPanel(state),
+      buildAnnouncedPanel(state),
       unclassified,
+      announcedDiagnostics,
     ].filter(Boolean);
 
     const grid = document.createElement("div");

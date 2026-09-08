@@ -1,0 +1,23 @@
+{
+  "source": "generateMockData.js (synteettinen — ei oikeaa liiga.fi-dataa)",
+  "season": "2026-27",
+  "fetchedAt": "2026-10-25T12:00:00.000Z",
+  "games": [
+    {
+      "date": "2026-08-14",
+      "start": "2026-08-14T11:30:00.000Z",
+      "opponent": "JYP",
+      "tournament": "valmistavat_ottelut",
+      "attendance": 316,
+      "season": "2026-27"
+    },
+    {
+      "date": "2026-09-01",
+      "start": "2026-09-01T15:30:00.000Z",
+      "opponent": "Tappara",
+      "attendance": 3979,
+      "tournament": "runkosarja",
+      "season": "2026-27"
+    }
+  ]
+}

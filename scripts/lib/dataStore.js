@@ -77,6 +77,14 @@ export function watchDatesPath(dataDir) {
   return path.join(dataDir, "watchDates.json");
 }
 
+export function announcedAttendancePath(dataDir) {
+  return path.join(dataDir, "announcedAttendance.json");
+}
+
+export function attendanceManualPath(dataDir) {
+  return path.join(dataDir, "attendanceManual.json");
+}
+
 export async function readJson(filePath, fallback) {
   try {
     const content = await readFile(filePath, "utf8");

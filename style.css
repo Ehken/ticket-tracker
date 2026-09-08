@@ -985,6 +985,42 @@ header.site-header h1 {
   font-size: 0.75rem;
 }
 
+/* Same anatomy as .dashboard-unclassified-row above (label over a muted
+   detail line), kept as its own class because the two panels are unrelated
+   and either one's row may need to move without dragging the other. */
+.dashboard-announced-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-announced-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-announced-row__detail {
+  color: var(--muted);
+  font-size: 0.75rem;
+  /* The detail line is a chain of "myyty N · ilmoitettu M · ero D"; on a
+     narrow phone it has to wrap between the parts rather than push the
+     panel wider than the grid column. */
+  overflow-wrap: anywhere;
+}
+
+.dashboard-announced-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  margin: 0.6rem 0 0;
+  /* Sits after the last row's border-bottom: none, so it needs its own
+     separation from the numbers it qualifies. */
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

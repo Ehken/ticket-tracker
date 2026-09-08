@@ -1,0 +1,31 @@
+{
+  "source": "liiga.fi/api/v2/schedule (kotiottelut, ilmoitetut yleisömäärät)",
+  "season": "2026-27",
+  "fetchedAt": "2026-09-08T10:45:27.050Z",
+  "games": [
+    {
+      "date": "2026-08-14",
+      "start": "2026-08-14T11:30:00Z",
+      "opponent": "JYP",
+      "tournament": "valmistavat_ottelut",
+      "attendance": 316,
+      "season": "2026-27"
+    },
+    {
+      "date": "2026-08-27",
+      "start": "2026-08-27T15:00:00Z",
+      "opponent": "Jukurit",
+      "tournament": "valmistavat_ottelut",
+      "attendance": 1438,
+      "season": "2026-27"
+    },
+    {
+      "date": "2026-09-01",
+      "start": "2026-09-01T15:30:00Z",
+      "opponent": "Tappara",
+      "tournament": "runkosarja",
+      "attendance": 3342,
+      "season": "2026-27"
+    }
+  ]
+}
