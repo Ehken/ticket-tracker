@@ -3,13 +3,13 @@
   "name": "SaiPa - JYP",
   "start": "2026-10-08T15:30:00.000Z",
   "stop": "2026-10-08T20:00:00.000Z",
-  "fetchedAt": "2026-09-09T07:47:20.999Z",
+  "fetchedAt": "2026-09-09T08:47:20.482Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 51,
-      "available": 120,
+      "sold": 52,
+      "available": 119,
       "hold": 0,
       "total": 171,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2329,
-    "available": 2223,
+    "sold": 2330,
+    "available": 2222,
     "hold": 424,
     "total": 4976
   },
