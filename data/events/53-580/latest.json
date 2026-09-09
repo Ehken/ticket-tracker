@@ -3,7 +3,7 @@
   "name": "SaiPa - KooKoo",
   "start": "2026-09-19T14:00:00.000Z",
   "stop": "2026-09-19T20:00:00.000Z",
-  "fetchedAt": "2026-09-09T10:47:29.485Z",
+  "fetchedAt": "2026-09-09T11:21:58.367Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 866,
-      "available": 1272,
+      "sold": 853,
+      "available": 1285,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2764,
-    "available": 1830,
+    "sold": 2751,
+    "available": 1843,
     "hold": 382,
     "total": 4976
   },
