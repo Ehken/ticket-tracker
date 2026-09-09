@@ -3,7 +3,7 @@
   "name": "SaiPa - Jukurit",
   "start": "2027-03-20T15:00:00.000Z",
   "stop": "2027-03-20T21:00:00.000Z",
-  "fetchedAt": "2026-09-09T06:47:18.008Z",
+  "fetchedAt": "2026-09-09T07:47:20.999Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,32 +24,32 @@
     },
     {
       "section": "A3",
-      "sold": 159,
-      "available": 87,
+      "sold": 150,
+      "available": 96,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 166,
-      "available": 78,
+      "sold": 158,
+      "available": 86,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 176,
-      "available": 71,
+      "sold": 173,
+      "available": 74,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 72,
-      "available": 48,
+      "sold": 69,
+      "available": 51,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -80,8 +80,8 @@
     },
     {
       "section": "C4",
-      "sold": 108,
-      "available": 12,
+      "sold": 106,
+      "available": 14,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 82,
-      "available": 31,
+      "sold": 81,
+      "available": 32,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2225,
-    "available": 2165,
+    "sold": 2199,
+    "available": 2191,
     "hold": 586,
     "total": 4976
   },

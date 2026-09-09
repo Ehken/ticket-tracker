@@ -3,7 +3,7 @@
   "name": "SaiPa - HIFK",
   "start": "2027-01-29T17:30:00.000Z",
   "stop": "2027-01-29T21:00:00.000Z",
-  "fetchedAt": "2026-09-09T06:47:18.008Z",
+  "fetchedAt": "2026-09-09T07:47:20.999Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -24,32 +24,32 @@
     },
     {
       "section": "A3",
-      "sold": 159,
-      "available": 87,
+      "sold": 150,
+      "available": 96,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 168,
-      "available": 76,
+      "sold": 160,
+      "available": 84,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 176,
-      "available": 71,
+      "sold": 173,
+      "available": 74,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 74,
-      "available": 46,
+      "sold": 71,
+      "available": 49,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -80,8 +80,8 @@
     },
     {
       "section": "C4",
-      "sold": 101,
-      "available": 19,
+      "sold": 99,
+      "available": 21,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2218,
-    "available": 2172,
+    "sold": 2193,
+    "available": 2197,
     "hold": 586,
     "total": 4976
   },
