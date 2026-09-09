@@ -3,7 +3,7 @@
   "name": "SaiPa - Kärpät",
   "start": "2027-01-16T15:00:00.000Z",
   "stop": "2027-01-16T21:00:00.000Z",
-  "fetchedAt": "2026-09-09T16:47:19.053Z",
+  "fetchedAt": "2026-09-09T17:47:18.443Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 113,
-      "available": 155,
+      "sold": 114,
+      "available": 154,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 1942,
-    "available": 2440,
+    "sold": 1943,
+    "available": 2439,
     "hold": 594,
     "total": 4976
   },
