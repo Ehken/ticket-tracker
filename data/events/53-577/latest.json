@@ -3,7 +3,7 @@
   "name": "SaiPa - HK Nitra",
   "start": "2026-09-12T14:00:00.000Z",
   "stop": "2026-09-12T20:00:00.000Z",
-  "fetchedAt": "2026-09-10T10:30:45.247Z",
+  "fetchedAt": "2026-09-10T10:40:30.541Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -64,8 +64,8 @@
     },
     {
       "section": "C2",
-      "sold": 9,
-      "available": 111,
+      "sold": 10,
+      "available": 110,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2318,
-    "available": 2429,
+    "sold": 2319,
+    "available": 2428,
     "hold": 229,
     "total": 4976
   },
