@@ -3,45 +3,45 @@
   "name": "SaiPa - HC Dynamo Pardubice",
   "start": "2026-09-10T15:30:00.000Z",
   "stop": "2026-09-10T20:00:00.000Z",
-  "fetchedAt": "2026-09-10T15:00:55.839Z",
+  "fetchedAt": "2026-09-10T15:10:40.433Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 54,
-      "available": 117,
+      "sold": 55,
+      "available": 116,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 199,
-      "available": 69,
+      "sold": 209,
+      "available": 59,
       "hold": 0,
       "total": 268,
       "disabled": false
     },
     {
       "section": "A3",
-      "sold": 215,
-      "available": 31,
+      "sold": 213,
+      "available": 33,
       "hold": 0,
       "total": 246,
       "disabled": false
     },
     {
       "section": "A4",
-      "sold": 224,
-      "available": 20,
+      "sold": 226,
+      "available": 18,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 211,
-      "available": 36,
+      "sold": 213,
+      "available": 34,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -64,8 +64,8 @@
     },
     {
       "section": "C2",
-      "sold": 64,
-      "available": 56,
+      "sold": 66,
+      "available": 54,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,17 +96,17 @@
     },
     {
       "section": "C6",
-      "sold": 101,
-      "available": 12,
+      "sold": 102,
+      "available": 11,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 58,
+      "sold": 59,
       "available": 0,
-      "hold": 36,
+      "hold": 35,
       "total": 94,
       "disabled": true
     },
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 92,
-      "available": 113,
+      "sold": 95,
+      "available": 110,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 987,
-      "available": 1151,
+      "sold": 996,
+      "available": 1142,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2919,
-    "available": 1835,
-    "hold": 222,
+    "sold": 2948,
+    "available": 1807,
+    "hold": 221,
     "total": 4976
   },
   "prices": {
