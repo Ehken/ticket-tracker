@@ -3,21 +3,21 @@
   "name": "SaiPa - HC Dynamo Pardubice",
   "start": "2026-09-10T15:30:00.000Z",
   "stop": "2026-09-10T20:00:00.000Z",
-  "fetchedAt": "2026-09-10T11:50:28.882Z",
+  "fetchedAt": "2026-09-10T12:00:53.455Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 50,
-      "available": 121,
+      "sold": 51,
+      "available": 120,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 171,
-      "available": 97,
+      "sold": 172,
+      "available": 96,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -32,24 +32,24 @@
     },
     {
       "section": "A4",
-      "sold": 222,
-      "available": 22,
+      "sold": 221,
+      "available": 23,
       "hold": 0,
       "total": 244,
       "disabled": false
     },
     {
       "section": "A5",
-      "sold": 201,
-      "available": 46,
+      "sold": 203,
+      "available": 44,
       "hold": 0,
       "total": 247,
       "disabled": false
     },
     {
       "section": "A6",
-      "sold": 81,
-      "available": 39,
+      "sold": 83,
+      "available": 37,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,17 +96,17 @@
     },
     {
       "section": "C6",
-      "sold": 99,
-      "available": 14,
+      "sold": 100,
+      "available": 13,
       "hold": 0,
       "total": 113,
       "disabled": false
     },
     {
       "section": "C7",
-      "sold": 57,
+      "sold": 56,
       "available": 0,
-      "hold": 37,
+      "hold": 38,
       "total": 94,
       "disabled": true
     },
@@ -128,16 +128,16 @@
     },
     {
       "section": "D2",
-      "sold": 109,
-      "available": 106,
+      "sold": 110,
+      "available": 105,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 886,
-      "available": 1252,
+      "sold": 892,
+      "available": 1246,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2703,
-    "available": 2045,
-    "hold": 228,
+    "sold": 2715,
+    "available": 2032,
+    "hold": 229,
     "total": 4976
   },
   "prices": {
