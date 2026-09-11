@@ -8235,5 +8235,16 @@
     "closed": [
       "C8"
     ]
+  },
+  {
+    "t": "2026-09-11T19:42:20.544Z",
+    "sold": 2668,
+    "soldSeated": 1771,
+    "soldStanding": 892,
+    "available": 2112,
+    "hold": 196,
+    "closed": [
+      "C8"
+    ]
   }
 ]
