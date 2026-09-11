@@ -3,7 +3,7 @@
   "name": "SaiPa - K-Espoo",
   "start": "2026-09-15T15:30:00.000Z",
   "stop": "2026-09-15T20:00:00.000Z",
-  "fetchedAt": "2026-09-11T09:47:16.772Z",
+  "fetchedAt": "2026-09-11T10:47:17.630Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -40,8 +40,8 @@
     },
     {
       "section": "A5",
-      "sold": 179,
-      "available": 68,
+      "sold": 180,
+      "available": 67,
       "hold": 0,
       "total": 247,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 779,
-      "available": 1359,
+      "sold": 781,
+      "available": 1357,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2284,
-    "available": 2310,
+    "sold": 2287,
+    "available": 2307,
     "hold": 382,
     "total": 4976
   },
