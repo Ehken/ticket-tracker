@@ -3,21 +3,21 @@
   "name": "SaiPa - HK Nitra",
   "start": "2026-09-12T14:00:00.000Z",
   "stop": "2026-09-12T20:00:00.000Z",
-  "fetchedAt": "2026-09-12T13:50:29.367Z",
+  "fetchedAt": "2026-09-12T14:00:48.380Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 53,
-      "available": 118,
+      "sold": 55,
+      "available": 116,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 201,
-      "available": 67,
+      "sold": 200,
+      "available": 68,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -32,8 +32,8 @@
     },
     {
       "section": "A4",
-      "sold": 227,
-      "available": 17,
+      "sold": 229,
+      "available": 15,
       "hold": 0,
       "total": 244,
       "disabled": false
@@ -48,24 +48,24 @@
     },
     {
       "section": "A6",
-      "sold": 97,
-      "available": 23,
+      "sold": 96,
+      "available": 24,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C1",
-      "sold": 55,
-      "available": 53,
+      "sold": 57,
+      "available": 51,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
-      "sold": 85,
-      "available": 35,
+      "sold": 83,
+      "available": 37,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -96,8 +96,8 @@
     },
     {
       "section": "C6",
-      "sold": 96,
-      "available": 17,
+      "sold": 94,
+      "available": 19,
       "hold": 0,
       "total": 113,
       "disabled": false
@@ -120,8 +120,8 @@
     },
     {
       "section": "D1",
-      "sold": 121,
-      "available": 84,
+      "sold": 120,
+      "available": 85,
       "hold": 0,
       "total": 205,
       "disabled": false
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1103,
-      "available": 1035,
+      "sold": 1104,
+      "available": 1034,
       "hold": 0,
       "total": 2138,
       "disabled": false
