@@ -3,21 +3,21 @@
   "name": "SaiPa - HK Nitra",
   "start": "2026-09-12T14:00:00.000Z",
   "stop": "2026-09-12T20:00:00.000Z",
-  "fetchedAt": "2026-09-12T10:20:31.257Z",
+  "fetchedAt": "2026-09-12T10:30:39.266Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 42,
-      "available": 129,
+      "sold": 43,
+      "available": 128,
       "hold": 0,
       "total": 171,
       "disabled": false
     },
     {
       "section": "A2",
-      "sold": 182,
-      "available": 86,
+      "sold": 183,
+      "available": 85,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -64,24 +64,24 @@
     },
     {
       "section": "C2",
-      "sold": 59,
-      "available": 61,
+      "sold": 61,
+      "available": 59,
       "hold": 0,
       "total": 120,
       "disabled": false
     },
     {
       "section": "C3",
-      "sold": 134,
-      "available": 16,
+      "sold": 135,
+      "available": 15,
       "hold": 0,
       "total": 150,
       "disabled": false
     },
     {
       "section": "C4",
-      "sold": 113,
-      "available": 7,
+      "sold": 114,
+      "available": 6,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -120,24 +120,24 @@
     },
     {
       "section": "D1",
-      "sold": 112,
-      "available": 93,
+      "sold": 115,
+      "available": 90,
       "hold": 0,
       "total": 205,
       "disabled": false
     },
     {
       "section": "D2",
-      "sold": 58,
-      "available": 157,
+      "sold": 59,
+      "available": 156,
       "hold": 0,
       "total": 215,
       "disabled": false
     },
     {
       "section": "seisomakatsomo",
-      "sold": 954,
-      "available": 1184,
+      "sold": 956,
+      "available": 1182,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 2821,
-    "available": 1959,
+    "sold": 2833,
+    "available": 1947,
     "hold": 196,
     "total": 4976
   },
