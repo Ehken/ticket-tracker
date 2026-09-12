@@ -3,7 +3,7 @@
   "name": "SaiPa - HK Nitra",
   "start": "2026-09-12T14:00:00.000Z",
   "stop": "2026-09-12T20:00:00.000Z",
-  "fetchedAt": "2026-09-12T12:20:35.575Z",
+  "fetchedAt": "2026-09-12T12:30:40.602Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "section": "A2",
-      "sold": 189,
-      "available": 79,
+      "sold": 190,
+      "available": 78,
       "hold": 0,
       "total": 268,
       "disabled": false
@@ -56,16 +56,16 @@
     },
     {
       "section": "C1",
-      "sold": 52,
-      "available": 56,
+      "sold": 51,
+      "available": 57,
       "hold": 0,
       "total": 108,
       "disabled": false
     },
     {
       "section": "C2",
-      "sold": 74,
-      "available": 46,
+      "sold": 77,
+      "available": 43,
       "hold": 0,
       "total": 120,
       "disabled": false
@@ -112,9 +112,9 @@
     },
     {
       "section": "C8",
-      "sold": 58,
+      "sold": 61,
       "available": 0,
-      "hold": 47,
+      "hold": 44,
       "total": 105,
       "disabled": true
     },
@@ -136,8 +136,8 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 1015,
-      "available": 1123,
+      "sold": 1025,
+      "available": 1113,
       "hold": 0,
       "total": 2138,
       "disabled": false
@@ -166,9 +166,9 @@
     }
   ],
   "totals": {
-    "sold": 2942,
-    "available": 1838,
-    "hold": 196,
+    "sold": 2958,
+    "available": 1825,
+    "hold": 193,
     "total": 4976
   },
   "prices": {
