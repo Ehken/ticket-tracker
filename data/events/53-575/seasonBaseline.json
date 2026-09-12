@@ -3,9 +3,9 @@
   "svgHash": "790414387bd710934274e91874989f093014f26f",
   "gamesUsed": 33,
   "totals": {
-    "sold": 1884,
+    "sold": 1883,
     "soldSeated": 1282,
-    "soldStanding": 597
+    "soldStanding": 596
   },
   "sections": [
     {
@@ -74,7 +74,7 @@
     },
     {
       "section": "seisomakatsomo",
-      "sold": 597
+      "sold": 596
     },
     {
       "section": "invalid",
