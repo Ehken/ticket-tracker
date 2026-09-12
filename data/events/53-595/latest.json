@@ -3,13 +3,13 @@
   "name": "SaiPa - HPK",
   "start": "2026-12-18T16:30:00.000Z",
   "stop": "2026-12-18T21:00:00.000Z",
-  "fetchedAt": "2026-09-12T09:50:30.265Z",
+  "fetchedAt": "2026-09-12T10:00:51.520Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 41,
-      "available": 130,
+      "sold": 36,
+      "available": 135,
       "hold": 0,
       "total": 171,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 1943,
-    "available": 2439,
+    "sold": 1938,
+    "available": 2444,
     "hold": 594,
     "total": 4976
   },

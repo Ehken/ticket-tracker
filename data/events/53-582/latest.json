@@ -3,13 +3,13 @@
   "name": "SaiPa - Jokerit",
   "start": "2026-10-03T14:00:00.000Z",
   "stop": "2026-10-03T20:00:00.000Z",
-  "fetchedAt": "2026-09-12T09:50:30.265Z",
+  "fetchedAt": "2026-09-12T10:00:51.520Z",
   "capacitiesHash": "790414387bd710934274e91874989f093014f26f",
   "sections": [
     {
       "section": "A1",
-      "sold": 169,
-      "available": 2,
+      "sold": 164,
+      "available": 7,
       "hold": 0,
       "total": 171,
       "disabled": false
@@ -166,8 +166,8 @@
     }
   ],
   "totals": {
-    "sold": 3088,
-    "available": 1371,
+    "sold": 3083,
+    "available": 1376,
     "hold": 517,
     "total": 4976
   },
